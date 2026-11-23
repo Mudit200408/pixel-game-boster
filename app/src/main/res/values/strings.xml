@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Pixel Game Booster</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_performance">Performance</string>
+    <string name="nav_freezer">App Freezer</string>
+    <string name="nav_network">Network &amp; Sync</string>
+    <string name="game_booster_master_title">Pixel Game Booster</string>
+    <string name="game_booster_master_desc">Automates system optimizations when supported games are launched</string>
+    <string name="accessibility_service_desc">Enables real-time detection of game launches for Pixel Game Booster</string>
+    <string name="game_mode_battery_low_20">Battery low: 20% remaining</string>
+    <string name="game_mode_battery_low_10">Battery very low: 10% remaining</string>
+    <string name="game_mode_battery_low_5">Battery critical: 5% remaining</string>
+    <string name="game_mode_toast_activated">Pixel Game Booster: Activated</string>
+    <string name="game_mode_toast_restored">Pixel Game Booster: Restored</string>
+</resources>

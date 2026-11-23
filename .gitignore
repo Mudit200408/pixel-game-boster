@@ -1,0 +1,14 @@
+*.class
+*.log
+.gradle/
+.kotlin/
+build/
+app/build/
+.idea/
+.DS_Store
+local.properties
+*.iml
+*.jks
+*.keystore
+*.p12
+*.pem
