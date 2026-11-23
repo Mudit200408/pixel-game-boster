@@ -1,6 +1,7 @@
 package com.pixel.gamebooster.services
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.pixel.gamebooster.data.repository.SettingsRepository
@@ -31,6 +32,11 @@ class GameBoosterAccessibilityService : AccessibilityService() {
             AppDetectionService.start(this)
         }
         Log.d(TAG, "Accessibility service connected")
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        instance = null
+        return super.onUnbind(intent)
     }
 
     override fun onDestroy() {

@@ -30,6 +30,9 @@
 - The sibling `essentials` directory is STRICTLY READ-ONLY reference material.
 - NEVER edit, touch, or modify any files in `../essentials/`. All project modifications belong exclusively in `pixel-game-booster/`.
 
-## 6. Quality & Verification
+## 6. Quality, Null-Safety & Lifecycle Hygiene
+- **Null-Safety & Concurrency:** Never use `!!` (double-bang) assertions, `runBlocking`, or `GlobalScope`. Use `?.let`, `?: return`, or local non-null `val`s.
+- **Service & Scope Lifecycle:** Services must use `SupervisorJob()` in coroutine scopes, cancel their scope in `onDestroy()`, and clear static `instance` references in `onDestroy()` / `onUnbind()`.
+- **Color & Resource Hygiene:** Never leave unused raw hex color constants or inline UI hex colors outside `ui/theme/Color.kt`; use `MaterialTheme.colorScheme` or semantic theme tokens.
 - Always ensure all unit tests pass (`./gradlew testDebugUnitTest`) before finalizing changes.
 - Ensure all builds pass `assembleRelease` without warnings or lint vital regressions.
