@@ -69,6 +69,7 @@ import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.dialogs.ShizukuPairingDialog
 import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
+import com.pixel.gamebooster.ui.theme.GrantedGreen
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.PermissionHelper
@@ -329,7 +330,7 @@ fun SettingsSheet(
                             Icon(
                                 imageVector = Icons.Rounded.CheckCircle,
                                 contentDescription = stringResource(R.string.settings_cd_all_perms_granted),
-                                tint = Color(0xFF4CAF50),
+                                tint = GrantedGreen,
                                 modifier = Modifier.size(32.dp),
                             )
                             Column {

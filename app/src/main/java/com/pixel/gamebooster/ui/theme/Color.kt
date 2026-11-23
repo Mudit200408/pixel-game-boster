@@ -42,7 +42,5 @@ val OnSurfaceVariantLight = Color(0xFF49454F)
 val OutlineLight = Color(0xFF79747E)
 val OutlineVariantLight = Color(0xFFCAC4D0)
 
-// Gaming mode accents harmonized with M3 Expressive / Monet
-val ModePerformanceColor = Color(0xFFFF5252)
-val ModeStandardColor = Color(0xFF448AFF)
-val ModeBatteryColor = Color(0xFF00E676)
+// Semantic status accents
+val GrantedGreen = Color(0xFF4CAF50)

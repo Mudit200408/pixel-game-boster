@@ -32,6 +32,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.ui.theme.GrantedGreen
 import com.pixel.gamebooster.utils.HapticUtil
 
 @Composable
@@ -50,7 +51,7 @@ fun PermissionCard(
     instructions: String? = null,
 ) {
     val view = LocalView.current
-    val grantedGreen = Color(0xFF4CAF50)
+    val grantedGreen = GrantedGreen
 
     Card(
         modifier = modifier.fillMaxWidth(),
