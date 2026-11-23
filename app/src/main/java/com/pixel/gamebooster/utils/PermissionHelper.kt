@@ -148,4 +148,46 @@ object PermissionHelper {
             context.startActivity(getDndSettingsIntent())
         }
     }
+
+    fun hasOverlayPermission(context: Context): Boolean {
+        return Settings.canDrawOverlays(context)
+    }
+
+    fun openOverlaySettings(context: Context) {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            Uri.parse("package:${context.packageName}")
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
+    fun grantOverlayPermissionViaShizuku(context: Context, onResult: (Boolean) -> Unit) {
+        val cmd = "appops set ${context.packageName} SYSTEM_ALERT_WINDOW allow"
+        ShellUtils.runCommand(context, cmd) { success ->
+            onResult(success && hasOverlayPermission(context))
+        }
+    }
+
+    fun hasWriteSettingsPermission(context: Context): Boolean {
+        return Settings.System.canWrite(context)
+    }
+
+    fun openWriteSettings(context: Context) {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_WRITE_SETTINGS,
+            Uri.parse("package:${context.packageName}")
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        runCatching { context.startActivity(intent) }
+    }
+
+    fun grantWriteSettingsViaShizuku(context: Context, onResult: (Boolean) -> Unit) {
+        val cmd = "appops set ${context.packageName} WRITE_SETTINGS allow"
+        ShellUtils.runCommand(context, cmd) { success ->
+            onResult(success && hasWriteSettingsPermission(context))
+        }
+    }
 }

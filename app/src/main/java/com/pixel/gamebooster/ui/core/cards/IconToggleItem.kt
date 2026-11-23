@@ -1,9 +1,13 @@
 package com.pixel.gamebooster.ui.core.cards
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,11 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,15 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.pixel.gamebooster.R
 import com.pixel.gamebooster.ui.core.dialogs.FeatureInfoDialog
 import com.pixel.gamebooster.utils.HapticUtil
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun IconToggleItem(
     title: String,
@@ -58,6 +57,7 @@ fun IconToggleItem(
     isChecked: Boolean? = null,
     onClick: (() -> Unit)? = null,
     showToggle: Boolean = true,
+    isSectional: Boolean = false,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     val view = LocalView.current
@@ -97,6 +97,12 @@ fun IconToggleItem(
 
     val hasInfoAction = onInfoClick != null || !command.isNullOrEmpty()
 
+    val tileClickAction: (() -> Unit)? = when {
+        isSectional -> onClick ?: onInfoClick
+        onCheckedChange != null -> { { onCheckedChange(!effectiveChecked) } }
+        else -> onClick
+    }
+
     ListItem(
         verticalAlignment = Alignment.CenterVertically,
         supportingContent = if (effectiveSubtitle.isNotBlank()) {
@@ -135,43 +141,39 @@ fun IconToggleItem(
         trailingContent = {
             if (showToggle && onCheckedChange != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (hasInfoAction) {
-                        IconButton(
-                            onClick = {
-                                HapticUtil.performUIHaptic(view)
-                                if (onInfoClick != null) {
-                                    onInfoClick()
-                                } else {
-                                    showInfoDialog = true
-                                }
-                            },
-                            modifier = Modifier.size(36.dp),
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Info,
-                                contentDescription = stringResource(R.string.card_toggle_cd_details),
-                                tint = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
+                    if (isSectional) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         VerticalDivider(
-                            modifier = Modifier
-                                .height(28.dp)
-                                .width(1.dp)
-                                .padding(horizontal = 4.dp),
-                            color = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                            modifier = Modifier.height(28.dp),
+                            thickness = 1.dp,
+                            color = if (effectiveChecked) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.3f)
                             else MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
-                    Switch(
-                        checked = effectiveChecked,
-                        onCheckedChange = {
-                            HapticUtil.performVirtualKeyHaptic(view)
-                            onCheckedChange(it)
-                        },
-                        enabled = enabled,
-                    )
+                    Box(
+                        modifier = if (isSectional) {
+                            Modifier
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    enabled = enabled,
+                                ) {
+                                    HapticUtil.performVirtualKeyHaptic(view)
+                                    onCheckedChange(!effectiveChecked)
+                                }
+                                .padding(start = 12.dp)
+                        } else Modifier,
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Switch(
+                            checked = effectiveChecked,
+                            onCheckedChange = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                onCheckedChange(it)
+                            },
+                            enabled = enabled,
+                        )
+                    }
                 }
             } else if (trailingContent != null) {
                 trailingContent()
@@ -183,14 +185,25 @@ fun IconToggleItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(itemShape)
-            .clickable(enabled = enabled) {
-                HapticUtil.performVirtualKeyHaptic(view)
-                if (onCheckedChange != null) {
-                    onCheckedChange(!effectiveChecked)
-                } else {
-                    onClick?.invoke()
-                }
-            },
+            .combinedClickable(
+                enabled = enabled,
+                onClick = {
+                    HapticUtil.performVirtualKeyHaptic(view)
+                    tileClickAction?.invoke()
+                },
+                onLongClick = if (hasInfoAction || (isSectional && onClick != null)) {
+                    {
+                        HapticUtil.performUIHaptic(view)
+                        if (!command.isNullOrEmpty()) {
+                            showInfoDialog = true
+                        } else if (onInfoClick != null) {
+                            onInfoClick()
+                        } else if (onClick != null) {
+                            onClick()
+                        }
+                    }
+                } else null,
+            ),
         content = {
             Text(
                 text = title,

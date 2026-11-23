@@ -71,7 +71,6 @@ import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.navigation.NavDestination
 import com.pixel.gamebooster.ui.navigation.PixelFloatingToolbar
 import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
-import com.pixel.gamebooster.ui.sheets.SettingsSheet
 import com.pixel.gamebooster.ui.sheets.SystemServicesSheet
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
@@ -113,16 +112,8 @@ fun GameTuningContainer(
     val appIcon = appInfo?.second
 
     var currentSubTab by rememberSaveable { mutableStateOf(NavDestination.DASHBOARD) }
-    var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
     var showAppSelectionSheet by rememberSaveable { mutableStateOf(false) }
     var showServicesSheet by rememberSaveable { mutableStateOf(false) }
-
-    if (showSettingsSheet) {
-        SettingsSheet(
-            repo = repository,
-            onDismissRequest = { showSettingsSheet = false },
-        )
-    }
 
     if (showAppSelectionSheet) {
         AppSelectionSheet(
@@ -262,7 +253,6 @@ fun GameTuningContainer(
                     ),
                     currentDestination = currentSubTab,
                     onDestinationSelected = { currentSubTab = it },
-                    onSettingsClick = { showSettingsSheet = true },
                 )
             }
         },

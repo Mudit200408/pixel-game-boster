@@ -16,11 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -33,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.pixel.gamebooster.R
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 
@@ -43,7 +39,6 @@ fun PixelFloatingToolbar(
     destinations: List<NavDestination>,
     currentDestination: NavDestination,
     onDestinationSelected: (NavDestination) -> Unit,
-    onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
@@ -51,23 +46,6 @@ fun PixelFloatingToolbar(
 
     HorizontalFloatingToolbar(
         expanded = true,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    HapticUtil.performUIHaptic(view)
-                    onSettingsClick()
-                },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = MaterialTheme.shapes.large,
-                elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Settings,
-                    contentDescription = stringResource(R.string.nav_cd_settings),
-                )
-            }
-        },
         modifier = modifier.padding(
             horizontal = 16.dp,
             vertical = if (adaptive.isCompactHeight) 2.dp else 8.dp,

@@ -49,7 +49,7 @@
 
     <!-- PermissionsScreen (perm_) -->
     <string name="perm_title">Permission Setup</string>
-    <string name="perm_ready_count">Permissions Ready: %1$d / 4</string>
+    <string name="perm_ready_count">Permissions Ready: %1$d / 6</string>
     <string name="perm_status_all_ready">All Ready</string>
     <string name="perm_status_optimizations_ready">Optimizations Ready</string>
     <string name="perm_status_shizuku_required">Shizuku Required</string>
@@ -78,7 +78,7 @@
     <string name="perm_feature_foreground_service">Foreground Service Indicator</string>
     <string name="perm_feature_quick_controls">Quick Optimization Tile Controls</string>
     <string name="perm_btn_enter">Enter Game Booster</string>
-    <string name="perm_btn_grant_all_continue">Grant all permissions to continue (%1$d / 4)</string>
+    <string name="perm_btn_grant_all_continue">Grant all permissions to continue (%1$d / 6)</string>
 
     <!-- GameScanningSetupScreen (scan_) -->
     <string name="scan_headline_scanning">Checking downloaded games &amp; optimizing…</string>
@@ -304,6 +304,12 @@
     <string name="game_tuning_cd_icon">Game icon</string>
 
     <!-- Interruption & Do Not Disturb (dnd_) -->
+    <string name="interruption_screen_title">Notifications</string>
+    <string name="interruption_dnd_toggle_title">Game Booster DND</string>
+    <string name="interruption_dnd_toggle_desc">Activates Android\'s Game Booster DND to silence notifications and distractions while playing</string>
+    <string name="interruption_game_dashboard_btn">Configure Game Booster Priorities</string>
+    <string name="interruption_game_dashboard_desc">Customize allowed contacts, apps, and alarms in Android Settings</string>
+    <string name="interruption_audio_note">Game sound and media audio will never be muted</string>
     <string name="dnd_permission_title">Do Not Disturb Access</string>
     <string name="dnd_permission_desc">Allows Pixel Game Booster to suppress heads-up notification banners and alerts during gameplay.</string>
     <string name="dnd_mode_full">Full DND</string>
@@ -311,7 +317,10 @@
     <string name="dnd_mode_off">Off / Inherit</string>
     <string name="dnd_mode_off_desc">Standard notification sounds, vibrations, and banners will appear</string>
     <string name="dnd_mode_priority_desc">Allows starred contacts and critical alarms through while suppressing third-party notifications</string>
-    <string name="dnd_mode_full_desc">Completely silences all heads-up banners, alerts, and vibrations during gameplay</string>
+    <string name="dnd_mode_full_desc">Completely silences all heads-up banners, alerts, and vibrations during gameplay (game sound is preserved)</string>
+    <string name="dnd_config_system_priorities_btn">Configure System Priorities</string>
+    <string name="dnd_config_system_priorities_desc">Customize allowed contacts, apps, and priority interruptions in Android settings</string>
+    <string name="dnd_media_preservation_note">Media and game volume will never be muted by Do Not Disturb</string>
     <string name="perm_dnd_title">Do Not Disturb Access</string>
     <string name="perm_dnd_desc">Suppresses heads-up notification banners and distraction chimes while gaming.</string>
     <string name="perm_feature_dnd_peeking">Suppress Heads-Up Banners</string>
@@ -343,4 +352,42 @@
     <string name="call_screening_role_grant_btn">Set as Call Screening App</string>
     <string name="call_screening_role_active">Call Screening Active</string>
     <string name="call_screening_role_active_desc">Pixel Game Booster is configured to screen and manage incoming calls during gameplay</string>
+
+    <!-- Floating HUD & Overlay (overlay_) -->
+    <string name="overlay_expand_cd">Expand Game Dashboard</string>
+    <string name="overlay_collapse_cd">Collapse Game Dashboard</string>
+    <string name="overlay_fps_badge">%1$d FPS</string>
+    <string name="overlay_fps_auto">Auto FPS</string>
+    <string name="overlay_brightness_title">Display Brightness</string>
+    <string name="overlay_volume_title">Media Volume</string>
+    <string name="overlay_dnd_title">Game DND</string>
+    <string name="overlay_dnd_short">DND</string>
+    <string name="overlay_touch_lock">Touch Lock</string>
+    <string name="overlay_record">Record</string>
+    <string name="overlay_bypass">Bypass</string>
+    <string name="overlay_mode_battery">Battery</string>
+    <string name="overlay_mode_balanced">Balanced</string>
+    <string name="overlay_mode_boost">Boost</string>
+    <string name="overlay_net_boost_title">Network Boost</string>
+    <string name="overlay_quick_tap_title">Quick Tap Lock</string>
+    <string name="overlay_brightness_lock_title">Brightness Lock</string>
+    <string name="overlay_settings_title">In-Game Overlay</string>
+    <string name="overlay_settings_enable">Enable In-Game Overlay</string>
+    <string name="overlay_settings_enable_desc">Show quick dashboard while playing configured games</string>
+    <string name="overlay_style_title">Overlay Trigger Style</string>
+    <string name="overlay_style_bar">Edge Bar</string>
+    <string name="overlay_style_bar_desc">Slim translucent capsule docked along the screen edge</string>
+    <string name="overlay_style_circle">Game Controller</string>
+    <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
+    <string name="overlay_navbar_label">Overlay</string>
+
+    <!-- Overlay Permissions (perm_) -->
+    <string name="perm_overlay_title">Display Over Other Apps</string>
+    <string name="perm_overlay_desc">Allows the floating game HUD and quick settings overlay to render directly over active games.</string>
+    <string name="perm_feature_floating_hud">In-Game Floating HUD</string>
+    <string name="perm_feature_quick_settings_panel">Quick Settings Frosted Panel</string>
+    <string name="perm_write_settings_title">Modify System Settings</string>
+    <string name="perm_write_settings_desc">Enables direct adjustment of display brightness and system settings from within the in-game overlay.</string>
+    <string name="perm_feature_direct_brightness">Direct Brightness Control</string>
+    <string name="perm_action_auto_grant">Auto-Grant via Shizuku</string>
 </resources>

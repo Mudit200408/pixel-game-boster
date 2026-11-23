@@ -46,12 +46,6 @@ class SettingsRepositorySyncTest {
     }
 
     @Test
-    fun testRestoreDelaySyncAcrossInstances() {
-        repoA.setRestoreDelay(12)
-        assertEquals(12, repoB.restoreDelay.value)
-    }
-
-    @Test
     fun testDisablePrivateDnsSyncAcrossInstances() {
         repoA.setDisablePrivateDns(false)
         assertEquals(false, repoB.isDisablePrivateDns.value)

@@ -15,8 +15,8 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
-import com.pixel.gamebooster.interruption.CallScreeningHelper
 import com.pixel.gamebooster.interruption.DNDManager
+import com.pixel.gamebooster.overlay.GameOverlayManager
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.services.GameBoosterAccessibilityService
 import kotlinx.coroutines.CoroutineScope
@@ -62,6 +62,8 @@ object GameModeManager {
     private var didDisableIpReachDisconnect = false
     private var didDisablePrivateDns = false
 
+    private var activeGameSuspendedApps: Set<String> = emptySet()
+
     private var wifiHighPerfLock: WifiManager.WifiLock? = null
     private var wifiLowLatencyLock: WifiManager.WifiLock? = null
 
@@ -72,6 +74,7 @@ object GameModeManager {
 
     private val scope = CoroutineScope(Dispatchers.IO)
     private var pendingRestoreJob: Job? = null
+    private var gameWakeLock: PowerManager.WakeLock? = null
 
     fun init(context: Context) {
         DNDManager.recoverLeakedDndState(context)
@@ -80,6 +83,12 @@ object GameModeManager {
     fun onGameForeground(context: Context, packageName: String, repo: SettingsRepository) {
         if (!repo.isBoosterEnabled.value) return
         if (!GameDetectionUtils.isGame(context, packageName, repo.gameApps.value)) return
+
+        if (repo.isOverlayEnabled.value && PermissionHelper.hasOverlayPermission(context)) {
+            ContextCompat.getMainExecutor(context).execute {
+                GameOverlayManager.show(context, packageName, repo)
+            }
+        }
 
         pendingRestoreJob?.cancel()
         pendingRestoreJob = null
@@ -90,21 +99,40 @@ object GameModeManager {
         isGameModeActive = true
         Log.d(TAG, "Entering Game Mode for $packageName")
 
-        scope.launch {
-            // 0. Interruption Policy (DND) & Call Screening
-            try {
-                val profile = repo.getEffectiveProfile(packageName)
-                if (profile.interruptionMode != 0) {
-                    DNDManager.applyInterruptionPolicy(context, profile.interruptionMode)
+        val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+        if (gameWakeLock == null && pm != null) {
+            runCatching {
+                @Suppress("DEPRECATION")
+                gameWakeLock = pm.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
+                    "pixelgamebooster:game_mode_wake_lock"
+                ).apply {
+                    setReferenceCounted(false)
+                    acquire(2 * 60 * 60 * 1000L) // Safety timeout: 2 hours max
                 }
-                CallScreeningHelper.activeCallHandlingMode = profile.callHandlingMode
-                Log.d(TAG, "Configured call handling mode: ${profile.callHandlingMode} for $packageName")
+                Log.d(TAG, "Acquired game mode screen wake lock")
+            }
+        }
+
+        scope.launch {
+            val profile = try {
+                repo.getEffectiveProfile(packageName)
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to apply interruption policy for $packageName", e)
+                Log.e(TAG, "Failed to load effective profile for $packageName", e)
+                repo.createDefaultEffectiveProfile(packageName)
+            }
+
+            // 0. Interruption Policy (DND)
+            if (profile.interruptionMode != 0) {
+                try {
+                    DNDManager.applyInterruptionPolicy(context, true)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to apply interruption policy for $packageName", e)
+                }
             }
 
             // 1. Auto-Brightness: Fast-path ContentResolver write with shell fallback
-            if (repo.isDisableAutoBrightness.value) {
+            if (profile.disableAutoBrightness) {
                 try {
                     val currentMode = Settings.System.getInt(
                         context.contentResolver,
@@ -133,7 +161,7 @@ object GameModeManager {
             }
 
             // 2. Quick Tap (Columbus): Fast-path ContentResolver write with shell fallback
-            if (repo.isDisableQuickTap.value) {
+            if (profile.disableQuickTap) {
                 try {
                     val currentColumbus = Settings.Secure.getInt(
                         context.contentResolver,
@@ -162,7 +190,7 @@ object GameModeManager {
             }
 
             // 3. Fixed 120Hz Refresh Rate & Preferred Mode
-            if (repo.isLockRefreshRate.value) {
+            if (profile.lockRefreshRate) {
                 try {
                     if (snapshottedRefreshRate == null) {
                         snapshottedRefreshRate = RefreshRateUtils.getCurrentSnapshot(context)
@@ -176,21 +204,22 @@ object GameModeManager {
             }
 
             // 4. Memory Purge
-            if (repo.isBoostRam.value) {
+            if (profile.boostRam) {
                 ShellUtils.runCommand(context, "am kill-all")
             }
 
             // 5. Kernel Cached Apps Freezer
-            if (repo.isCachedFreezer.value) {
+            if (profile.cachedFreezer) {
                 ShellUtils.runCommand(context, "settings put global cached_apps_freezer enabled")
             }
 
             // 6. Freeze user-selected background apps (Custom app suspension)
-            val appsToSuspend = repo.suspendedApps.value
+            val appsToSuspend = profile.suspendedApps
+            activeGameSuspendedApps = appsToSuspend
             if (appsToSuspend.isNotEmpty()) {
-                val suspendCmd = appsToSuspend.joinToString(" && ") { "cmd package suspend --user 0 $it" }
+                val suspendCmd = appsToSuspend.joinToString(" && ") { "cmd package suspend --user 0 $it && am force-stop $it" }
                 ShellUtils.runCommand(context, suspendCmd)
-                Log.d(TAG, "Suspended ${appsToSuspend.size} user background apps")
+                Log.d(TAG, "Suspended ${appsToSuspend.size} user background apps: $appsToSuspend")
             }
 
             // 7. Freeze system services
@@ -209,23 +238,23 @@ object GameModeManager {
                 sysCmds.add("pm disable-user --user 0 com.google.android.apps.scone")
             }
             if (servicesToSuspend.contains("com.google.android.apps.carrier.carrierwifi")) {
-                sysCmds.add("cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi")
+                sysCmds.add("cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi && am force-stop com.google.android.apps.carrier.carrierwifi")
             }
             if (servicesToSuspend.contains("com.google.android.projection.gearhead")) {
-                sysCmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead")
+                sysCmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead")
             }
             if (sysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, sysCmds.joinToString(" && "))
             }
 
             // 8. Game Manager intervention
-            val mode = repo.interventionMode.value
+            val mode = profile.interventionMode
             val modeName = when (mode) {
                 1 -> "standard"
                 3 -> "battery"
                 else -> "performance"
             }
-            val fps = repo.fpsOverride.value
+            val fps = profile.fpsOverride
             val gameCmd = if (fps > 0) {
                 "cmd game set --downscale disable --fps $fps --mode $mode $packageName && cmd game mode $modeName $packageName"
             } else {
@@ -235,13 +264,13 @@ object GameModeManager {
             didApplyGameIntervention = true
 
             // 9. Wi-Fi Latency Stabilization & Dual WifiLocks
-            if (repo.isStabilizeWifi.value) {
+            if (profile.stabilizeWifi) {
                 try {
                     val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
                     val wifiCmds = mutableListOf<String>()
 
                     // 9a. Low-Latency Wi-Fi lock & power save bypass
-                    if (repo.isWifiLowLatency.value) {
+                    if (profile.wifiLowLatency) {
                         if (wifiHighPerfLock == null) {
                             @Suppress("DEPRECATION")
                             val highPerf = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PixelGameBooster:HighPerf")
@@ -265,7 +294,7 @@ object GameModeManager {
                     }
 
                     // 9b. Suppress background Wi-Fi and BLE scans
-                    if (repo.isWifiSuppressScans.value) {
+                    if (profile.wifiSuppressScans) {
                         if (snapshottedWifiScanAlwaysEnabled == null) {
                             snapshottedWifiScanAlwaysEnabled = Settings.Global.getInt(
                                 context.contentResolver,
@@ -307,7 +336,7 @@ object GameModeManager {
                     }
 
                     // 9c. Lock network sufficiency & disable network scoring ping churn
-                    if (repo.isWifiLockSufficiency.value) {
+                    if (profile.wifiLockSufficiency) {
                         if (snapshottedAdaptiveConnectivity == null) {
                             snapshottedAdaptiveConnectivity = runCatching {
                                 Settings.Secure.getInt(
@@ -337,7 +366,7 @@ object GameModeManager {
                     }
 
                     // 9d. Prevent ARP disconnects
-                    if (repo.isWifiPreventArp.value) {
+                    if (profile.wifiPreventArp) {
                         wifiCmds.add("cmd wifi set-ipreach-disconnect disabled")
                         didDisableIpReachDisconnect = true
                     }
@@ -351,7 +380,7 @@ object GameModeManager {
             }
 
             // 10. Disable Private DNS (DoT) while gaming to avoid DNS query latency stalls
-            if (repo.isDisablePrivateDns.value) {
+            if (profile.disablePrivateDns) {
                 try {
                     val currentMode = Settings.Global.getString(
                         context.contentResolver,
@@ -389,7 +418,7 @@ object GameModeManager {
             }
 
             // 11. Battery Saver Suppress & Continuous Defensive Receiver
-            if (repo.isBlockBatterySaver.value) {
+            if (profile.blockBatterySaver) {
                 try {
                     notifiedBattery20 = false
                     notifiedBattery10 = false
@@ -478,7 +507,7 @@ object GameModeManager {
             }
 
             // 12. Pause Master Auto-Sync
-            if (repo.isPauseAutoSync.value) {
+            if (profile.pauseAutoSync) {
                 try {
                     val sync = ContentResolver.getMasterSyncAutomatically()
                     if (snapshottedAutoSync == null) snapshottedAutoSync = sync
@@ -494,6 +523,20 @@ object GameModeManager {
                 Toast.makeText(context, context.getString(R.string.game_mode_toast_activated), Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    fun applyGameIntervention(context: Context, packageName: String, mode: Int, fps: Int = 0) {
+        val modeName = when (mode) {
+            1 -> "standard"
+            3 -> "battery"
+            else -> "performance"
+        }
+        val gameCmd = if (fps > 0) {
+            "cmd game set --downscale disable --fps $fps --mode $mode $packageName && cmd game mode $modeName $packageName"
+        } else {
+            "cmd game set --downscale disable --mode $mode $packageName && cmd game mode $modeName $packageName"
+        }
+        ShellUtils.runCommand(context, gameCmd)
     }
 
     private fun isAppInForeground(context: Context, packageName: String): Boolean {
@@ -514,7 +557,9 @@ object GameModeManager {
 
     fun onGameBackground(context: Context) {
         DNDManager.restoreInterruptionPolicy(context)
-        CallScreeningHelper.activeCallHandlingMode = CallScreeningHelper.MODE_HEADS_UP
+        ContextCompat.getMainExecutor(context).execute {
+            GameOverlayManager.hide()
+        }
     }
 
     fun onGameBackground(
@@ -544,11 +589,6 @@ object GameModeManager {
 
         pendingRestoreJob?.cancel()
         pendingRestoreJob = scope.launch {
-            val delaySeconds = repo.restoreDelay.value.coerceAtLeast(0)
-            val delayMs = if (delaySeconds > 0) delaySeconds * 1000L else 300L
-            Log.d(TAG, "Game backgrounded. Waiting ${delayMs}ms before restoring settings...")
-            delay(delayMs)
-
             val currentPkg = activeGamePackage ?: oldPackage
             if (currentPkg != null) {
                 // 1. Verify with topResumedActivity and mCurrentFocus in shell
@@ -584,11 +624,24 @@ object GameModeManager {
         GameBoosterAccessibilityService.instance?.resetLastPackage()
         AppDetectionService.instance?.resetLastPackage()
 
+        gameWakeLock?.let { lock ->
+            runCatching {
+                if (lock.isHeld) {
+                    lock.release()
+                    Log.d(TAG, "Released game mode screen wake lock")
+                }
+            }
+        }
+        gameWakeLock = null
+
+        ContextCompat.getMainExecutor(context).execute {
+            GameOverlayManager.hide()
+        }
+
         scope.launch {
-            // 0. Restore DND interruption policy & Call Screening
+            // 0. Restore DND interruption policy
             try {
                 DNDManager.restoreInterruptionPolicy(context)
-                CallScreeningHelper.activeCallHandlingMode = CallScreeningHelper.MODE_HEADS_UP
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to restore DND interruption policy", e)
             }
@@ -600,11 +653,20 @@ object GameModeManager {
             }
 
             // 2. Unsuspend user apps
-            val suspended = repo.suspendedApps.value
+            val suspended = if (activeGameSuspendedApps.isNotEmpty()) {
+                activeGameSuspendedApps
+            } else {
+                try {
+                    repo.getEffectiveProfile(gamePackage).suspendedApps
+                } catch (e: Exception) {
+                    repo.suspendedApps.value
+                }
+            }
             if (suspended.isNotEmpty()) {
-                val unsuspendCmd = suspended.joinToString(" && ") { "cmd package unsuspend --user 0 $it" }
+                val unsuspendCmd = suspended.joinToString(" && ") { "cmd package unsuspend --user 0 $it && cmd package unstop --user 0 $it" }
                 ShellUtils.runCommand(context, unsuspendCmd)
             }
+            activeGameSuspendedApps = emptySet()
 
             // 3. Re-enable system services
             val restoreSysCmds = mutableListOf<String>()
@@ -622,10 +684,10 @@ object GameModeManager {
                 restoreSysCmds.add("pm enable com.google.android.apps.scone")
             }
             if (services.contains("com.google.android.apps.carrier.carrierwifi")) {
-                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi")
+                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi && cmd package unstop --user 0 com.google.android.apps.carrier.carrierwifi")
             }
             if (services.contains("com.google.android.projection.gearhead")) {
-                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead")
+                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead")
             }
             if (restoreSysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, restoreSysCmds.joinToString(" && "))

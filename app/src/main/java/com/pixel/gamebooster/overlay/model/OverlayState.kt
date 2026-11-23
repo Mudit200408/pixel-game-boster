@@ -1,0 +1,31 @@
+package com.pixel.gamebooster.overlay.model
+
+enum class OverlayDisplayState {
+    COLLAPSED_PILL,
+    TOOLBAR,
+    EXPANDED_PANEL
+}
+
+data class OverlayUiState(
+    val packageName: String,
+    val gameName: String,
+    val displayState: OverlayDisplayState = OverlayDisplayState.COLLAPSED_PILL,
+    val isDockedOnRight: Boolean = false,
+    val overlayStyle: Int = 0, // 0=Bar, 1=Circle Button
+    val interventionMode: Int = 2, // 3=Battery, 1=Balanced, 2=Boost
+    val fpsOverride: Int = 0, // 0=Auto, 60, 90, 120
+    val lockRefreshRate: Boolean = true,
+    val dndEnabled: Boolean = false,
+    val netBoostEnabled: Boolean = true,
+    val quickTapLocked: Boolean = true,
+    val autoBrightnessLocked: Boolean = true,
+    val brightnessPercent: Float = 0.8f,
+    val mediaVolumePercent: Float = 0.5f,
+    val batteryPercent: Int = 100,
+    val isCharging: Boolean = false,
+    val isCrossWindowBlurActive: Boolean = true,
+    val currentFps: Int = 60,
+    val temperatureC: Int = 38,
+    val wattageW: Float = 4.2f,
+    val isRecording: Boolean = false,
+)

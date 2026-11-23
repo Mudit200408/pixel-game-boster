@@ -96,12 +96,12 @@ fun AppFreezerScreen(
                 suspendedApps = currentProfile.suspendedApps - pkg,
             )
             scope.launch {
-                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg")
+                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg && cmd package unstop --user 0 $pkg")
                 repo.saveProfile(updated)
             }
         } else {
             scope.launch {
-                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg")
+                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg && cmd package unstop --user 0 $pkg")
                 repo.setSuspendedApps(suspendedApps - pkg)
             }
         }

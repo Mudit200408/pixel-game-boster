@@ -1,9 +1,11 @@
 package com.pixel.gamebooster
 
+import android.content.Context
 import com.pixel.gamebooster.ui.navigation.AppScreen
 import com.pixel.gamebooster.ui.navigation.NavDestination
 import com.pixel.gamebooster.utils.PermissionHelper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,6 +16,16 @@ class PermissionHelperTest {
         assertEquals(1001, PermissionHelper.SHIZUKU_REQUEST_CODE)
         assertEquals("moe.shizuku.privileged.api", PermissionHelper.SHIZUKU_PACKAGE)
         assertEquals("https://shizuku.rikka.app", PermissionHelper.SHIZUKU_URL)
+    }
+
+    @Test
+    fun verifyPermissionHelperOverlayAndWriteSettingsMethodsExist() {
+        assertNotNull(PermissionHelper::class.java.getMethod("hasOverlayPermission", Context::class.java))
+        assertNotNull(PermissionHelper::class.java.getMethod("openOverlaySettings", Context::class.java))
+        assertNotNull(PermissionHelper::class.java.getMethod("grantOverlayPermissionViaShizuku", Context::class.java, Function1::class.java))
+        assertNotNull(PermissionHelper::class.java.getMethod("hasWriteSettingsPermission", Context::class.java))
+        assertNotNull(PermissionHelper::class.java.getMethod("openWriteSettings", Context::class.java))
+        assertNotNull(PermissionHelper::class.java.getMethod("grantWriteSettingsViaShizuku", Context::class.java, Function1::class.java))
     }
 
     @Test

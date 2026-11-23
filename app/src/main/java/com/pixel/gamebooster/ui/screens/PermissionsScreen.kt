@@ -7,7 +7,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,11 +19,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessibilityNew
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -83,6 +83,8 @@ fun PermissionsScreen(
     var isAccessibilityGranted by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
     var isUsageStatsGranted by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
     var isNotificationGranted by remember { mutableStateOf(PermissionHelper.hasNotificationPermission(context)) }
+    var isOverlayGranted by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
+    var isWriteSettingsGranted by remember { mutableStateOf(PermissionHelper.hasWriteSettingsPermission(context)) }
     var showPairingDialog by remember { mutableStateOf(false) }
 
     fun refreshAllPermissions() {
@@ -91,6 +93,8 @@ fun PermissionsScreen(
         isAccessibilityGranted = PermissionHelper.isAccessibilityServiceEnabled(context)
         isUsageStatsGranted = PermissionHelper.hasUsageStatsPermission(context)
         isNotificationGranted = PermissionHelper.hasNotificationPermission(context)
+        isOverlayGranted = PermissionHelper.hasOverlayPermission(context)
+        isWriteSettingsGranted = PermissionHelper.hasWriteSettingsPermission(context)
     }
 
     // Lifecycle auto-refresh: Re-check permissions immediately upon returning from Settings
@@ -125,9 +129,11 @@ fun PermissionsScreen(
         isAccessibilityGranted,
         isUsageStatsGranted,
         isNotificationGranted,
+        isOverlayGranted,
+        isWriteSettingsGranted,
     ).count { it }
-    val progress = grantedCount / 4f
-    val allGranted = isShizukuGranted && isAccessibilityGranted && isUsageStatsGranted && isNotificationGranted
+    val progress = grantedCount / 6f
+    val allGranted = isShizukuGranted && isAccessibilityGranted && isUsageStatsGranted && isNotificationGranted && isOverlayGranted && isWriteSettingsGranted
 
     if (showPairingDialog) {
         ShizukuPairingDialog(onDismissRequest = { showPairingDialog = false })
@@ -239,37 +245,73 @@ fun PermissionsScreen(
         }
     }
 
+    val overlayCard = @Composable {
+        // 5. Display Over Other Apps (Overlay Window)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.Layers,
+                title = stringResource(R.string.perm_overlay_title),
+                description = stringResource(R.string.perm_overlay_desc),
+                isGranted = isOverlayGranted,
+                isMandatory = false,
+                actionLabel = if (isShizukuGranted) {
+                    stringResource(R.string.perm_action_auto_grant)
+                } else {
+                    stringResource(R.string.perm_action_open_settings)
+                },
+                onActionClick = {
+                    if (isShizukuGranted) {
+                        PermissionHelper.grantOverlayPermissionViaShizuku(context) {
+                            refreshAllPermissions()
+                        }
+                    } else {
+                        PermissionHelper.openOverlaySettings(context)
+                    }
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_floating_hud),
+                    stringResource(R.string.perm_feature_quick_settings_panel),
+                ),
+            )
+        }
+    }
+
+    val writeSettingsCard = @Composable {
+        // 6. Modify System Settings (Direct Brightness)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.Tune,
+                title = stringResource(R.string.perm_write_settings_title),
+                description = stringResource(R.string.perm_write_settings_desc),
+                isGranted = isWriteSettingsGranted,
+                isMandatory = false,
+                actionLabel = if (isShizukuGranted) {
+                    stringResource(R.string.perm_action_auto_grant)
+                } else {
+                    stringResource(R.string.perm_action_open_settings)
+                },
+                onActionClick = {
+                    if (isShizukuGranted) {
+                        PermissionHelper.grantWriteSettingsViaShizuku(context) {
+                            refreshAllPermissions()
+                        }
+                    } else {
+                        PermissionHelper.openWriteSettings(context)
+                    }
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_direct_brightness),
+                ),
+            )
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
                 title = {},
-                actions = {
-                    Button(
-                        onClick = {
-                            HapticUtil.performClick(view)
-                            repo.setBoosterEnabled(true)
-                            if (PermissionHelper.hasUsageStatsPermission(context)) {
-                                AppDetectionService.start(context)
-                            }
-                            onFinish()
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
-                        modifier = Modifier.padding(end = 12.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.onboarding_btn_skip),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
                 ),
@@ -349,6 +391,7 @@ fun PermissionsScreen(
                     ) {
                         shizukuCard()
                         accessibilityCard()
+                        overlayCard()
                     }
                     Column(
                         modifier = Modifier.weight(1f),
@@ -356,6 +399,7 @@ fun PermissionsScreen(
                     ) {
                         usageStatsCard()
                         notificationCard()
+                        writeSettingsCard()
                     }
                 }
             } else {
@@ -363,6 +407,8 @@ fun PermissionsScreen(
                 accessibilityCard()
                 usageStatsCard()
                 notificationCard()
+                overlayCard()
+                writeSettingsCard()
             }
 
             Spacer(modifier = Modifier.height(8.dp))

@@ -5,6 +5,10 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,8 +18,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -23,18 +29,28 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Clear
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,6 +61,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -59,6 +76,7 @@ import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.components.AddGameGridCard
 import com.pixel.gamebooster.ui.components.GameLibraryCard
+import com.pixel.gamebooster.ui.components.PermissionHealthBanner
 import com.pixel.gamebooster.ui.components.PixelGamingHeroCard
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
@@ -72,11 +90,13 @@ import com.pixel.gamebooster.utils.HapticUtil
  * Features an edge-to-edge Material 3 Expressive game grid, master booster toggle,
  * interactive Add Game card, and global settings entry point.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GameLibraryScreen(
     repo: SettingsRepository,
     onGameClick: (String) -> Unit,
     onOpenSettings: () -> Unit,
+    onFixPermissionsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -94,7 +114,7 @@ fun GameLibraryScreen(
     var isSearchActive by rememberSaveable { mutableStateOf(false) }
 
     val adaptive = rememberAdaptiveLayoutInfo()
-    val bottomPadding = 16.dp
+    val bottomPadding = 108.dp
     val headerState = rememberPullTitleHeaderState()
 
     val installedGames = remember(gamePackages) {
@@ -129,15 +149,19 @@ fun GameLibraryScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = Color.Transparent,
+        containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .nestedScroll(headerState.nestedScrollConnection),
+                .padding(innerPadding),
         ) {
-            // Top Bar with PullTitleHeader and Action Buttons
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .nestedScroll(headerState.nestedScrollConnection),
+            ) {
+                // Top Bar with PullTitleHeader and Action Buttons
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,6 +216,12 @@ fun GameLibraryScreen(
                     }
                 }
             }
+
+            // Permission Health Banner (visible if Shizuku or Accessibility is revoked)
+            PermissionHealthBanner(
+                onFixPermissionsClick = onFixPermissionsClick,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            )
 
             // Search Filter Bar (Expandable)
             AnimatedVisibility(
@@ -345,4 +375,5 @@ fun GameLibraryScreen(
             }
         }
     }
+}
 }

@@ -21,7 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,9 +54,7 @@ import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.ui.components.GameLauncherGrid
-import com.pixel.gamebooster.ui.components.PermissionHealthBanner
 import com.pixel.gamebooster.ui.components.PixelGamingHeroCard
-import com.pixel.gamebooster.ui.core.sliders.ConfigSliderItem
 import com.pixel.gamebooster.ui.util.AdaptiveLayoutInfo
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.GameModeManager
@@ -88,7 +85,6 @@ fun getDashboardLottieHeight(adaptive: AdaptiveLayoutInfo): Dp =
 fun DashboardScreen(
     repo: SettingsRepository,
     onAddGameClick: () -> Unit = {},
-    onFixPermissionsClick: () -> Unit = {},
     scopedPackage: String? = null,
     scopedProfile: GameProfile? = null,
     modifier: Modifier = Modifier,
@@ -106,7 +102,6 @@ fun DashboardScreen(
 
     val isBoosterEnabled by repo.isBoosterEnabled.collectAsState()
     val globalMode by repo.interventionMode.collectAsState()
-    val delay by repo.restoreDelay.collectAsState()
 
     val mode = currentProfile?.interventionMode ?: globalMode
 
@@ -162,12 +157,6 @@ fun DashboardScreen(
                 .padding(bottom = bottomPadding),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Full-width Shizuku Warning Banner
-            PermissionHealthBanner(
-                onFixPermissionsClick = onFixPermissionsClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
             // Full-width Lottie Hero Animation
             val lottieHeight = getDashboardLottieHeight(adaptive)
             Box(
@@ -220,12 +209,6 @@ fun DashboardScreen(
                             view = view,
                             onModeChange = onModeChange,
                         )
-
-                        DashboardRestorationDelayCard(
-                            delay = delay,
-                            context = context,
-                            repo = repo,
-                        )
                     }
 
                     // Right Column: My Games launcher grid
@@ -248,12 +231,6 @@ fun DashboardScreen(
                     onModeChange = onModeChange,
                 )
 
-                DashboardRestorationDelayCard(
-                    delay = delay,
-                    context = context,
-                    repo = repo,
-                )
-
                 InterruptionControlScreen(
                     repo = repo,
                     scopedPackage = scopedPackage,
@@ -271,9 +248,6 @@ fun DashboardScreen(
                 .padding(bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Permission Health Banner (visible if Shizuku or Accessibility is revoked)
-            PermissionHealthBanner(onFixPermissionsClick = onFixPermissionsClick)
-
             // Lottie Hero + Master Pixel Game Booster Button with reduced tight padding
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -316,12 +290,6 @@ fun DashboardScreen(
                 mode = mode,
                 view = view,
                 onModeChange = onModeChange,
-            )
-
-            DashboardRestorationDelayCard(
-                delay = delay,
-                context = context,
-                repo = repo,
             )
 
             if (isScoped) {
@@ -438,37 +406,3 @@ private fun DashboardPerformanceProfileCard(
     }
 }
 
-@Composable
-private fun DashboardRestorationDelayCard(
-    delay: Int,
-    context: Context,
-    repo: SettingsRepository,
-) {
-    Text(
-        text = stringResource(R.string.dash_restoration_delay),
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp),
-    )
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        val immediateLabel = stringResource(R.string.dash_delay_immediate)
-        ConfigSliderItem(
-            title = stringResource(R.string.dash_restoration_delay),
-            subtitle = stringResource(R.string.dash_restoration_delay_desc),
-            value = delay.toFloat(),
-            onValueChange = { repo.setRestoreDelay(it.toInt()) },
-            valueRange = 0f..120f,
-            steps = 23,
-            icon = Icons.Rounded.Timer,
-            valueFormatter = {
-                if (it.toInt() == 0) immediateLabel
-                else context.getString(R.string.dash_delay_seconds, it.toInt())
-            },
-        )
-    }
-}

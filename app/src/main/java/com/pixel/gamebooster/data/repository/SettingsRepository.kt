@@ -49,10 +49,11 @@ class SettingsRepository(
         const val KEY_BLOCK_BATTERY_SAVER = "block_battery_saver"
         const val KEY_PAUSE_AUTO_SYNC = "pause_auto_sync"
         const val KEY_DISABLE_PRIVATE_DNS = "disable_private_dns"
-        const val KEY_RESTORE_DELAY = "restore_delay"
         const val KEY_THEME_MODE = "theme_mode" // 0=System, 1=Light, 2=Dark
         const val KEY_PITCH_BLACK = "pitch_black"
         const val KEY_TACTILE_HAPTICS = "tactile_haptics"
+        const val KEY_OVERLAY_ENABLED = "overlay_enabled"
+        const val KEY_OVERLAY_STYLE = "overlay_style" // 0 = Bar, 1 = Circle Button
 
         const val KEY_GAMES = "game_packages"
         const val KEY_SUSPENDED_APPS = "suspended_user_packages"
@@ -89,10 +90,11 @@ class SettingsRepository(
     val isBlockBatterySaver = MutableStateFlow(prefs.getBoolean(KEY_BLOCK_BATTERY_SAVER, true))
     val isPauseAutoSync = MutableStateFlow(prefs.getBoolean(KEY_PAUSE_AUTO_SYNC, true))
     val isDisablePrivateDns = MutableStateFlow(prefs.getBoolean(KEY_DISABLE_PRIVATE_DNS, true))
-    val restoreDelay = MutableStateFlow(prefs.getInt(KEY_RESTORE_DELAY, 5))
     val themeMode = MutableStateFlow(prefs.getInt(KEY_THEME_MODE, 0))
     val isPitchBlack = MutableStateFlow(prefs.getBoolean(KEY_PITCH_BLACK, false))
     val isTactileHaptics = MutableStateFlow(prefs.getBoolean(KEY_TACTILE_HAPTICS, true))
+    val isOverlayEnabled = MutableStateFlow(prefs.getBoolean(KEY_OVERLAY_ENABLED, true))
+    val overlayStyle = MutableStateFlow(prefs.getInt(KEY_OVERLAY_STYLE, 0))
 
     val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet()) ?: emptySet())
     val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet()) ?: emptySet())
@@ -118,7 +120,6 @@ class SettingsRepository(
             KEY_BLOCK_BATTERY_SAVER -> isBlockBatterySaver.value = prefs.getBoolean(KEY_BLOCK_BATTERY_SAVER, true)
             KEY_PAUSE_AUTO_SYNC -> isPauseAutoSync.value = prefs.getBoolean(KEY_PAUSE_AUTO_SYNC, true)
             KEY_DISABLE_PRIVATE_DNS -> isDisablePrivateDns.value = prefs.getBoolean(KEY_DISABLE_PRIVATE_DNS, true)
-            KEY_RESTORE_DELAY -> restoreDelay.value = prefs.getInt(KEY_RESTORE_DELAY, 5)
             KEY_THEME_MODE -> themeMode.value = prefs.getInt(KEY_THEME_MODE, 0)
             KEY_PITCH_BLACK -> isPitchBlack.value = prefs.getBoolean(KEY_PITCH_BLACK, false)
             KEY_TACTILE_HAPTICS -> {
@@ -126,6 +127,8 @@ class SettingsRepository(
                 isTactileHaptics.value = enabled
                 HapticUtil.isAppHapticsEnabled.value = enabled
             }
+            KEY_OVERLAY_ENABLED -> isOverlayEnabled.value = prefs.getBoolean(KEY_OVERLAY_ENABLED, true)
+            KEY_OVERLAY_STYLE -> overlayStyle.value = prefs.getInt(KEY_OVERLAY_STYLE, 0)
             KEY_GAMES -> gameApps.value = prefs.getStringSet(KEY_GAMES, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_APPS -> suspendedApps.value = prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_SERVICES -> suspendedServices.value = prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES)?.toSet() ?: DEFAULT_SERVICES
@@ -231,11 +234,6 @@ class SettingsRepository(
         isDisablePrivateDns.value = enabled
     }
 
-    fun setRestoreDelay(seconds: Int) {
-        prefs.edit().putInt(KEY_RESTORE_DELAY, seconds).apply()
-        restoreDelay.value = seconds
-    }
-
     fun addGame(pkg: String) {
         val updated = (gameApps.value + pkg).toSet()
         prefs.edit().putStringSet(KEY_GAMES, updated).apply()
@@ -306,6 +304,16 @@ class SettingsRepository(
         prefs.edit().putBoolean(KEY_TACTILE_HAPTICS, enabled).apply()
         isTactileHaptics.value = enabled
         HapticUtil.isAppHapticsEnabled.value = enabled
+    }
+
+    fun setOverlayEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_OVERLAY_ENABLED, enabled).apply()
+        isOverlayEnabled.value = enabled
+    }
+
+    fun setOverlayStyle(style: Int) {
+        prefs.edit().putInt(KEY_OVERLAY_STYLE, style).apply()
+        overlayStyle.value = style
     }
 
     // --- Per-Game Fallback Engine & Persistence ---

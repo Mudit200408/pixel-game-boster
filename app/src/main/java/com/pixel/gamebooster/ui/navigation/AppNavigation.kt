@@ -5,9 +5,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
@@ -16,15 +18,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Gamepad
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Button
@@ -33,6 +39,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,9 +50,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +69,7 @@ import com.pixel.gamebooster.ui.screens.GameScanningSetupScreen
 import com.pixel.gamebooster.ui.screens.GameTuningContainer
 import com.pixel.gamebooster.ui.screens.NetworkSyncScreen
 import com.pixel.gamebooster.ui.screens.OnboardingScreen
+import com.pixel.gamebooster.ui.screens.OverlaySettingsScreen
 import com.pixel.gamebooster.ui.screens.PerformanceDisplayScreen
 import com.pixel.gamebooster.ui.screens.PermissionsScreen
 import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
@@ -67,6 +77,7 @@ import com.pixel.gamebooster.ui.sheets.SettingsSheet
 import com.pixel.gamebooster.ui.sheets.SystemServicesSheet
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import com.pixel.gamebooster.utils.HapticUtil
 
 enum class AppScreen {
     ONBOARDING,
@@ -77,6 +88,11 @@ enum class AppScreen {
     companion object {
         val LIBRARY: AppScreen get() = MAIN
     }
+}
+
+enum class MainTab {
+    GAMES,
+    OVERLAY
 }
 
 enum class NavDestination(
@@ -235,7 +251,9 @@ fun AppNavigation(
                 onComplete = { currentScreen = AppScreen.MAIN },
             )
             AppScreen.MAIN, AppScreen.LIBRARY -> {
+                val view = LocalView.current
                 var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
+                var activeMainTab by rememberSaveable { mutableStateOf(MainTab.GAMES) }
 
                 if (showSettingsSheet) {
                     SettingsSheet(
@@ -251,11 +269,106 @@ fun AppNavigation(
                         onBack = { selectedGamePackageForTuning = null },
                     )
                 } else {
-                    GameLibraryScreen(
-                        repo = repo,
-                        onGameClick = { selectedGamePackageForTuning = it },
-                        onOpenSettings = { showSettingsSheet = true },
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when (activeMainTab) {
+                            MainTab.GAMES -> {
+                                GameLibraryScreen(
+                                    repo = repo,
+                                    onGameClick = { selectedGamePackageForTuning = it },
+                                    onOpenSettings = { showSettingsSheet = true },
+                                    onFixPermissionsClick = { showSettingsSheet = true },
+                                )
+                            }
+                            MainTab.OVERLAY -> {
+                                OverlaySettingsScreen(
+                                    repo = repo,
+                                )
+                            }
+                        }
+
+                        // Floating Bottom Navigation Bar (2 destinations: Game Library and Overlay Page)
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 20.dp)
+                                .navigationBarsPadding(),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
+                            tonalElevation = 6.dp,
+                            shadowElevation = 8.dp,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                // Button 1: Game Library
+                                val isGamesSelected = activeMainTab == MainTab.GAMES
+                                Surface(
+                                    onClick = {
+                                        HapticUtil.performVirtualKeyHaptic(view)
+                                        activeMainTab = MainTab.GAMES
+                                    },
+                                    shape = CircleShape,
+                                    color = if (isGamesSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    contentColor = if (isGamesSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.SportsEsports,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                        Text(
+                                            text = "Games",
+                                            style = TextStyle(
+                                                fontFamily = GoogleSansFlexRounded,
+                                                fontWeight = if (isGamesSelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                            ),
+                                        )
+                                    }
+                                }
+
+                                // Button 2: In-Game Overlay Page
+                                val isOverlaySelected = activeMainTab == MainTab.OVERLAY
+                                Surface(
+                                    onClick = {
+                                        HapticUtil.performVirtualKeyHaptic(view)
+                                        activeMainTab = MainTab.OVERLAY
+                                    },
+                                    shape = CircleShape,
+                                    color = if (isOverlaySelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                                    contentColor = if (isOverlaySelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Layers,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                        Text(
+                                            text = "Overlay",
+                                            style = TextStyle(
+                                                fontFamily = GoogleSansFlexRounded,
+                                                fontWeight = if (isOverlaySelected) FontWeight.Bold else FontWeight.Medium,
+                                                fontSize = 14.sp,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
