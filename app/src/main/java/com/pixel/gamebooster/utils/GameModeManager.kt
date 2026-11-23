@@ -14,6 +14,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.overlay.GameOverlayManager
@@ -943,6 +944,412 @@ object GameModeManager {
                 snapshottedPrivateDnsSpecifier = null
                 didDisablePrivateDns = false
             }
+        }
+    }
+
+    fun applyNetworkStabilization(context: Context, profile: GameProfile) {
+        if (!profile.stabilizeWifi) return
+
+        try {
+            val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+            val wifiCmds = mutableListOf<String>()
+
+            // 9a. Low-Latency Wi-Fi lock & power save bypass
+            if (profile.wifiLowLatency) {
+                if (wifiHighPerfLock == null) {
+                    @Suppress("DEPRECATION")
+                    val highPerf = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PixelGameBooster:HighPerf")
+                    highPerf?.setReferenceCounted(false)
+                    highPerf?.acquire()
+                    wifiHighPerfLock = highPerf
+                }
+                if (wifiLowLatencyLock == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val lowLatency = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "PixelGameBooster:LowLatency")
+                    lowLatency?.setReferenceCounted(false)
+                    lowLatency?.acquire()
+                    wifiLowLatencyLock = lowLatency
+                }
+                if (snapshottedWifiPowerSave == null) {
+                    snapshottedWifiPowerSave = Settings.Global.getString(
+                        context.contentResolver,
+                        "wifi_power_save",
+                    ) ?: "UNSET"
+                }
+                wifiCmds.add("settings put global wifi_power_save 0")
+            }
+
+            // 9b. Suppress background Wi-Fi and BLE scans
+            if (profile.wifiSuppressScans) {
+                if (snapshottedWifiScanAlwaysEnabled == null) {
+                    snapshottedWifiScanAlwaysEnabled = Settings.Global.getInt(
+                        context.contentResolver,
+                        "wifi_scan_always_enabled",
+                        0,
+                    )
+                }
+                if (snapshottedBleScanAlwaysEnabled == null) {
+                    snapshottedBleScanAlwaysEnabled = Settings.Global.getInt(
+                        context.contentResolver,
+                        "ble_scan_always_enabled",
+                        0,
+                    )
+                }
+                if (snapshottedWifiWakeup == null) {
+                    snapshottedWifiWakeup = runCatching {
+                        Settings.Global.getInt(
+                            context.contentResolver,
+                            "wifi_wakeup_enabled",
+                            1,
+                        )
+                    }.getOrDefault(1)
+                }
+                if (snapshottedWifiNotification == null) {
+                    snapshottedWifiNotification = runCatching {
+                        Settings.Global.getInt(
+                            context.contentResolver,
+                            "wifi_networks_available_notification_on",
+                            1,
+                        )
+                    }.getOrDefault(1)
+                }
+                wifiCmds.add("settings put global wifi_scan_always_enabled 0")
+                wifiCmds.add("settings put global ble_scan_always_enabled 0")
+                wifiCmds.add("settings put global wifi_scan_throttle_enabled 1")
+                wifiCmds.add("settings put global wifi_wakeup_enabled 0")
+                wifiCmds.add("settings put global wifi_networks_available_notification_on 0")
+                wifiCmds.add("cmd wifi set-scan-always-available disabled")
+            }
+
+            // 9c. Lock network sufficiency & disable network scoring ping churn
+            if (profile.wifiLockSufficiency) {
+                if (snapshottedAdaptiveConnectivity == null) {
+                    snapshottedAdaptiveConnectivity = runCatching {
+                        Settings.Secure.getInt(
+                            context.contentResolver,
+                            "adaptive_connectivity_enabled",
+                            1,
+                        )
+                    }.getOrDefault(1)
+                }
+                if (snapshottedNetworkRecommendations == null) {
+                    snapshottedNetworkRecommendations = Settings.Global.getString(
+                        context.contentResolver,
+                        "network_recommendations_enabled",
+                    ) ?: "UNSET"
+                }
+                if (snapshottedNetworkAvoidBadWifi == null) {
+                    snapshottedNetworkAvoidBadWifi = Settings.Global.getString(
+                        context.contentResolver,
+                        "network_avoid_bad_wifi",
+                    ) ?: "UNSET"
+                }
+                wifiCmds.add("settings put secure adaptive_connectivity_enabled 0")
+                wifiCmds.add("settings put global network_recommendations_enabled 0")
+                wifiCmds.add("settings put global network_avoid_bad_wifi 0")
+                wifiCmds.add("cmd wifi set-network-selection-config enabled enabled -a 0")
+                didLockWifiNetworkSelection = true
+            }
+
+            // 9d. Prevent ARP disconnects
+            if (profile.wifiPreventArp) {
+                wifiCmds.add("cmd wifi set-ipreach-disconnect disabled")
+                didDisableIpReachDisconnect = true
+            }
+
+            if (wifiCmds.isNotEmpty()) {
+                ShellUtils.runCommand(context, wifiCmds.joinToString(" && "))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed Wi-Fi stabilization", e)
+        }
+
+        // 10. Disable Private DNS (DoT)
+        if (profile.disablePrivateDns) {
+            try {
+                val currentMode = Settings.Global.getString(
+                    context.contentResolver,
+                    "private_dns_mode",
+                )
+                val currentSpecifier = Settings.Global.getString(
+                    context.contentResolver,
+                    "private_dns_specifier",
+                )
+
+                if (!currentMode.isNullOrEmpty() && currentMode != "off") {
+                    snapshottedPrivateDnsMode = currentMode
+                    snapshottedPrivateDnsSpecifier = currentSpecifier
+                    didDisablePrivateDns = true
+
+                    runCatching {
+                        Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
+                    }
+                    ShellUtils.runCommand(context, "settings put global private_dns_mode off")
+                    Log.d(TAG, "Disabled Private DNS (was mode=$currentMode, specifier=$currentSpecifier)")
+                } else if (!currentSpecifier.isNullOrEmpty()) {
+                    snapshottedPrivateDnsMode = "hostname"
+                    snapshottedPrivateDnsSpecifier = currentSpecifier
+                    didDisablePrivateDns = true
+
+                    runCatching {
+                        Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
+                    }
+                    ShellUtils.runCommand(context, "settings put global private_dns_mode off")
+                    Log.d(TAG, "Disabled Private DNS (was hostname with specifier=$currentSpecifier)")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to disable private DNS", e)
+            }
+        }
+
+        // 11. Battery Saver Suppress & Continuous Defensive Receiver
+        if (profile.blockBatterySaver) {
+            try {
+                notifiedBattery20 = false
+                notifiedBattery10 = false
+                notifiedBattery5 = false
+
+                if (snapshottedLowPowerTriggerLevel == null) {
+                    snapshottedLowPowerTriggerLevel = Settings.Global.getInt(
+                        context.contentResolver,
+                        "low_power_trigger_level",
+                        0,
+                    )
+                }
+                if (snapshottedLowPower == null) {
+                    snapshottedLowPower = Settings.Global.getInt(
+                        context.contentResolver,
+                        "low_power",
+                        0,
+                    )
+                }
+
+                ShellUtils.runCommand(
+                    context,
+                    "settings put global low_power_trigger_level 0 && settings put global low_power 0 && cmd power set-mode 0",
+                )
+
+                if (batterySaverReceiver == null) {
+                    val filter = IntentFilter().apply {
+                        addAction(Intent.ACTION_BATTERY_CHANGED)
+                        addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+                    }
+                    val receiver = object : BroadcastReceiver() {
+                        override fun onReceive(c: Context?, intent: Intent?) {
+                            if (!isGameModeActive) return
+                            when (intent?.action) {
+                                PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
+                                    val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+                                    if (pm?.isPowerSaveMode == true) {
+                                        ShellUtils.runCommand(
+                                            context,
+                                            "settings put global low_power 0 && cmd power set-mode 0",
+                                        )
+                                    }
+                                }
+                                Intent.ACTION_BATTERY_CHANGED -> {
+                                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+                                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+                                    val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                        status == BatteryManager.BATTERY_STATUS_FULL
+                                    if (isCharging) {
+                                        notifiedBattery20 = false
+                                        notifiedBattery10 = false
+                                        notifiedBattery5 = false
+                                    } else if (level >= 0 && scale > 0) {
+                                        val pct = (level * 100) / scale
+                                        if (pct > 20) {
+                                            notifiedBattery20 = false
+                                            notifiedBattery10 = false
+                                            notifiedBattery5 = false
+                                        } else if (pct in 11..20 && !notifiedBattery20) {
+                                            notifiedBattery20 = true
+                                            showToast(context, context.getString(R.string.game_mode_battery_low_20))
+                                        } else if (pct in 6..10 && !notifiedBattery10) {
+                                            notifiedBattery10 = true
+                                            showToast(context, context.getString(R.string.game_mode_battery_low_10))
+                                        } else if (pct in 1..5 && !notifiedBattery5) {
+                                            notifiedBattery5 = true
+                                            showToast(context, context.getString(R.string.game_mode_battery_low_5))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    ContextCompat.registerReceiver(
+                        context.applicationContext,
+                        receiver,
+                        filter,
+                        ContextCompat.RECEIVER_NOT_EXPORTED,
+                    )
+                    batterySaverReceiver = receiver
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to suppress battery saver", e)
+            }
+        }
+
+        // 12. Pause Master Auto-Sync
+        if (profile.pauseAutoSync) {
+            try {
+                val sync = ContentResolver.getMasterSyncAutomatically()
+                if (snapshottedAutoSync == null) snapshottedAutoSync = sync
+                if (sync) ContentResolver.setMasterSyncAutomatically(false)
+            } catch (e: SecurityException) {
+                Log.w(TAG, "SecurityException pausing auto-sync", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed auto-sync pause", e)
+            }
+        }
+    }
+
+    fun restoreNetworkStabilization(context: Context) {
+        wifiHighPerfLock?.let {
+            try {
+                if (it.isHeld) it.release()
+            } catch (_: Exception) { }
+        }
+        wifiHighPerfLock = null
+
+        wifiLowLatencyLock?.let {
+            try {
+                if (it.isHeld) it.release()
+            } catch (_: Exception) { }
+        }
+        wifiLowLatencyLock = null
+
+        snapshottedWifiScanAlwaysEnabled?.let { prevScan ->
+            ShellUtils.runCommand(context, "settings put global wifi_scan_always_enabled $prevScan && cmd wifi set-scan-always-available enabled")
+            snapshottedWifiScanAlwaysEnabled = null
+        }
+
+        if (didLockWifiNetworkSelection) {
+            ShellUtils.runCommand(context, "cmd wifi set-network-selection-config enabled enabled -a 0")
+            didLockWifiNetworkSelection = false
+        }
+
+        snapshottedWifiWakeup?.let { prevWakeup ->
+            ShellUtils.runCommand(context, "settings put global wifi_wakeup_enabled $prevWakeup")
+            snapshottedWifiWakeup = null
+        }
+
+        snapshottedWifiNotification?.let { prevNotif ->
+            ShellUtils.runCommand(context, "settings put global wifi_networks_available_notification_on $prevNotif")
+            snapshottedWifiNotification = null
+        }
+
+        snapshottedWifiPowerSave?.let { prevPowerSave ->
+            val cmd = if (prevPowerSave == "UNSET") {
+                "settings delete global wifi_power_save"
+            } else {
+                "settings put global wifi_power_save $prevPowerSave"
+            }
+            ShellUtils.runCommand(context, cmd)
+            snapshottedWifiPowerSave = null
+        }
+
+        if (didDisableIpReachDisconnect) {
+            ShellUtils.runCommand(context, "cmd wifi set-ipreach-disconnect enabled")
+            didDisableIpReachDisconnect = false
+        }
+
+        snapshottedBleScanAlwaysEnabled?.let { prevBle ->
+            ShellUtils.runCommand(context, "settings put global ble_scan_always_enabled $prevBle")
+            snapshottedBleScanAlwaysEnabled = null
+        }
+
+        snapshottedAdaptiveConnectivity?.let { prevAdaptive ->
+            ShellUtils.runCommand(context, "settings put secure adaptive_connectivity_enabled $prevAdaptive")
+            snapshottedAdaptiveConnectivity = null
+        }
+
+        snapshottedNetworkRecommendations?.let { prev ->
+            val cmd = if (prev == "UNSET") {
+                "settings delete global network_recommendations_enabled"
+            } else {
+                "settings put global network_recommendations_enabled $prev"
+            }
+            ShellUtils.runCommand(context, cmd)
+            snapshottedNetworkRecommendations = null
+        }
+
+        snapshottedNetworkAvoidBadWifi?.let { prev ->
+            val cmd = if (prev == "UNSET") {
+                "settings delete global network_avoid_bad_wifi"
+            } else {
+                "settings put global network_avoid_bad_wifi $prev"
+            }
+            ShellUtils.runCommand(context, cmd)
+            snapshottedNetworkAvoidBadWifi = null
+        }
+
+        try {
+            val prevMode = snapshottedPrivateDnsMode
+            val prevSpecifier = snapshottedPrivateDnsSpecifier
+            val shouldRestore = didDisablePrivateDns || !prevSpecifier.isNullOrEmpty()
+
+            val targetMode = if (!prevMode.isNullOrEmpty() && prevMode != "off") {
+                prevMode
+            } else if (!prevSpecifier.isNullOrEmpty()) {
+                "hostname"
+            } else null
+
+            if (shouldRestore && targetMode != null) {
+                Log.d(TAG, "Restoring Private DNS to mode=$targetMode, specifier=$prevSpecifier")
+                runCatching {
+                    if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
+                        Settings.Global.putString(context.contentResolver, "private_dns_specifier", prevSpecifier)
+                    }
+                    Settings.Global.putString(context.contentResolver, "private_dns_mode", targetMode)
+                }
+                val shellCmd = if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
+                    "settings put global private_dns_specifier $prevSpecifier && settings put global private_dns_mode $targetMode"
+                } else {
+                    "settings put global private_dns_mode $targetMode"
+                }
+                ShellUtils.runCommand(context, shellCmd)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restore Private DNS", e)
+        } finally {
+            snapshottedPrivateDnsMode = null
+            snapshottedPrivateDnsSpecifier = null
+            didDisablePrivateDns = false
+        }
+
+        batterySaverReceiver?.let {
+            runCatching { context.applicationContext.unregisterReceiver(it) }
+        }
+        batterySaverReceiver = null
+        notifiedBattery20 = false
+        notifiedBattery10 = false
+        notifiedBattery5 = false
+
+        snapshottedLowPowerTriggerLevel?.let { prevTrigger ->
+            ShellUtils.runCommand(context, "settings put global low_power_trigger_level $prevTrigger")
+            snapshottedLowPowerTriggerLevel = null
+        }
+
+        snapshottedLowPower?.let { prevLowPower ->
+            if (prevLowPower == 1) {
+                ShellUtils.runCommand(context, "settings put global low_power 1 && cmd power set-mode 1")
+            }
+            snapshottedLowPower = null
+        }
+
+        snapshottedAutoSync?.let { wasActive ->
+            if (wasActive) {
+                try {
+                    ContentResolver.setMasterSyncAutomatically(true)
+                    Log.d(TAG, "Master auto-sync restored")
+                } catch (e: SecurityException) {
+                    Log.w(TAG, "SecurityException restoring auto-sync", e)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restore auto-sync", e)
+                }
+            }
+            snapshottedAutoSync = null
         }
     }
 }

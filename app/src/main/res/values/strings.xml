@@ -132,11 +132,6 @@
 
     <!-- NetworkSyncScreen (net_) -->
     <string name="net_header_title">Network &amp; Sync</string>
-    <string name="net_section_profile">Optimization Profile</string>
-    <string name="net_preset_mode_title">Preset Mode</string>
-    <string name="net_preset_mode_desc">Select all-out competitive latency tuning or balanced gaming</string>
-    <string name="net_profile_competitive">Competitive</string>
-    <string name="net_profile_balanced">Balanced</string>
     <string name="net_section_wifi_latency">Wi-Fi &amp; Latency Optimization</string>
     <string name="net_low_latency_title">Wi-Fi Low Latency Lock</string>
     <string name="net_low_latency_desc">Acquires high-perf Wi-Fi lock and disables Wi-Fi power save throttling.</string>
@@ -151,7 +146,7 @@
     <string name="net_prevent_arp_desc">Blocks dropping Wi-Fi connection on transient router ARP probe misses.</string>
     <string name="net_prevent_arp_cmd" translatable="false">cmd wifi set-ipreach-disconnect disabled</string>
     <string name="net_disable_private_dns_title">Private DNS Latency Bypass</string>
-    <string name="net_disable_private_dns_desc">Disables Private DNS (DoT) during gaming to avoid DNS query latency spikes.</string>
+    <string name="net_disable_private_dns_desc">Disables Private DNS during gaming to avoid DNS query latency spikes.</string>
     <string name="net_disable_private_dns_cmd" translatable="false">settings put global private_dns_mode off</string>
     <string name="net_section_sync_power">Background Sync &amp; Power</string>
     <string name="net_pause_sync_title">Pause Master Auto-Sync</string>
@@ -367,7 +362,7 @@
     <string name="overlay_bypass">Bypass</string>
     <string name="overlay_mode_battery">Battery</string>
     <string name="overlay_mode_balanced">Balanced</string>
-    <string name="overlay_mode_boost">Boost</string>
+    <string name="overlay_mode_boost">Performance</string>
     <string name="overlay_net_boost_title">Network Boost</string>
     <string name="overlay_quick_tap_title">Quick Tap Lock</string>
     <string name="overlay_brightness_lock_title">Brightness Lock</string>
@@ -377,7 +372,7 @@
     <string name="overlay_style_title">Overlay Trigger Style</string>
     <string name="overlay_style_bar">Edge Bar</string>
     <string name="overlay_style_bar_desc">Slim translucent capsule docked along the screen edge</string>
-    <string name="overlay_style_circle">Game Controller</string>
+    <string name="overlay_style_circle">Floating Button</string>
     <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
     <string name="overlay_navbar_label">Overlay</string>
 

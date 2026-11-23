@@ -162,6 +162,12 @@ object GameOverlayManager {
         }
     }
 
+    private fun getExpectedPillWidthPx(context: Context): Int {
+        val density = context.resources.displayMetrics.density
+        val isCircle = overlayViewModel?.uiState?.value?.overlayStyle == 1
+        return if (isCircle) (52 * density).toInt() else (28 * density).toInt()
+    }
+
     fun updateLayout(newDisplayState: OverlayDisplayState, blurRadiusPx: Int = 30) {
         val params = currentParams ?: return
         val wm = windowManager ?: return
@@ -172,7 +178,7 @@ object GameOverlayManager {
             OverlayDisplayState.COLLAPSED_PILL,
             OverlayDisplayState.TOOLBAR -> {
                 val screenWidth = view.resources.displayMetrics.widthPixels
-                val pillWidth = view.width.takeIf { it > 0 } ?: (28 * view.resources.displayMetrics.density).toInt()
+                val pillWidth = getExpectedPillWidthPx(ctx)
                 params.width = WindowManager.LayoutParams.WRAP_CONTENT
                 params.height = WindowManager.LayoutParams.WRAP_CONTENT
                 params.x = if (isRightSide) (screenWidth - pillWidth) else 0
@@ -184,8 +190,9 @@ object GameOverlayManager {
                 }
             }
             OverlayDisplayState.EXPANDED_PANEL -> {
-                savedPillX = params.x
-                savedPillY = params.y
+                val screenWidth = view.resources.displayMetrics.widthPixels
+                val pillWidth = getExpectedPillWidthPx(ctx)
+                savedPillX = if (isRightSide) (screenWidth - pillWidth) else 0
                 params.x = 0
                 params.y = 0
                 params.width = WindowManager.LayoutParams.MATCH_PARENT
@@ -240,7 +247,7 @@ object GameOverlayManager {
         val view = composeView ?: return
 
         val screenWidth = view.resources.displayMetrics.widthPixels
-        val pillWidth = view.width.takeIf { it > 0 } ?: (28 * view.resources.displayMetrics.density).toInt()
+        val pillWidth = getExpectedPillWidthPx(view.context)
         val centerX = params.x + (pillWidth / 2)
         val toRight = centerX >= screenWidth / 2
 
@@ -253,12 +260,14 @@ object GameOverlayManager {
         val view = composeView ?: return
 
         val screenWidth = view.resources.displayMetrics.widthPixels
-        val pillWidth = view.width.takeIf { it > 0 } ?: (28 * view.resources.displayMetrics.density).toInt()
+        val pillWidth = getExpectedPillWidthPx(view.context)
 
         isRightSide = toRight
         params.x = if (toRight) (screenWidth - pillWidth) else 0
         savedPillX = params.x
-        savedPillY = params.y
+        if (params.width != WindowManager.LayoutParams.MATCH_PARENT && params.y > 0) {
+            savedPillY = params.y
+        }
 
         overlayViewModel?.setDockedOnRight(toRight)
         HapticUtil.performLightHaptic(view)

@@ -54,6 +54,10 @@ class SettingsRepository(
         const val KEY_TACTILE_HAPTICS = "tactile_haptics"
         const val KEY_OVERLAY_ENABLED = "overlay_enabled"
         const val KEY_OVERLAY_STYLE = "overlay_style" // 0 = Bar, 1 = Circle Button
+        const val KEY_RECORD_AUDIO_SOURCE = "record_audio_source" // 0=Mute, 1=Mic, 2=Device, 3=Both
+        const val KEY_RECORD_RESOLUTION = "record_resolution" // 0=1080p 60fps, 1=1080p 30fps, 2=720p 60fps
+        const val KEY_RECORD_SHOW_TOUCHES = "record_show_touches"
+        const val KEY_RECORD_DOUBLE_TAP_STOP = "record_double_tap_stop"
 
         const val KEY_GAMES = "game_packages"
         const val KEY_SUSPENDED_APPS = "suspended_user_packages"
@@ -95,6 +99,10 @@ class SettingsRepository(
     val isTactileHaptics = MutableStateFlow(prefs.getBoolean(KEY_TACTILE_HAPTICS, true))
     val isOverlayEnabled = MutableStateFlow(prefs.getBoolean(KEY_OVERLAY_ENABLED, true))
     val overlayStyle = MutableStateFlow(prefs.getInt(KEY_OVERLAY_STYLE, 0))
+    val recordAudioSource = MutableStateFlow(prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2))
+    val recordResolution = MutableStateFlow(prefs.getInt(KEY_RECORD_RESOLUTION, 0))
+    val recordShowTouches = MutableStateFlow(prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false))
+    val recordDoubleTapStop = MutableStateFlow(prefs.getBoolean(KEY_RECORD_DOUBLE_TAP_STOP, true))
 
     val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet()) ?: emptySet())
     val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet()) ?: emptySet())
@@ -129,6 +137,10 @@ class SettingsRepository(
             }
             KEY_OVERLAY_ENABLED -> isOverlayEnabled.value = prefs.getBoolean(KEY_OVERLAY_ENABLED, true)
             KEY_OVERLAY_STYLE -> overlayStyle.value = prefs.getInt(KEY_OVERLAY_STYLE, 0)
+            KEY_RECORD_AUDIO_SOURCE -> recordAudioSource.value = prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2)
+            KEY_RECORD_RESOLUTION -> recordResolution.value = prefs.getInt(KEY_RECORD_RESOLUTION, 0)
+            KEY_RECORD_SHOW_TOUCHES -> recordShowTouches.value = prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false)
+            KEY_RECORD_DOUBLE_TAP_STOP -> recordDoubleTapStop.value = prefs.getBoolean(KEY_RECORD_DOUBLE_TAP_STOP, true)
             KEY_GAMES -> gameApps.value = prefs.getStringSet(KEY_GAMES, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_APPS -> suspendedApps.value = prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_SERVICES -> suspendedServices.value = prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES)?.toSet() ?: DEFAULT_SERVICES
@@ -314,6 +326,26 @@ class SettingsRepository(
     fun setOverlayStyle(style: Int) {
         prefs.edit().putInt(KEY_OVERLAY_STYLE, style).apply()
         overlayStyle.value = style
+    }
+
+    fun setRecordAudioSource(source: Int) {
+        prefs.edit().putInt(KEY_RECORD_AUDIO_SOURCE, source).apply()
+        recordAudioSource.value = source
+    }
+
+    fun setRecordResolution(resolution: Int) {
+        prefs.edit().putInt(KEY_RECORD_RESOLUTION, resolution).apply()
+        recordResolution.value = resolution
+    }
+
+    fun setRecordShowTouches(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_RECORD_SHOW_TOUCHES, enabled).apply()
+        recordShowTouches.value = enabled
+    }
+
+    fun setRecordDoubleTapStop(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_RECORD_DOUBLE_TAP_STOP, enabled).apply()
+        recordDoubleTapStop.value = enabled
     }
 
     // --- Per-Game Fallback Engine & Persistence ---

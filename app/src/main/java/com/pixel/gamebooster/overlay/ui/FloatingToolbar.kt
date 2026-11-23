@@ -13,6 +13,8 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DoNotDisturbOff
 import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -33,6 +35,7 @@ import com.pixel.gamebooster.overlay.model.OverlayUiState
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.utils.HapticUtil
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun FloatingToolbar(
     state: OverlayUiState,
@@ -53,8 +56,8 @@ fun FloatingToolbar(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
             // Mode Badge
             val modeText = when (state.interventionMode) {
@@ -102,22 +105,23 @@ fun FloatingToolbar(
 
             // 120Hz Toggle Button (if available)
             if (onToggle120Hz != null) {
-                IconButton(
-                    onClick = {
+                FilledIconToggleButton(
+                    checked = state.lockRefreshRate,
+                    onCheckedChange = {
                         HapticUtil.performToggle(view)
                         onToggle120Hz()
                     },
                     modifier = Modifier.size(36.dp),
-                    colors = if (state.lockRefreshRate) {
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    } else {
-                        IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    shapes = IconButtonDefaults.toggleableShapes(
+                        shape = IconButtonDefaults.smallSquareShape,
+                        checkedShape = IconButtonDefaults.smallRoundShape,
+                    ),
+                    colors = IconButtonDefaults.filledIconToggleButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        checkedContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
                 ) {
                     Text(
                         text = "120",
@@ -130,22 +134,23 @@ fun FloatingToolbar(
             }
 
             // Quick DND Toggle Button
-            IconButton(
-                onClick = {
+            FilledIconToggleButton(
+                checked = state.dndEnabled,
+                onCheckedChange = {
                     HapticUtil.performToggle(view)
                     onToggleDnd()
                 },
                 modifier = Modifier.size(36.dp),
-                colors = if (state.dndEnabled) {
-                    IconButtonDefaults.filledIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                } else {
-                    IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                shapes = IconButtonDefaults.toggleableShapes(
+                    shape = IconButtonDefaults.smallSquareShape,
+                    checkedShape = IconButtonDefaults.smallRoundShape,
+                ),
+                colors = IconButtonDefaults.filledIconToggleButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                    checkedContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
             ) {
                 Icon(
                     imageVector = if (state.dndEnabled) Icons.Rounded.DoNotDisturbOn else Icons.Rounded.DoNotDisturbOff,

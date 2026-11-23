@@ -89,6 +89,7 @@ class OverlayViewModel(
                     autoBrightnessLocked = initialProfile.disableAutoBrightness,
                     netBoostEnabled = initialProfile.stabilizeWifi,
                     overlayStyle = repository.overlayStyle.value,
+                    recordDoubleTapStop = repository.recordDoubleTapStop.value,
                 )
             }
         }
@@ -96,6 +97,18 @@ class OverlayViewModel(
         repository.overlayStyle
             .onEach { style ->
                 _uiState.update { it.copy(overlayStyle = style) }
+            }
+            .launchIn(scope)
+
+        repository.recordDoubleTapStop
+            .onEach { enabled ->
+                _uiState.update { it.copy(recordDoubleTapStop = enabled) }
+            }
+            .launchIn(scope)
+
+        com.pixel.gamebooster.recording.ScreenRecordService.isRecording
+            .onEach { recording ->
+                _uiState.update { it.copy(isRecording = recording) }
             }
             .launchIn(scope)
 
@@ -120,21 +133,22 @@ class OverlayViewModel(
             while (isActive) {
                 // 1. Measure active display refresh rate as base
                 val displayFps = runCatching {
-                    val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-                    val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        context.display
-                    } else {
-                        @Suppress("DEPRECATION")
-                        wm?.defaultDisplay
-                    }
-                    display?.mode?.refreshRate?.roundToInt() ?: 60
+                    val dm = context.getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
+                    val display = dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+                    display?.mode?.refreshRate?.roundToInt() ?: display?.refreshRate?.roundToInt() ?: 60
                 }.getOrDefault(60)
 
                 // 2. Query real-time SurfaceFlinger render latency if Shizuku is authorized
                 var measuredFps = displayFps
                 if (ShellUtils.isShizukuAvailable() && ShellUtils.hasShizukuPermission() && packageName.isNotBlank()) {
                     runCatching {
-                        val output = ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency $packageName")
+                        val layerCmd = "dumpsys SurfaceFlinger --list | grep -F \"$packageName\" | head -n 1"
+                        val layer = ShellUtils.runCommandWithOutput(context, layerCmd)?.trim()
+                        val output = if (!layer.isNullOrBlank()) {
+                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency \"$layer\"")
+                        } else {
+                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency $packageName")
+                        }
                         if (!output.isNullOrBlank()) {
                             val lines = output.trim().split("\n")
                             if (lines.size > 2) {
@@ -276,6 +290,12 @@ class OverlayViewModel(
                 it.copy(
                     stabilizeWifi = targetBoost,
                     wifiLowLatency = targetBoost,
+                    wifiSuppressScans = targetBoost,
+                    wifiLockSufficiency = targetBoost,
+                    wifiPreventArp = targetBoost,
+                    disablePrivateDns = targetBoost,
+                    pauseAutoSync = targetBoost,
+                    blockBatterySaver = targetBoost,
                 )
             }
         }
@@ -314,15 +334,16 @@ class OverlayViewModel(
         _uiState.update { it.copy(isRecording = recording) }
     }
 
+    fun stopRecording() {
+        if (com.pixel.gamebooster.recording.ScreenRecordService.isRecording.value) {
+            com.pixel.gamebooster.recording.ScreenRecordService.stopRecording(context)
+        }
+    }
+
     fun toggleRecording() {
-        val currentlyRecording = _uiState.value.isRecording
-        if (currentlyRecording) {
-            _uiState.update { it.copy(isRecording = false) }
-            scope.launch(Dispatchers.IO) {
-                ShellUtils.runCommand(context, "pkill -2 screenrecord || killall -2 screenrecord")
-            }
+        if (com.pixel.gamebooster.recording.ScreenRecordService.isRecording.value) {
+            com.pixel.gamebooster.recording.ScreenRecordService.stopRecording(context)
         } else {
-            // Launch Android's official MediaProjection system screen record dialog
             ScreenRecordTrampolineActivity.launch(context)
         }
     }
@@ -332,10 +353,11 @@ class OverlayViewModel(
         scope.coroutineContext.cancelChildren()
     }
 
-    private suspend fun updatePersistedProfile(transform: (GameProfile) -> GameProfile) {
+    private suspend fun updatePersistedProfile(transform: (GameProfile) -> GameProfile): GameProfile {
         val current = repository.getEffectiveProfile(packageName)
         val updated = transform(current)
         profilePersistDebounce.value = updated
+        return updated
     }
 
     companion object {
@@ -417,11 +439,9 @@ class OverlayViewModel(
 
         private fun resolveCurrentFps(context: Context): Int {
             return runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    context.display.refreshRate.toInt().coerceIn(30, 144)
-                } else {
-                    60
-                }
+                val dm = context.getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
+                val display = dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
+                display?.mode?.refreshRate?.roundToInt() ?: display?.refreshRate?.roundToInt() ?: 60
             }.getOrDefault(60)
         }
     }

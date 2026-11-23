@@ -28,4 +28,5 @@ data class OverlayUiState(
     val temperatureC: Int = 38,
     val wattageW: Float = 4.2f,
     val isRecording: Boolean = false,
+    val recordDoubleTapStop: Boolean = true,
 )

@@ -2,10 +2,20 @@ package com.pixel.gamebooster.ui.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,11 +29,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AcUnit
@@ -36,6 +50,9 @@ import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -201,6 +218,7 @@ fun handleFabClick(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AppNavigation(
     repo: SettingsRepository,
@@ -252,6 +270,7 @@ fun AppNavigation(
             )
             AppScreen.MAIN, AppScreen.LIBRARY -> {
                 val view = LocalView.current
+                val adaptive = rememberAdaptiveLayoutInfo()
                 var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
                 var activeMainTab by rememberSaveable { mutableStateOf(MainTab.GAMES) }
 
@@ -286,83 +305,93 @@ fun AppNavigation(
                             }
                         }
 
-                        // Floating Bottom Navigation Bar (2 destinations: Game Library and Overlay Page)
-                        Surface(
+                        // Floating Bottom Navigation Bar (Matching In-Game Floating Bottom Toolbar with labels intact)
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 20.dp)
-                                .navigationBarsPadding(),
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
-                            tonalElevation = 6.dp,
-                            shadowElevation = 8.dp,
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                                .windowInsetsPadding(WindowInsets.navigationBars)
+                                .padding(bottom = if (adaptive.isCompactHeight) 2.dp else 8.dp),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            HorizontalFloatingToolbar(
+                                expanded = true,
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp,
+                                    vertical = if (adaptive.isCompactHeight) 2.dp else 8.dp,
+                                ),
+                                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(
+                                    toolbarContentColor = MaterialTheme.colorScheme.onSurface,
+                                    toolbarContainerColor = MaterialTheme.colorScheme.primary,
+                                ),
                             ) {
-                                // Button 1: Game Library
                                 val isGamesSelected = activeMainTab == MainTab.GAMES
-                                Surface(
-                                    onClick = {
-                                        HapticUtil.performVirtualKeyHaptic(view)
-                                        activeMainTab = MainTab.GAMES
-                                    },
-                                    shape = CircleShape,
-                                    color = if (isGamesSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                    contentColor = if (isGamesSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.SportsEsports,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp),
-                                        )
-                                        Text(
-                                            text = "Games",
-                                            style = TextStyle(
-                                                fontFamily = GoogleSansFlexRounded,
-                                                fontWeight = if (isGamesSelected) FontWeight.Bold else FontWeight.Medium,
-                                                fontSize = 14.sp,
-                                            ),
-                                        )
-                                    }
-                                }
+                                val totalContentWidth = 170.dp
+                                val expandedWidth = 116.dp
+                                val collapsedWidth = 48.dp
+                                val spacing = 6.dp
 
-                                // Button 2: In-Game Overlay Page
-                                val isOverlaySelected = activeMainTab == MainTab.OVERLAY
-                                Surface(
-                                    onClick = {
-                                        HapticUtil.performVirtualKeyHaptic(view)
-                                        activeMainTab = MainTab.OVERLAY
-                                    },
-                                    shape = CircleShape,
-                                    color = if (isOverlaySelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                                    contentColor = if (isOverlaySelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                val gamesSlotWidth by animateDpAsState(
+                                    targetValue = if (isGamesSelected) expandedWidth else collapsedWidth,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMedium,
+                                    ),
+                                    label = "games_slot_width",
+                                )
+                                val overlaySlotWidth = (totalContentWidth - spacing) - gamesSlotWidth
+
+                                val indicatorOffset by animateDpAsState(
+                                    targetValue = if (isGamesSelected) 0.dp else (totalContentWidth - expandedWidth),
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMedium,
+                                    ),
+                                    label = "indicator_offset",
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .width(totalContentWidth)
+                                        .height(48.dp),
                                 ) {
+                                    // 1. Sliding inner selected circle / pill
+                                    Box(
+                                        modifier = Modifier
+                                            .offset(x = indicatorOffset)
+                                            .width(expandedWidth)
+                                            .height(48.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.background),
+                                    )
+
+                                    // 2. Interactive tab slots
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                        modifier = Modifier.fillMaxSize(),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(spacing),
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Layers,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp),
+                                        // Tab 1: Game Library
+                                        FloatingNavTabItem(
+                                            selected = isGamesSelected,
+                                            label = "Games",
+                                            icon = Icons.Rounded.SportsEsports,
+                                            width = gamesSlotWidth,
+                                            onClick = {
+                                                HapticUtil.performVirtualKeyHaptic(view)
+                                                activeMainTab = MainTab.GAMES
+                                            },
                                         )
-                                        Text(
-                                            text = "Overlay",
-                                            style = TextStyle(
-                                                fontFamily = GoogleSansFlexRounded,
-                                                fontWeight = if (isOverlaySelected) FontWeight.Bold else FontWeight.Medium,
-                                                fontSize = 14.sp,
-                                            ),
+
+                                        // Tab 2: In-Game Overlay Page
+                                        FloatingNavTabItem(
+                                            selected = !isGamesSelected,
+                                            label = "Overlay",
+                                            icon = Icons.Rounded.Layers,
+                                            width = overlaySlotWidth,
+                                            onClick = {
+                                                HapticUtil.performVirtualKeyHaptic(view)
+                                                activeMainTab = MainTab.OVERLAY
+                                            },
                                         )
                                     }
                                 }
@@ -370,6 +399,83 @@ fun AppNavigation(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Floating Navigation Tab Item for the main library and overlay bottom bar.
+ * Sits above the sliding selection indicator with a fixed/animated slot width,
+ * revealing the label with a bouncy spring animation when active,
+ * and collapsing cleanly to an icon-only button when inactive.
+ */
+@Composable
+private fun FloatingNavTabItem(
+    selected: Boolean,
+    label: String,
+    icon: ImageVector,
+    width: Dp,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .width(width)
+            .height(48.dp)
+            .clip(CircleShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.padding(
+                start = 14.dp,
+                end = if (selected) 16.dp else 14.dp,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.background,
+                modifier = Modifier.size(20.dp),
+            )
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(animationSpec = tween(durationMillis = 140, delayMillis = 20)) +
+                        expandHorizontally(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMedium,
+                            ),
+                            expandFrom = Alignment.Start,
+                        ),
+                exit = fadeOut(animationSpec = tween(durationMillis = 80)) +
+                       shrinkHorizontally(
+                           animationSpec = spring(
+                               dampingRatio = Spring.DampingRatioNoBouncy,
+                               stiffness = Spring.StiffnessMedium,
+                           ),
+                           shrinkTowards = Alignment.Start,
+                       ),
+            ) {
+                Text(
+                    text = label,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = TextStyle(
+                        fontFamily = GoogleSansFlexRounded,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
         }
     }
