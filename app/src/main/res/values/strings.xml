@@ -107,7 +107,7 @@
     <string name="perf_cached_freezer_title">Kernel Cached Apps Freezer</string>
     <string name="perf_cached_freezer_desc">Freezes background app cgroups to preserve CPU cycles for game threads.</string>
     <string name="perf_cached_freezer_cmd" translatable="false">settings put global cached_apps_freezer enabled</string>
-    <string name="perf_section_display_brightness">Display Brightness</string>
+    <string name="perf_section_display_navigation">Navigation Gesture</string>
     <string name="perf_disable_auto_brightness_title">Disable Auto-Brightness</string>
     <string name="perf_disable_auto_brightness_desc">Locks current brightness to prevent sudden light sensor dips mid-game.</string>
     <string name="perf_disable_auto_brightness_cmd" translatable="false">settings put system screen_brightness_mode 0</string>
@@ -153,7 +153,8 @@
     <string name="net_disable_private_dns_title">Private DNS Latency Bypass</string>
     <string name="net_disable_private_dns_desc">Disables Private DNS during gaming to avoid DNS query latency spikes.</string>
     <string name="net_disable_private_dns_cmd" translatable="false">settings put global private_dns_mode off</string>
-    <string name="net_section_sync_power">Background Sync &amp; Power</string>
+    <string name="net_section_sync">Background Sync</string>
+    <string name="net_section_power">Power</string>
     <string name="net_pause_sync_title">Pause Master Auto-Sync</string>
     <string name="net_pause_sync_desc">Halts cloud account synchronization to prevent background disk and network I/O.</string>
     <string name="net_pause_sync_cmd" translatable="false">ContentResolver.setMasterSyncAutomatically(false)</string>
@@ -372,7 +373,7 @@
     <string name="overlay_mode_battery">Battery</string>
     <string name="overlay_mode_balanced">Balanced</string>
     <string name="overlay_mode_boost">Performance</string>
-    <string name="overlay_net_boost_title">Network Boost</string>
+    <string name="overlay_live_fps_title">Live FPS</string>
     <string name="overlay_quick_tap_title">Quick Tap Lock</string>
     <string name="overlay_brightness_lock_title">Brightness Lock</string>
     <string name="overlay_back_gesture_lock_title">Lock Back Button</string>
@@ -386,6 +387,11 @@
     <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
     <string name="overlay_show_live_fps_title">Show Live FPS</string>
     <string name="overlay_show_live_fps_desc">Display real-time FPS pill on the edge bar or inside the floating button</string>
+    <string name="overlay_color_title">Trigger Color</string>
+    <string name="overlay_color_monet">Monet (Wallpaper)</string>
+    <string name="overlay_color_monet_desc">Matches your dynamic Material You wallpaper accent color</string>
+    <string name="overlay_color_custom">Custom Color</string>
+    <string name="overlay_color_custom_desc">Pick a custom accent color for the edge bar or floating button</string>
     <string name="overlay_navbar_label">Overlay</string>
 
     <!-- Overlay Permissions (perm_) -->

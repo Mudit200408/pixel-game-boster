@@ -17,7 +17,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,10 +42,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.delay
 
@@ -51,6 +60,10 @@ fun CollapsedPill(
     isDockedOnRight: Boolean,
     overlayStyle: Int = 0,
     pillOpacity: Float = 0.94f,
+    showLiveFps: Boolean = false,
+    currentFps: Int = 60,
+    overlayColorMode: Int = 0,
+    overlayCustomColor: Int = 0xFF4285F4.toInt(),
     isRecording: Boolean = false,
     doubleTapToStopEnabled: Boolean = true,
     onExpand: () -> Unit,
@@ -85,8 +98,13 @@ fun CollapsedPill(
         modifier = modifier
             .padding(vertical = 4.dp)
             .size(
-                width = if (isCircle) 52.dp else 28.dp,
-                height = 56.dp,
+                width = when {
+                    isCircle && showLiveFps -> 60.dp
+                    isCircle -> 52.dp
+                    showLiveFps -> 58.dp
+                    else -> 28.dp
+                },
+                height = if (isCircle && showLiveFps) 60.dp else 56.dp,
             )
             .alpha(pillAlpha)
             .pointerInput(Unit) {
@@ -169,19 +187,58 @@ fun CollapsedPill(
             enter = enterAnim,
             exit = exitAnim,
         ) {
+            val triggerColor = if (overlayColorMode == 1) Color(overlayCustomColor) else MaterialTheme.colorScheme.primary
+            val accentTint = if (isRecording) MaterialTheme.colorScheme.error else triggerColor
+            val fpsTextColor = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
             if (isCircle) {
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(if (showLiveFps) 54.dp else 46.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.SportsEsports,
-                        contentDescription = "Game Booster Overlay",
-                        tint = if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp),
+                    if (showLiveFps) {
+                        Text(
+                            text = "$currentFps",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = GoogleSansFlexRounded,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                            ),
+                            color = fpsTextColor,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Rounded.SportsEsports,
+                            contentDescription = "Game Booster Overlay",
+                            tint = accentTint,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
+            } else if (showLiveFps) {
+                val edgePillShape = if (isDockedOnRight) {
+                    RoundedCornerShape(topStart = 19.dp, bottomStart = 19.dp, topEnd = 8.dp, bottomEnd = 8.dp)
+                } else {
+                    RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 19.dp, bottomEnd = 19.dp)
+                }
+                Box(
+                    modifier = Modifier
+                        .height(38.dp)
+                        .clip(edgePillShape)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f))
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "$currentFps",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = GoogleSansFlexRounded,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                        ),
+                        color = fpsTextColor,
                     )
                 }
             } else {
@@ -189,10 +246,7 @@ fun CollapsedPill(
                     modifier = Modifier
                         .size(width = 8.dp, height = 48.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(
-                            (if (isRecording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
-                                .copy(alpha = 0.88f)
-                        )
+                        .background(accentTint.copy(alpha = 0.88f))
                 )
             }
         }

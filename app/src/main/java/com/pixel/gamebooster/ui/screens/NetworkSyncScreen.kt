@@ -136,18 +136,20 @@ fun NetworkSyncScreen(
                     )
                 }
 
-                // Column 2: Background Sync / Battery Saver cards
+                // Column 2: Background Sync & Power cards
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     NetworkBackgroundSyncSection(
                         pauseSync = pauseSync,
-                        blockBatterySaver = blockBatterySaver,
                         onPauseSyncChange = {
                             if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
                             else repo.setPauseAutoSync(it)
                         },
+                    )
+                    NetworkPowerSection(
+                        blockBatterySaver = blockBatterySaver,
                         onBlockBatterySaverChange = {
                             if (isScoped) updateScoped { p -> p.copy(blockBatterySaver = it) }
                             else repo.setBlockBatterySaver(it)
@@ -187,11 +189,13 @@ fun NetworkSyncScreen(
 
             NetworkBackgroundSyncSection(
                 pauseSync = pauseSync,
-                blockBatterySaver = blockBatterySaver,
                 onPauseSyncChange = {
                     if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
                     else repo.setPauseAutoSync(it)
                 },
+            )
+            NetworkPowerSection(
+                blockBatterySaver = blockBatterySaver,
                 onBlockBatterySaverChange = {
                     if (isScoped) updateScoped { p -> p.copy(blockBatterySaver = it) }
                     else repo.setBlockBatterySaver(it)
@@ -278,12 +282,10 @@ private fun NetworkWifiLatencySection(
 @Composable
 private fun NetworkBackgroundSyncSection(
     pauseSync: Boolean,
-    blockBatterySaver: Boolean,
     onPauseSyncChange: (Boolean) -> Unit,
-    onBlockBatterySaverChange: (Boolean) -> Unit,
 ) {
     Text(
-        text = stringResource(R.string.net_section_sync_power),
+        text = stringResource(R.string.net_section_sync),
         style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 8.dp),
@@ -298,8 +300,25 @@ private fun NetworkBackgroundSyncSection(
             isChecked = pauseSync,
             onCheckedChange = onPauseSyncChange,
             index = 0,
-            count = 2,
+            count = 1,
         )
+    }
+}
+
+@Composable
+private fun NetworkPowerSection(
+    blockBatterySaver: Boolean,
+    onBlockBatterySaverChange: (Boolean) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.net_section_power),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
+       
         IconToggleItem(
             title = stringResource(R.string.net_block_battery_saver_title),
             subtitle = stringResource(R.string.net_block_battery_saver_desc),
@@ -307,8 +326,8 @@ private fun NetworkBackgroundSyncSection(
             icon = Icons.Rounded.BatteryAlert,
             isChecked = blockBatterySaver,
             onCheckedChange = onBlockBatterySaverChange,
-            index = 1,
-            count = 2,
+            index = 0,
+            count = 1,
         )
     }
 }

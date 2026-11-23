@@ -14,12 +14,13 @@ data class OverlayUiState(
     val overlayStyle: Int = 0, // 0=Bar, 1=Circle Button
     val overlayOpacity: Float = 0.94f, // 0.20f..1.0f
     val showLiveFps: Boolean = false,
+    val overlayColorMode: Int = 0, // 0=Monet/Wallpaper, 1=Custom
+    val overlayCustomColor: Int = 0xFF4285F4.toInt(),
     val isImeVisible: Boolean = false,
     val interventionMode: Int = 2, // 3=Battery, 1=Balanced, 2=Boost
     val fpsOverride: Int = 0, // 0=Auto, 60, 90, 120
     val lockRefreshRate: Boolean = true,
     val dndEnabled: Boolean = false,
-    val netBoostEnabled: Boolean = true,
     val quickTapLocked: Boolean = true,
     val autoBrightnessLocked: Boolean = true,
     val backGestureLocked: Boolean = false,

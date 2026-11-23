@@ -54,9 +54,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Bedtime
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Icon
@@ -321,7 +321,7 @@ fun ExpandedPanel(
                     )
                 }
 
-                // Row 2: [ Brightness Lock ]  [ Net Boost ]  [ Back Lock ]
+                // Row 2: [ Brightness Lock ]  [ Live FPS ]  [ Back Lock ]
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -335,10 +335,10 @@ fun ExpandedPanel(
                     )
 
                     M3EActionTile(
-                        icon = Icons.Rounded.Bolt,
-                        label = stringResource(R.string.overlay_net_boost_title),
-                        isActive = state.netBoostEnabled,
-                        onClick = { viewModel.toggleNetBoost() },
+                        icon = Icons.Rounded.Speed,
+                        label = stringResource(R.string.overlay_live_fps_title),
+                        isActive = state.showLiveFps,
+                        onClick = { viewModel.toggleLiveFps() },
                         modifier = Modifier.weight(1f),
                     )
 

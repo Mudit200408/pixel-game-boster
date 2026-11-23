@@ -1,12 +1,17 @@
 package com.pixel.gamebooster.ui.screens
 
+import android.graphics.Color as AndroidColor
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,30 +39,42 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ViewSidebar
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.ColorLens
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -96,6 +113,9 @@ fun OverlaySettingsScreen(
     val isOverlayEnabled by repo.isOverlayEnabled.collectAsState()
     val overlayStyle by repo.overlayStyle.collectAsState()
     val overlayOpacity by repo.overlayOpacity.collectAsState()
+    val showLiveFps by repo.showLiveFps.collectAsState()
+    val overlayColorMode by repo.overlayColorMode.collectAsState()
+    val overlayCustomColor by repo.overlayCustomColor.collectAsState()
     val recordAudioSource by repo.recordAudioSource.collectAsState()
     val recordResolution by repo.recordResolution.collectAsState()
     val currentAudio = RecordAudioSource.fromValue(recordAudioSource)
@@ -104,6 +124,7 @@ fun OverlaySettingsScreen(
     val headerState = rememberPullTitleHeaderState()
     val adaptive = rememberAdaptiveLayoutInfo()
     val bottomPadding = if (adaptive.isCompactHeight) 68.dp else 108.dp
+    var isColorPickerExpanded by remember { mutableStateOf(false) }
 
     // Dynamic Monet Lottie Animation for In-Game Overlay
     val lottieRes = if (overlayStyle == 1) {
@@ -116,10 +137,10 @@ fun OverlaySettingsScreen(
         composition = composition,
         iterations = LottieConstants.IterateForever,
     )
-    val accentColor = if (!isOverlayEnabled) {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    } else {
+    val accentColor = if (isOverlayEnabled) {
         MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
     }
     val dynamicProperties = rememberLottieDynamicProperties(
         rememberLottieDynamicProperty(
@@ -347,6 +368,421 @@ fun OverlaySettingsScreen(
                                 valueRange = 0.20f..1.0f,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                        }
+                    }
+
+                    RoundedCardContainer {
+                        IconToggleItem(
+                            title = stringResource(R.string.overlay_show_live_fps_title),
+                            subtitle = stringResource(R.string.overlay_show_live_fps_desc),
+                            icon = Icons.Rounded.Speed,
+                            checked = showLiveFps,
+                            onCheckedChange = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                repo.setShowLiveFps(it)
+                            },
+                            index = 0,
+                            count = 1,
+                        )
+                    }
+
+                    Text(
+                        text = stringResource(R.string.overlay_color_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+
+                    RoundedCardContainer {
+                        val isMonet = overlayColorMode == 0
+                        IconToggleItem(
+                            title = stringResource(R.string.overlay_color_monet),
+                            subtitle = stringResource(R.string.overlay_color_monet_desc),
+                            icon = Icons.Rounded.Palette,
+                            checked = isMonet,
+                            showToggle = false,
+                            onClick = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                isColorPickerExpanded = false
+                                repo.setOverlayColorMode(0)
+                            },
+                            index = 0,
+                            count = 2,
+                            trailingContent = if (isMonet) {
+                                {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            } else null,
+                        )
+
+                        val isCustom = overlayColorMode == 1
+                        IconToggleItem(
+                            title = stringResource(R.string.overlay_color_custom),
+                            subtitle = stringResource(R.string.overlay_color_custom_desc),
+                            icon = Icons.Rounded.ColorLens,
+                            checked = isCustom,
+                            showToggle = false,
+                            onClick = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                if (!isCustom) {
+                                    repo.setOverlayColorMode(1)
+                                    isColorPickerExpanded = true
+                                } else {
+                                    isColorPickerExpanded = !isColorPickerExpanded
+                                }
+                            },
+                            index = 1,
+                            count = 2,
+                            trailingContent = if (isCustom) {
+                                {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(overlayCustomColor)),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = if (AndroidColor.luminance(overlayCustomColor) > 0.5f) Color.Black else Color.White,
+                                            modifier = Modifier.size(15.dp),
+                                        )
+                                    }
+                                }
+                            } else null,
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = overlayColorMode == 1,
+                        enter = fadeIn(),
+                        exit = fadeOut(),
+                    ) {
+                        val savedHexCode = String.format("#%06X", 0xFFFFFF and overlayCustomColor)
+
+                        if (!isColorPickerExpanded) {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                ),
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(overlayCustomColor)),
+                                        )
+                                        Column {
+                                            Text(
+                                                text = "Selected Color",
+                                                style = MaterialTheme.typography.titleSmall.copy(
+                                                    fontFamily = GoogleSansFlexRounded,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            Text(
+                                                text = savedHexCode,
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontFamily = GoogleSansFlexRounded,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            HapticUtil.performVirtualKeyHaptic(view)
+                                            isColorPickerExpanded = true
+                                        },
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Edit,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "Change Color",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontFamily = GoogleSansFlexRounded,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            val presetColors = listOf(
+                                0xFFFFFFFF.toInt(), // White
+                                0xFF9AA0A6.toInt(), // Grey
+                                0xFF444746.toInt(), // Charcoal
+                                0xFF4285F4.toInt(), // Pixel Blue
+                                0xFF34A853.toInt(), // Mint
+                                0xFFFBBC04.toInt(), // Amber
+                                0xFFEA4335.toInt(), // Coral
+                                0xFFA142F4.toInt(), // Lavender
+                            )
+                            var draftColor by remember(overlayCustomColor, isColorPickerExpanded) {
+                                mutableIntStateOf(overlayCustomColor)
+                            }
+                            val initialHsv = remember(overlayCustomColor, isColorPickerExpanded) {
+                                FloatArray(3).also { AndroidColor.colorToHSV(overlayCustomColor, it) }
+                            }
+                            var hue by remember(overlayCustomColor, isColorPickerExpanded) { mutableFloatStateOf(initialHsv[0]) }
+                            var sat by remember(overlayCustomColor, isColorPickerExpanded) { mutableFloatStateOf(initialHsv[1]) }
+                            var brightness by remember(overlayCustomColor, isColorPickerExpanded) { mutableFloatStateOf(initialHsv[2]) }
+
+                            val draftHexCode = String.format("#%06X", 0xFFFFFF and draftColor)
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                                ),
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = "Color Picker",
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontFamily = GoogleSansFlexRounded,
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Text(
+                                                text = draftHexCode,
+                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                    fontFamily = GoogleSansFlexRounded,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(draftColor)),
+                                            )
+                                        }
+                                    }
+
+                                    // 2D Saturation (left->right) x Brightness (bottom->top) Spectrum Box
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(156.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                            .pointerInput(Unit) {
+                                                detectTapGestures { offset ->
+                                                    sat = (offset.x / size.width).coerceIn(0f, 1f)
+                                                    brightness = (1f - offset.y / size.height).coerceIn(0f, 1f)
+                                                    draftColor = AndroidColor.HSVToColor(floatArrayOf(hue, sat, brightness))
+                                                }
+                                            }
+                                            .pointerInput(Unit) {
+                                                detectDragGestures { change, _ ->
+                                                    change.consume()
+                                                    sat = (change.position.x / size.width).coerceIn(0f, 1f)
+                                                    brightness = (1f - change.position.y / size.height).coerceIn(0f, 1f)
+                                                    draftColor = AndroidColor.HSVToColor(floatArrayOf(hue, sat, brightness))
+                                                }
+                                            },
+                                    ) {
+                                        Canvas(modifier = Modifier.fillMaxSize()) {
+                                            val pureHue = Color.hsv(hue, 1f, 1f)
+                                            drawRect(brush = Brush.horizontalGradient(listOf(Color.White, pureHue)))
+                                            drawRect(brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+
+                                            val cx = sat * size.width
+                                            val cy = (1f - brightness) * size.height
+                                            drawCircle(
+                                                color = Color.Black.copy(alpha = 0.45f),
+                                                radius = 9.dp.toPx(),
+                                                center = Offset(cx, cy),
+                                                style = Stroke(width = 3.dp.toPx()),
+                                            )
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 9.dp.toPx(),
+                                                center = Offset(cx, cy),
+                                                style = Stroke(width = 2.dp.toPx()),
+                                            )
+                                        }
+                                    }
+
+                                    // Rainbow Hue Bar
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(24.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .pointerInput(Unit) {
+                                                detectTapGestures { offset ->
+                                                    hue = ((offset.x / size.width) * 360f).coerceIn(0f, 360f)
+                                                    draftColor = AndroidColor.HSVToColor(floatArrayOf(hue, sat, brightness))
+                                                }
+                                            }
+                                            .pointerInput(Unit) {
+                                                detectDragGestures { change, _ ->
+                                                    change.consume()
+                                                    hue = ((change.position.x / size.width) * 360f).coerceIn(0f, 360f)
+                                                    draftColor = AndroidColor.HSVToColor(floatArrayOf(hue, sat, brightness))
+                                                }
+                                            },
+                                    ) {
+                                        Canvas(modifier = Modifier.fillMaxSize()) {
+                                            val hueColors = listOf(
+                                                Color.Red,
+                                                Color.Yellow,
+                                                Color.Green,
+                                                Color.Cyan,
+                                                Color.Blue,
+                                                Color.Magenta,
+                                                Color.Red,
+                                            )
+                                            drawRect(brush = Brush.horizontalGradient(hueColors))
+                                            val tx = (hue / 360f).coerceIn(0f, 1f) * size.width
+                                            val ty = size.height / 2f
+                                            drawCircle(
+                                                color = Color.Black.copy(alpha = 0.45f),
+                                                radius = 9.dp.toPx(),
+                                                center = Offset(tx, ty),
+                                                style = Stroke(width = 3.dp.toPx()),
+                                            )
+                                            drawCircle(
+                                                color = Color.White,
+                                                radius = 9.dp.toPx(),
+                                                center = Offset(tx, ty),
+                                                style = Stroke(width = 2.dp.toPx()),
+                                            )
+                                        }
+                                    }
+
+                                    // Quick Swatches (including White, Grey, Charcoal)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        presetColors.forEach { argb ->
+                                            val selected = draftColor == argb
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(32.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(argb))
+                                                    .clickable {
+                                                        HapticUtil.performVirtualKeyHaptic(view)
+                                                        val pickedHsv = FloatArray(3)
+                                                        AndroidColor.colorToHSV(argb, pickedHsv)
+                                                        if (pickedHsv[1] > 0f) hue = pickedHsv[0]
+                                                        sat = pickedHsv[1]
+                                                        brightness = pickedHsv[2]
+                                                        draftColor = argb
+                                                    },
+                                                contentAlignment = Alignment.Center,
+                                            ) {
+                                                if (selected) {
+                                                    Icon(
+                                                        imageVector = Icons.Rounded.Check,
+                                                        contentDescription = null,
+                                                        tint = if (AndroidColor.luminance(argb) > 0.5f) Color.Black else Color.White,
+                                                        modifier = Modifier.size(16.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Confirm / Cancel Actions
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = {
+                                                HapticUtil.performVirtualKeyHaptic(view)
+                                                isColorPickerExpanded = false
+                                            },
+                                        ) {
+                                            Text(
+                                                text = "Cancel",
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontFamily = GoogleSansFlexRounded,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                            )
+                                        }
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.performVirtualKeyHaptic(view)
+                                                repo.setOverlayCustomColor(draftColor)
+                                                isColorPickerExpanded = false
+                                            },
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = "Confirm",
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontFamily = GoogleSansFlexRounded,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

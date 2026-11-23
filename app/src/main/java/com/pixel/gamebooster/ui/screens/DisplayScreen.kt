@@ -146,28 +146,29 @@ private fun DisplayRefreshSection(
             isChecked = lockRefresh,
             onCheckedChange = onLockRefreshChange,
             index = 0,
-            count = 1,
+            count = 2,
         )
-    }
-
-    androidx.compose.material3.Text(
-        text = stringResource(R.string.perf_section_display_brightness),
-        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
-        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp),
-    )
-
-    RoundedCardContainer {
-        IconToggleItem(
+          IconToggleItem(
             title = stringResource(R.string.perf_disable_auto_brightness_title),
             subtitle = stringResource(R.string.perf_disable_auto_brightness_desc),
             command = stringResource(R.string.perf_disable_auto_brightness_cmd),
             icon = Icons.Rounded.BrightnessAuto,
             isChecked = disableBrightness,
             onCheckedChange = onDisableBrightnessChange,
-            index = 0,
+            index = 1,
             count = 2,
         )
+    }
+
+    androidx.compose.material3.Text(
+        text = stringResource(R.string.perf_section_display_navigation),
+        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
+      
         IconToggleItem(
             title = stringResource(R.string.perf_lock_back_gesture_title),
             subtitle = stringResource(R.string.perf_lock_back_gesture_desc),
@@ -175,8 +176,8 @@ private fun DisplayRefreshSection(
             icon = Icons.Rounded.TouchApp,
             isChecked = lockBackGesture,
             onCheckedChange = onLockBackGestureChange,
-            index = 1,
-            count = 2,
+            index = 0,
+            count = 1,
         )
     }
 }

@@ -226,8 +226,15 @@ object GameOverlayManager {
 
     private fun getExpectedPillWidthPx(context: Context): Int {
         val density = context.resources.displayMetrics.density
-        val isCircle = overlayViewModel?.uiState?.value?.overlayStyle == 1
-        return if (isCircle) (52 * density).toInt() else (28 * density).toInt()
+        val state = overlayViewModel?.uiState?.value
+        val isCircle = state?.overlayStyle == 1
+        val showLiveFps = state?.showLiveFps == true
+        return when {
+            isCircle && showLiveFps -> (60 * density).toInt()
+            isCircle -> (52 * density).toInt()
+            showLiveFps -> (58 * density).toInt()
+            else -> (28 * density).toInt()
+        }
     }
 
     private fun isCutoutOnLeft(

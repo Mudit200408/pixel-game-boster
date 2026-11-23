@@ -35,7 +35,7 @@ class OverlayStateTest {
         assertEquals(0, state.fpsOverride)
         assertTrue(state.lockRefreshRate)
         assertFalse(state.dndEnabled)
-        assertTrue(state.netBoostEnabled)
+        assertFalse(state.backGestureLocked)
         assertTrue(state.quickTapLocked)
         assertTrue(state.autoBrightnessLocked)
         assertEquals(0.8f, state.brightnessPercent, 0.001f)
@@ -83,12 +83,12 @@ class OverlayStateTest {
         // 2x2 toggles
         state = state.copy(
             dndEnabled = true,
-            netBoostEnabled = false,
+            backGestureLocked = true,
             quickTapLocked = false,
             autoBrightnessLocked = false
         )
         assertTrue(state.dndEnabled)
-        assertFalse(state.netBoostEnabled)
+        assertTrue(state.backGestureLocked)
         assertFalse(state.quickTapLocked)
         assertFalse(state.autoBrightnessLocked)
     }

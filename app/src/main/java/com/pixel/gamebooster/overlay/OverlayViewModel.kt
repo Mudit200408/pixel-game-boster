@@ -87,13 +87,16 @@ class OverlayViewModel(
                     dndEnabled = initialProfile.interruptionMode != 0,
                     quickTapLocked = initialProfile.disableQuickTap,
                     autoBrightnessLocked = initialProfile.disableAutoBrightness,
-                    backGestureLocked = GameModeManager.isBackGestureLocked,
-                    netBoostEnabled = initialProfile.stabilizeWifi,
+                    backGestureLocked = initialProfile.lockBackGesture || GameModeManager.isBackGestureSystemLocked(context),
                     overlayStyle = repository.overlayStyle.value,
                     overlayOpacity = repository.overlayOpacity.value,
+                    showLiveFps = repository.showLiveFps.value,
+                    overlayColorMode = repository.overlayColorMode.value,
+                    overlayCustomColor = repository.overlayCustomColor.value,
                     recordDoubleTapStop = repository.recordDoubleTapStop.value,
                 )
             }
+            updateMonitoringState()
         }
 
         repository.overlayStyle
@@ -105,6 +108,25 @@ class OverlayViewModel(
         repository.overlayOpacity
             .onEach { opacity ->
                 _uiState.update { it.copy(overlayOpacity = opacity) }
+            }
+            .launchIn(scope)
+
+        repository.showLiveFps
+            .onEach { enabled ->
+                _uiState.update { it.copy(showLiveFps = enabled) }
+                updateMonitoringState()
+            }
+            .launchIn(scope)
+
+        repository.overlayColorMode
+            .onEach { mode ->
+                _uiState.update { it.copy(overlayColorMode = mode) }
+            }
+            .launchIn(scope)
+
+        repository.overlayCustomColor
+            .onEach { color ->
+                _uiState.update { it.copy(overlayCustomColor = color) }
             }
             .launchIn(scope)
 
@@ -130,41 +152,83 @@ class OverlayViewModel(
             }
             .launchIn(scope)
 
-        startTelemetryAndFpsMonitoring()
+        updateMonitoringState()
     }
 
     private var telemetryJob: Job? = null
+    private var fpsMonitorJob: Job? = null
+    private var cachedSurfaceFlingerLayer: String? = null
 
-    private fun startTelemetryAndFpsMonitoring() {
-        telemetryJob?.cancel()
-        telemetryJob = scope.launch(Dispatchers.IO) {
+    private fun updateMonitoringState() {
+        val state = _uiState.value
+        val needFps = state.displayState == OverlayDisplayState.EXPANDED_PANEL || state.showLiveFps
+        val needTelemetry = state.displayState == OverlayDisplayState.EXPANDED_PANEL
+
+        if (needFps) {
+            if (fpsMonitorJob?.isActive != true) {
+                startFpsMonitoring()
+            }
+        } else {
+            fpsMonitorJob?.cancel()
+            fpsMonitorJob = null
+            TaskFpsMonitor.unregister()
+        }
+
+        if (needTelemetry) {
+            if (telemetryJob?.isActive != true) {
+                startTelemetryMonitoring()
+            }
+        } else {
+            telemetryJob?.cancel()
+            telemetryJob = null
+        }
+    }
+
+    private fun startFpsMonitoring() {
+        fpsMonitorJob?.cancel()
+        fpsMonitorJob = scope.launch(Dispatchers.IO) {
+            // 1. Prefer native IWindowManager.registerTaskFpsCallback (same as Google Game Dashboard)
+            val registered = TaskFpsMonitor.register(context, packageName) { liveFps ->
+                _uiState.update { it.copy(currentFps = liveFps) }
+            }
+            if (registered) return@launch
+
+            // 2. Fallback: SurfaceFlinger --latency polling only if TaskFpsCallback is unavailable
             while (isActive) {
-                // 1. Measure active display refresh rate as base
-                val displayFps = runCatching {
-                    val dm = context.getSystemService(Context.DISPLAY_SERVICE) as? android.hardware.display.DisplayManager
-                    val display = dm?.getDisplay(android.view.Display.DEFAULT_DISPLAY)
-                    display?.mode?.refreshRate?.roundToInt() ?: display?.refreshRate?.roundToInt() ?: 60
-                }.getOrDefault(60)
-
-                // 2. Query real-time SurfaceFlinger render latency if Shizuku is authorized
+                val displayFps = resolveCurrentFps(context)
                 var measuredFps = displayFps
                 if (ShellUtils.isShizukuAvailable() && ShellUtils.hasShizukuPermission() && packageName.isNotBlank()) {
                     runCatching {
-                        val layerCmd = "dumpsys SurfaceFlinger --list | grep -F \"$packageName\" | head -n 1"
-                        val layer = ShellUtils.runCommandWithOutput(context, layerCmd)?.trim()
-                        val output = if (!layer.isNullOrBlank()) {
-                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency \"$layer\"")
-                        } else {
-                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency $packageName")
+                        val layer = cachedSurfaceFlingerLayer ?: run {
+                            val listCmd = "dumpsys SurfaceFlinger --list | grep -F \"$packageName\""
+                            val listOut = ShellUtils.runCommandWithOutput(context, listCmd, notifyOnError = false)
+                            val candidates = listOut?.lineSequence()
+                                ?.map { it.trim() }
+                                ?.filter { it.isNotEmpty() && !it.startsWith("Background") }
+                                ?.toList()
+                                .orEmpty()
+                            val picked = candidates.firstOrNull { it.contains("SurfaceView[") || it.contains("BLAST") }
+                                ?: candidates.firstOrNull()
+                            cachedSurfaceFlingerLayer = picked
+                            picked
                         }
-                        if (!output.isNullOrBlank()) {
+                        val output = if (!layer.isNullOrBlank()) {
+                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency \"$layer\"", notifyOnError = false)
+                        } else {
+                            ShellUtils.runCommandWithOutput(context, "dumpsys SurfaceFlinger --latency $packageName", notifyOnError = false)
+                        }
+                        if (output.isNullOrBlank()) {
+                            cachedSurfaceFlingerLayer = null
+                        } else {
                             val lines = output.trim().split("\n")
                             if (lines.size > 2) {
                                 val now = System.nanoTime()
                                 val oneSecAgo = now - 1_000_000_000L
                                 val timestamps = lines.drop(1).mapNotNull { line ->
                                     val parts = line.trim().split(Regex("\\s+"))
-                                    if (parts.size >= 2) parts[1].toLongOrNull() else null
+                                    if (parts.size >= 2) {
+                                        parts[1].toLongOrNull()?.takeIf { ts -> ts > 0L && ts != Long.MAX_VALUE }
+                                    } else null
                                 }.filter { it in oneSecAgo..now }
 
                                 if (timestamps.isNotEmpty()) {
@@ -174,8 +238,16 @@ class OverlayViewModel(
                         }
                     }
                 }
+                _uiState.update { it.copy(currentFps = measuredFps) }
+                delay(1000L)
+            }
+        }
+    }
 
-                // 3. Read live battery, temperature, and current power draw
+    private fun startTelemetryMonitoring() {
+        telemetryJob?.cancel()
+        telemetryJob = scope.launch(Dispatchers.IO) {
+            while (isActive) {
                 val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
                 val batteryLevel = bm?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) ?: 100
                 val ifilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
@@ -195,20 +267,30 @@ class OverlayViewModel(
 
                 _uiState.update { current ->
                     current.copy(
-                        currentFps = measuredFps,
                         batteryPercent = batteryLevel,
                         temperatureC = temperature,
                         wattageW = wattage,
                     )
                 }
 
-                delay(1000L)
+                delay(1500L)
             }
         }
     }
 
     fun setDisplayState(state: OverlayDisplayState) {
-        _uiState.update { it.copy(displayState = state) }
+        if (state == OverlayDisplayState.EXPANDED_PANEL) {
+            _uiState.update {
+                it.copy(
+                    displayState = state,
+                    brightnessPercent = resolveBrightness(context),
+                    mediaVolumePercent = resolveVolume(context),
+                )
+            }
+        } else {
+            _uiState.update { it.copy(displayState = state) }
+        }
+        updateMonitoringState()
     }
 
     fun setDockedOnRight(isRight: Boolean) {
@@ -255,26 +337,45 @@ class OverlayViewModel(
         }
     }
 
+    private var brightnessWriteJob: Job? = null
+
     fun setBrightness(value: Float) {
         val clamped = value.coerceIn(0f, 1f)
         _uiState.update { it.copy(brightnessPercent = clamped, autoBrightnessLocked = true) }
-        scope.launch(Dispatchers.IO) {
-            val brightnessInt = (clamped * 255).toInt()
-            if (Settings.System.canWrite(context)) {
+        val linearFloat = gammaToLinearBrightness(clamped)
+        val brightnessInt = (linearFloat * 255f).roundToInt().coerceIn(1, 255)
+
+        if (Settings.System.canWrite(context)) {
+            brightnessWriteJob?.cancel()
+            brightnessWriteJob = scope.launch(Dispatchers.IO) {
                 runCatching {
                     Settings.System.putInt(
                         context.contentResolver,
                         Settings.System.SCREEN_BRIGHTNESS_MODE,
                         Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
                     )
+                    runCatching {
+                        Settings.System.putFloat(
+                            context.contentResolver,
+                            "screen_brightness_float",
+                            linearFloat,
+                        )
+                    }
                     Settings.System.putInt(
                         context.contentResolver,
                         Settings.System.SCREEN_BRIGHTNESS,
-                        brightnessInt
+                        brightnessInt,
                     )
                 }
-            } else {
-                ShellUtils.runCommand(context, "settings put system screen_brightness_mode 0 && settings put system screen_brightness $brightnessInt")
+            }
+        } else {
+            brightnessWriteJob?.cancel()
+            brightnessWriteJob = scope.launch(Dispatchers.IO) {
+                delay(40L)
+                ShellUtils.runCommand(
+                    context,
+                    "settings put system screen_brightness_mode 0 && settings put system screen_brightness_float $linearFloat && settings put system screen_brightness $brightnessInt",
+                )
             }
         }
     }
@@ -294,23 +395,11 @@ class OverlayViewModel(
         }
     }
 
-    fun toggleNetBoost() {
-        val targetBoost = !_uiState.value.netBoostEnabled
-        _uiState.update { it.copy(netBoostEnabled = targetBoost) }
-        scope.launch(Dispatchers.IO) {
-            updatePersistedProfile {
-                it.copy(
-                    stabilizeWifi = targetBoost,
-                    wifiLowLatency = targetBoost,
-                    wifiSuppressScans = targetBoost,
-                    wifiLockSufficiency = targetBoost,
-                    wifiPreventArp = targetBoost,
-                    disablePrivateDns = targetBoost,
-                    pauseAutoSync = targetBoost,
-                    blockBatterySaver = targetBoost,
-                )
-            }
-        }
+    fun toggleLiveFps() {
+        val target = !_uiState.value.showLiveFps
+        _uiState.update { it.copy(showLiveFps = target) }
+        repository.setShowLiveFps(target)
+        updateMonitoringState()
     }
 
     fun toggleQuickTap() {
@@ -334,10 +423,12 @@ class OverlayViewModel(
     }
 
     fun toggleBackGestureLock() {
-        val targetLock = !_uiState.value.backGestureLocked
+        val currentlyLocked = GameModeManager.isBackGestureSystemLocked(context)
+        val targetLock = !currentlyLocked
         _uiState.update { it.copy(backGestureLocked = targetLock) }
         scope.launch(Dispatchers.IO) {
             GameModeManager.setBackGestureLock(context, targetLock)
+            updatePersistedProfile { it.copy(lockBackGesture = targetLock) }
         }
     }
 
@@ -369,7 +460,9 @@ class OverlayViewModel(
     }
 
     fun onCleared() {
+        fpsMonitorJob?.cancel()
         telemetryJob?.cancel()
+        TaskFpsMonitor.unregister()
         scope.coroutineContext.cancelChildren()
     }
 
@@ -407,10 +500,44 @@ class OverlayViewModel(
             }.getOrDefault(false)
         }
 
+        private const val HLG_R = 0.5f
+        private const val HLG_A = 0.17883277f
+        private const val HLG_B = 0.28466892f
+        private const val HLG_C = 0.55991073f
+
+        private fun gammaToLinearBrightness(sliderFraction: Float): Float {
+            val normalized = sliderFraction.coerceIn(0f, 1f)
+            val ret = if (normalized <= HLG_R) {
+                val x = normalized / HLG_R
+                x * x
+            } else {
+                kotlin.math.exp((normalized - HLG_C) / HLG_A) + HLG_B
+            }
+            return (ret / 12f).coerceIn(0.004f, 1f)
+        }
+
+        private fun linearToGammaBrightness(linear: Float): Float {
+            val normalized = linear.coerceIn(0f, 1f) * 12f
+            val ret = if (normalized <= 1f) {
+                kotlin.math.sqrt(normalized) * HLG_R
+            } else {
+                HLG_A * kotlin.math.ln(normalized - HLG_B) + HLG_C
+            }
+            return ret.coerceIn(0f, 1f)
+        }
+
         private fun resolveBrightness(context: Context): Float {
             return runCatching {
-                val cur = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                (cur / 255f).coerceIn(0f, 1f)
+                val floatVal = runCatching {
+                    Settings.System.getFloat(context.contentResolver, "screen_brightness_float", -1f)
+                }.getOrDefault(-1f)
+                val linear = if (floatVal in 0f..1f) {
+                    floatVal
+                } else {
+                    val cur = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+                    (cur / 255f).coerceIn(0f, 1f)
+                }
+                linearToGammaBrightness(linear)
             }.getOrDefault(0.8f)
         }
 
