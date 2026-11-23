@@ -344,23 +344,19 @@ class OverlayViewModel(
         _uiState.update { it.copy(brightnessPercent = clamped, autoBrightnessLocked = true) }
         val linearFloat = gammaToLinearBrightness(clamped)
         val brightnessInt = (linearFloat * 255f).roundToInt().coerceIn(1, 255)
+        val formattedFloat = String.format(java.util.Locale.US, "%.4f", linearFloat)
+        val hasShizuku = ShellUtils.isShizukuAvailable() && ShellUtils.hasShizukuPermission()
+        val canWrite = Settings.System.canWrite(context)
 
-        if (Settings.System.canWrite(context)) {
-            brightnessWriteJob?.cancel()
-            brightnessWriteJob = scope.launch(Dispatchers.IO) {
+        brightnessWriteJob?.cancel()
+        brightnessWriteJob = scope.launch(Dispatchers.IO) {
+            if (canWrite) {
                 runCatching {
                     Settings.System.putInt(
                         context.contentResolver,
                         Settings.System.SCREEN_BRIGHTNESS_MODE,
                         Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
                     )
-                    runCatching {
-                        Settings.System.putFloat(
-                            context.contentResolver,
-                            "screen_brightness_float",
-                            linearFloat,
-                        )
-                    }
                     Settings.System.putInt(
                         context.contentResolver,
                         Settings.System.SCREEN_BRIGHTNESS,
@@ -368,14 +364,14 @@ class OverlayViewModel(
                     )
                 }
             }
-        } else {
-            brightnessWriteJob?.cancel()
-            brightnessWriteJob = scope.launch(Dispatchers.IO) {
-                delay(40L)
-                ShellUtils.runCommand(
-                    context,
-                    "settings put system screen_brightness_mode 0 && settings put system screen_brightness_float $linearFloat && settings put system screen_brightness $brightnessInt",
-                )
+            if (hasShizuku) {
+                if (canWrite) delay(35L) else delay(40L)
+                val cmd = if (canWrite) {
+                    "settings put system screen_brightness_float $formattedFloat"
+                } else {
+                    "settings put system screen_brightness_mode 0 && settings put system screen_brightness_float $formattedFloat && settings put system screen_brightness $brightnessInt"
+                }
+                ShellUtils.runCommand(context, cmd)
             }
         }
     }

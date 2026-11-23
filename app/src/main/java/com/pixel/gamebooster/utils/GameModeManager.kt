@@ -88,6 +88,10 @@ object GameModeManager {
     private const val KEY_BACK_GESTURE_LOCKED = "back_gesture_locked"
     private const val KEY_BACK_SCALE_LEFT = "back_scale_left"
     private const val KEY_BACK_SCALE_RIGHT = "back_scale_right"
+    private const val KEY_BATTERY_SAVER_SUPPRESSED = "battery_saver_suppressed"
+    private const val KEY_LOW_POWER_PREV = "low_power_prev"
+    private const val KEY_LOW_POWER_TRIGGER_PREV = "low_power_trigger_prev"
+    private const val KEY_DISPLAY_MODE_LOCKED = "display_mode_locked"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -107,6 +111,30 @@ object GameModeManager {
             .remove(KEY_BACK_SCALE_LEFT)
             .remove(KEY_BACK_SCALE_RIGHT)
             .apply()
+    }
+
+    private fun persistBatterySaverSnapshot(context: Context, lowPower: Int, triggerLevel: Int) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_BATTERY_SAVER_SUPPRESSED, true)
+            .putInt(KEY_LOW_POWER_PREV, lowPower)
+            .putInt(KEY_LOW_POWER_TRIGGER_PREV, triggerLevel)
+            .apply()
+    }
+
+    private fun clearBatterySaverSnapshot(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_BATTERY_SAVER_SUPPRESSED)
+            .remove(KEY_LOW_POWER_PREV)
+            .remove(KEY_LOW_POWER_TRIGGER_PREV)
+            .apply()
+    }
+
+    private fun persistDisplayModeSnapshot(context: Context) {
+        getPrefs(context).edit().putBoolean(KEY_DISPLAY_MODE_LOCKED, true).apply()
+    }
+
+    private fun clearDisplayModeSnapshot(context: Context) {
+        getPrefs(context).edit().remove(KEY_DISPLAY_MODE_LOCKED).apply()
     }
 
     fun isBackGestureSystemLocked(context: Context): Boolean {
@@ -134,9 +162,38 @@ object GameModeManager {
         }
     }
 
+    fun recoverLeakedBatterySaver(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean(KEY_BATTERY_SAVER_SUPPRESSED, false) && !isGameModeActive) {
+            val prevLowPower = prefs.getInt(KEY_LOW_POWER_PREV, 0)
+            val prevTrigger = prefs.getInt(KEY_LOW_POWER_TRIGGER_PREV, 0)
+            Log.w(TAG, "Detected dangling Battery Saver suppression (prevLowPower=$prevLowPower, prevTrigger=$prevTrigger). Recovering...")
+            scope.launch {
+                ShellUtils.runCommand(context, "settings put global low_power_trigger_level $prevTrigger")
+                if (prevLowPower == 1) {
+                    ShellUtils.runCommand(context, "settings put global low_power 1 && cmd power set-mode 1")
+                }
+                clearBatterySaverSnapshot(context)
+            }
+        }
+    }
+
+    fun recoverLeakedDisplayMode(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean(KEY_DISPLAY_MODE_LOCKED, false) && !isGameModeActive) {
+            Log.w(TAG, "Detected dangling display preferred mode lock. Recovering...")
+            scope.launch {
+                RefreshRateUtils.resetPreferredDisplayMode(context)
+                clearDisplayModeSnapshot(context)
+            }
+        }
+    }
+
     fun init(context: Context) {
         DNDManager.recoverLeakedDndState(context)
         recoverLeakedBackGestureLock(context)
+        recoverLeakedBatterySaver(context)
+        recoverLeakedDisplayMode(context)
     }
 
     fun onGameForeground(context: Context, packageName: String, repo: SettingsRepository) {
@@ -251,6 +308,8 @@ object GameModeManager {
             // 2b. Edge Back-Gesture Lock
             if (profile.lockBackGesture) {
                 setBackGestureLock(context, true)
+            } else if (isBackGestureLocked) {
+                restoreBackGestureLock(context)
             }
 
             // 3. Fixed 120Hz Refresh Rate & Preferred Mode
@@ -262,8 +321,21 @@ object GameModeManager {
                     RefreshRateUtils.applyFixedRefreshRate(context, 120f)
                     RefreshRateUtils.lockPreferredDisplayMode(context, 120)
                     didLockDisplayPreferredMode = true
+                    persistDisplayModeSnapshot(context)
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed refresh rate lock", e)
+                }
+            } else if (didLockDisplayPreferredMode || snapshottedRefreshRate != null) {
+                try {
+                    if (didLockDisplayPreferredMode) {
+                        RefreshRateUtils.resetPreferredDisplayMode(context)
+                        didLockDisplayPreferredMode = false
+                        clearDisplayModeSnapshot(context)
+                    }
+                    RefreshRateUtils.restoreRefreshRate(context, snapshottedRefreshRate)
+                    snapshottedRefreshRate = null
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed refresh rate unlock on game switch", e)
                 }
             }
 
@@ -278,7 +350,7 @@ object GameModeManager {
             }
 
             // 6. Freeze user-selected background apps (Custom app suspension)
-            val appsToSuspend = profile.suspendedApps
+            val appsToSuspend = profile.suspendedApps.filterTo(mutableSetOf()) { it != packageName }
             activeGameSuspendedApps = appsToSuspend
             if (appsToSuspend.isNotEmpty()) {
                 val suspendCmd = appsToSuspend.joinToString(" && ") { "cmd package suspend --user 0 $it && am force-stop $it" }
@@ -505,6 +577,11 @@ object GameModeManager {
                             0,
                         )
                     }
+                    persistBatterySaverSnapshot(
+                        context,
+                        snapshottedLowPower ?: 0,
+                        snapshottedLowPowerTriggerLevel ?: 0,
+                    )
 
                     ShellUtils.runCommand(
                         context,
@@ -658,13 +735,24 @@ object GameModeManager {
 
         pendingRestoreJob?.cancel()
         pendingRestoreJob = scope.launch {
+            // Settle window exit transition animation before checking shell topResumedActivity
+            delay(350L)
             val currentPkg = activeGamePackage ?: oldPackage
             if (currentPkg != null) {
                 // 1. Verify with topResumedActivity and mCurrentFocus in shell
-                val topResumed = ShellUtils.runCommandWithOutput(context, "dumpsys activity activities | grep topResumedActivity", notifyOnError = false)
-                val currentFocus = if (topResumed.isNullOrBlank() || !topResumed.contains(currentPkg)) {
+                var topResumed = ShellUtils.runCommandWithOutput(context, "dumpsys activity activities | grep topResumedActivity", notifyOnError = false)
+                var currentFocus = if (topResumed.isNullOrBlank() || !topResumed.contains(currentPkg)) {
                     ShellUtils.runCommandWithOutput(context, "dumpsys window | grep mCurrentFocus", notifyOnError = false)
                 } else null
+
+                // If window transition is still finishing, retry once after an extra 300ms
+                if ((!topResumed.isNullOrBlank() && (topResumed.contains(currentPkg) || gameApps.any { topResumed.contains(it) })) ||
+                    (!currentFocus.isNullOrBlank() && (currentFocus.contains(currentPkg) || gameApps.any { currentFocus.contains(it) }))
+                ) {
+                    delay(300L)
+                    topResumed = ShellUtils.runCommandWithOutput(context, "dumpsys activity activities | grep topResumedActivity", notifyOnError = false)
+                    currentFocus = ShellUtils.runCommandWithOutput(context, "dumpsys window | grep mCurrentFocus", notifyOnError = false)
+                }
 
                 if ((!topResumed.isNullOrBlank() && (topResumed.contains(currentPkg) || gameApps.any { topResumed.contains(it) })) ||
                     (!currentFocus.isNullOrBlank() && (currentFocus.contains(currentPkg) || gameApps.any { currentFocus.contains(it) }))
@@ -770,6 +858,7 @@ object GameModeManager {
                 RefreshRateUtils.resetPreferredDisplayMode(context)
                 didLockDisplayPreferredMode = false
             }
+            clearDisplayModeSnapshot(context)
             RefreshRateUtils.restoreRefreshRate(context, snapshottedRefreshRate)
             snapshottedRefreshRate = null
 
@@ -955,6 +1044,7 @@ object GameModeManager {
                 }
                 snapshottedLowPower = null
             }
+            clearBatterySaverSnapshot(context)
 
             // 10. Restore Master Auto-Sync
             snapshottedAutoSync?.let { wasActive ->

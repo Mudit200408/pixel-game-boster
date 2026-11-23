@@ -5,6 +5,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,12 +47,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -71,8 +75,10 @@ fun AppSelectionSheet(
     isGamePicker: Boolean = false,
     selectedAppsOverride: Set<String>? = null,
     onToggleAppOverride: ((String) -> Unit)? = null,
+    excludedPackages: Set<String> = emptySet(),
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var searchQuery by remember { mutableStateOf("") }
     var showSystemApps by remember { mutableStateOf(false) }
@@ -101,12 +107,13 @@ fun AppSelectionSheet(
         }
     }
 
-    val filteredApps = remember(appsList, searchQuery, showSystemApps) {
+    val filteredApps = remember(appsList, searchQuery, showSystemApps, excludedPackages) {
         appsList.filter { item ->
             val matchesSearch = item.label.contains(searchQuery, ignoreCase = true) ||
                 item.packageName.contains(searchQuery, ignoreCase = true)
             val matchesSystem = showSystemApps || !item.isSystem
-            matchesSearch && matchesSystem
+            val notExcluded = item.packageName !in excludedPackages
+            matchesSearch && matchesSystem && notExcluded
         }
     }
 
@@ -165,7 +172,10 @@ fun AppSelectionSheet(
                 )
                 Switch(
                     checked = showSystemApps,
-                    onCheckedChange = { showSystemApps = it },
+                    onCheckedChange = {
+                        HapticUtil.performVirtualKeyHaptic(view)
+                        showSystemApps = it
+                    },
                 )
             }
 
@@ -192,11 +202,30 @@ fun AppSelectionSheet(
                             effectiveSuspendedApps.contains(app.packageName)
                         }
 
+                        val itemShape = if (isSelected) RoundedCornerShape(24.dp) else RoundedCornerShape(16.dp)
+                        val containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        }
+                        val titleColor = if (isSelected) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        }
+                        val subtitleColor = if (isSelected) {
+                            MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(itemShape)
+                                .background(containerColor)
                                 .clickable {
+                                    HapticUtil.performVirtualKeyHaptic(view)
                                     if (isGamePicker) {
                                         if (isSelected) repo.removeGame(app.packageName)
                                         else repo.addGame(app.packageName)
@@ -227,18 +256,20 @@ fun AppSelectionSheet(
                                 Text(
                                     text = app.label,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = titleColor,
                                 )
                                 Text(
                                     text = app.packageName,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = subtitleColor,
                                 )
                             }
 
                             Switch(
                                 checked = isSelected,
                                 onCheckedChange = {
+                                    HapticUtil.performVirtualKeyHaptic(view)
                                     if (isGamePicker) {
                                         if (it) repo.addGame(app.packageName)
                                         else repo.removeGame(app.packageName)

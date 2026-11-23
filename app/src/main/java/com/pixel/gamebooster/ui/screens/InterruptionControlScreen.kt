@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.PriorityHigh
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,7 +60,7 @@ fun InterruptionControlScreen(
             IconToggleItem(
                 title = stringResource(R.string.interruption_dnd_toggle_title),
                 subtitle = stringResource(R.string.interruption_dnd_toggle_desc),
-                icon = Icons.Rounded.PriorityHigh,
+                icon = Icons.Rounded.DoNotDisturbOn,
                 isChecked = isDndEnabled,
                 isSectional = true,
                 onClick = {

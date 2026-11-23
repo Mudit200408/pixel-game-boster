@@ -7,6 +7,7 @@ import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.utils.GameDetectionUtils
 import com.pixel.gamebooster.utils.GameModeManager
 import com.pixel.gamebooster.utils.PackageFilterUtils
+import com.pixel.gamebooster.utils.PermissionHelper
 
 class GameBoosterAccessibilityService : AccessibilityService() {
     private lateinit var settingsRepository: SettingsRepository
@@ -23,6 +24,12 @@ class GameBoosterAccessibilityService : AccessibilityService() {
         instance = this
         settingsRepository = SettingsRepository(this)
         GameModeManager.init(this)
+        if (settingsRepository.isBoosterEnabled.value &&
+            PermissionHelper.hasUsageStatsPermission(this) &&
+            settingsRepository.hasCompletedOnboarding.value
+        ) {
+            AppDetectionService.start(this)
+        }
         Log.d(TAG, "Accessibility service connected")
     }
 
@@ -69,6 +76,13 @@ class GameBoosterAccessibilityService : AccessibilityService() {
         if (packageName == lastPackage) {
             if (!isModeActive && isGame) {
                 GameModeManager.onGameForeground(this, packageName, settingsRepository)
+            } else if (isModeActive && !isGame) {
+                GameModeManager.onGameBackground(
+                    this,
+                    GameModeManager.activeGamePackage ?: packageName,
+                    packageName,
+                    settingsRepository,
+                )
             }
             return
         }
@@ -80,6 +94,13 @@ class GameBoosterAccessibilityService : AccessibilityService() {
             GameModeManager.onGameForeground(this, packageName, settingsRepository)
         } else if (old != null && GameDetectionUtils.isGame(this, old, manualGames)) {
             GameModeManager.onGameBackground(this, old, packageName, settingsRepository)
+        } else if (isModeActive && !isGame) {
+            GameModeManager.onGameBackground(
+                this,
+                GameModeManager.activeGamePackage ?: old ?: packageName,
+                packageName,
+                settingsRepository,
+            )
         }
     }
 

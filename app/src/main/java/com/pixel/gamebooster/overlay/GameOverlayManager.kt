@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.os.Build
 import android.os.Looper
 import android.os.PowerManager
@@ -60,6 +61,7 @@ object GameOverlayManager {
         private set
 
     private var hasUserPositionedPill: Boolean = false
+    private var isDraggingPill: Boolean = false
     private var appContext: Context? = null
     private var configCallbacks: ComponentCallbacks? = null
 
@@ -115,11 +117,9 @@ object GameOverlayManager {
         val density = context.resources.displayMetrics.density
         val initialY = (100 * density).toInt()
         hasUserPositionedPill = false
-        val (screenWidth, _) = getScreenSizePx(context, wm)
         isRightSide = true
         vm.setDockedOnRight(true)
-        val pillWidth = getExpectedPillWidthPx(context)
-        savedPillX = (screenWidth - pillWidth).coerceAtLeast(0)
+        savedPillX = 0
         savedPillY = initialY
 
         val params = WindowManager.LayoutParams().apply {
@@ -132,10 +132,10 @@ object GameOverlayManager {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
-            gravity = Gravity.TOP or Gravity.START
+            gravity = Gravity.TOP or Gravity.END
             width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
-            x = savedPillX
+            x = 0
             y = initialY
         }
         currentParams = params
@@ -145,6 +145,11 @@ object GameOverlayManager {
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
+            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                if (v.width > 0 && v.height > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    v.setSystemGestureExclusionRects(listOf(Rect(0, 0, v.width, v.height)))
+                }
+            }
             setContent {
                 PixelGameBoosterTheme(
                     dynamicColor = true,
@@ -176,15 +181,10 @@ object GameOverlayManager {
             }
             val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
             val p = currentParams
-            if (p != null && p.width != WindowManager.LayoutParams.MATCH_PARENT) {
-                val pillWidth = getExpectedPillWidthPx(v.context)
+            if (!isDraggingPill && p != null && p.width != WindowManager.LayoutParams.MATCH_PARENT) {
                 val minOffset = (16 * v.resources.displayMetrics.density).toInt()
                 val maxOffset = (64 * v.resources.displayMetrics.density).toInt()
-                val clampedX = if (isRightSide) {
-                    (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
-                } else {
-                    cutout.left
-                }
+                val targetGravity = Gravity.TOP or (if (isRightSide) Gravity.END else Gravity.START)
                 val clampedY = clampY(
                     rawY = savedPillY,
                     screenHeight = screenHeight,
@@ -193,10 +193,11 @@ object GameOverlayManager {
                     minOffset = minOffset,
                     maxOffset = maxOffset,
                 )
-                if (p.x != clampedX || p.y != clampedY) {
-                    p.x = clampedX
+                if (p.gravity != targetGravity || p.x != 0 || p.y != clampedY) {
+                    p.gravity = targetGravity
+                    p.x = 0
                     p.y = clampedY
-                    savedPillX = clampedX
+                    savedPillX = 0
                     savedPillY = clampedY
                     runCatching { windowManager?.updateViewLayout(v, p) }
                 }
@@ -267,6 +268,7 @@ object GameOverlayManager {
     }
 
     private fun realignCollapsedToEdge() {
+        if (isDraggingPill) return
         val params = currentParams ?: return
         val wm = windowManager ?: return
         val view = composeView ?: return
@@ -284,13 +286,8 @@ object GameOverlayManager {
             }
         }
         val cutout = rootInsets?.getInsets(WindowInsetsCompat.Type.displayCutout()) ?: Insets.NONE
-        val pillWidth = getExpectedPillWidthPx(view.context)
         val density = view.resources.displayMetrics.density
-        val targetX = if (isRightSide) {
-            (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
-        } else {
-            cutout.left
-        }
+        val targetGravity = Gravity.TOP or (if (isRightSide) Gravity.END else Gravity.START)
         val targetY = clampY(
             rawY = savedPillY,
             screenHeight = screenHeight,
@@ -299,10 +296,11 @@ object GameOverlayManager {
             minOffset = (16 * density).toInt(),
             maxOffset = (64 * density).toInt(),
         )
-        if (params.x != targetX || params.y != targetY) {
-            params.x = targetX
+        if (params.gravity != targetGravity || params.x != 0 || params.y != targetY) {
+            params.gravity = targetGravity
+            params.x = 0
             params.y = targetY
-            savedPillX = targetX
+            savedPillX = 0
             savedPillY = targetY
             runCatching { wm.updateViewLayout(view, params) }
         }
@@ -324,16 +322,12 @@ object GameOverlayManager {
         when (newDisplayState) {
             OverlayDisplayState.COLLAPSED_PILL,
             OverlayDisplayState.TOOLBAR -> {
-                val (screenWidth, screenHeight) = getScreenSizePx(ctx, wm)
+                val (_, screenHeight) = getScreenSizePx(ctx, wm)
                 val density = view.resources.displayMetrics.density
-                val pillWidth = getExpectedPillWidthPx(ctx)
                 params.width = WindowManager.LayoutParams.WRAP_CONTENT
                 params.height = WindowManager.LayoutParams.WRAP_CONTENT
-                params.x = if (isRightSide) {
-                    (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
-                } else {
-                    cutout.left
-                }
+                params.gravity = Gravity.TOP or (if (isRightSide) Gravity.END else Gravity.START)
+                params.x = 0
                 params.y = clampY(
                     rawY = savedPillY,
                     screenHeight = screenHeight,
@@ -349,9 +343,8 @@ object GameOverlayManager {
                 }
             }
             OverlayDisplayState.EXPANDED_PANEL -> {
-                val (screenWidth, _) = getScreenSizePx(ctx, wm)
-                val pillWidth = getExpectedPillWidthPx(ctx)
-                savedPillX = if (isRightSide) (screenWidth - pillWidth) else 0
+                savedPillX = 0
+                params.gravity = Gravity.TOP or Gravity.START
                 params.x = 0
                 params.y = 0
                 params.width = WindowManager.LayoutParams.MATCH_PARENT
@@ -371,40 +364,87 @@ object GameOverlayManager {
         }
     }
 
-    fun updatePillPosition(deltaX: Float, deltaY: Float, safeTop: Int = 0, safeBottom: Int = 0, screenHeight: Int = 0) {
+    fun startPillDrag(): Pair<Int, Int> {
+        isDraggingPill = true
+        hasUserPositionedPill = true
+        val params = currentParams ?: return 0 to 0
+        val wm = windowManager ?: return 0 to 0
+        val view = composeView ?: return 0 to 0
+
+        val loc = IntArray(2)
+        view.getLocationOnScreen(loc)
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = loc[0]
+        params.y = loc[1]
+        savedPillX = loc[0]
+        savedPillY = loc[1]
+        runCatching { wm.updateViewLayout(view, params) }
+        return loc[0] to loc[1]
+    }
+
+    fun dragPillTo(targetX: Int, targetY: Int) {
         val params = currentParams ?: return
         val wm = windowManager ?: return
         val view = composeView ?: return
         hasUserPositionedPill = true
 
-        val (screenWidth, fallbackHeight) = getScreenSizePx(view.context, wm)
-        val actualScreenHeight = if (screenHeight > 0) screenHeight else fallbackHeight
+        val (screenWidth, screenHeight) = getScreenSizePx(view.context, wm)
         val density = view.resources.displayMetrics.density
         val minOffset = (16 * density).toInt()
         val maxOffset = (64 * density).toInt()
         val cutout = getCutoutSafeInsets(view)
-        val resolvedSafeTop = if (safeTop > 0) safeTop else cutout.top
-        val resolvedSafeBottom = if (safeBottom > 0) safeBottom else cutout.bottom
-        val pillWidth = getExpectedPillWidthPx(view.context)
-        val maxX = (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
+        val pillWidth = view.width.takeIf { it > 0 } ?: getExpectedPillWidthPx(view.context)
+        val maxX = (screenWidth - pillWidth).coerceAtLeast(0)
 
-        params.x = (params.x + deltaX.toInt()).coerceIn(cutout.left, maxX)
-        params.y = clampY(
-            rawY = params.y + deltaY.toInt(),
-            screenHeight = actualScreenHeight,
-            safeTop = resolvedSafeTop,
-            safeBottom = resolvedSafeBottom,
+        val newX = targetX.coerceIn(0, maxX)
+        val newY = clampY(
+            rawY = targetY,
+            screenHeight = screenHeight,
+            safeTop = cutout.top,
+            safeBottom = cutout.bottom,
             minOffset = minOffset,
             maxOffset = maxOffset,
         )
-        savedPillX = params.x
-        savedPillY = params.y
+        if (params.x == newX && params.y == newY) return
+        params.x = newX
+        params.y = newY
+        savedPillX = newX
+        savedPillY = newY
 
         runCatching {
             wm.updateViewLayout(view, params)
         }.onFailure { e ->
-            Log.e(TAG, "Failed to update pill position", e)
+            Log.e(TAG, "Failed to drag pill", e)
         }
+    }
+
+    fun endPillDrag(finalX: Int, finalY: Int) {
+        isDraggingPill = false
+        val view = composeView ?: return
+        val (screenWidth, screenHeight) = getScreenSizePx(view.context, windowManager)
+        val density = view.resources.displayMetrics.density
+        val cutout = getCutoutSafeInsets(view)
+        val pillWidth = view.width.takeIf { it > 0 } ?: getExpectedPillWidthPx(view.context)
+        val centerX = finalX + (pillWidth / 2)
+        val toRight = centerX >= (screenWidth / 2)
+
+        savedPillY = clampY(
+            rawY = finalY,
+            screenHeight = screenHeight,
+            safeTop = cutout.top,
+            safeBottom = cutout.bottom,
+            minOffset = (16 * density).toInt(),
+            maxOffset = (64 * density).toInt(),
+        )
+        snapToSide(toRight)
+    }
+
+    fun updatePillPosition(deltaX: Float, deltaY: Float, safeTop: Int = 0, safeBottom: Int = 0, screenHeight: Int = 0) {
+        val params = currentParams ?: return
+        dragPillTo(
+            targetX = kotlin.math.round(params.x + deltaX).toInt(),
+            targetY = kotlin.math.round(params.y + deltaY).toInt(),
+        )
     }
 
     fun snapToNearestEdge() {
@@ -413,7 +453,7 @@ object GameOverlayManager {
         hasUserPositionedPill = true
 
         val (screenWidth, _) = getScreenSizePx(view.context, windowManager)
-        val pillWidth = getExpectedPillWidthPx(view.context)
+        val pillWidth = view.width.takeIf { it > 0 } ?: getExpectedPillWidthPx(view.context)
         val centerX = params.x + (pillWidth / 2)
         val toRight = centerX >= screenWidth / 2
 
@@ -425,16 +465,23 @@ object GameOverlayManager {
         val wm = windowManager ?: return
         val view = composeView ?: return
 
-        val (screenWidth, _) = getScreenSizePx(view.context, wm)
-        val pillWidth = getExpectedPillWidthPx(view.context)
+        val (_, screenHeight) = getScreenSizePx(view.context, wm)
+        val density = view.resources.displayMetrics.density
         val cutout = getCutoutSafeInsets(view)
 
         isRightSide = toRight
-        params.x = if (toRight) (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left) else cutout.left
-        savedPillX = params.x
-        if (params.width != WindowManager.LayoutParams.MATCH_PARENT && params.y > 0) {
-            savedPillY = params.y
-        }
+        params.gravity = Gravity.TOP or (if (toRight) Gravity.END else Gravity.START)
+        params.x = 0
+        params.y = clampY(
+            rawY = savedPillY,
+            screenHeight = screenHeight,
+            safeTop = cutout.top,
+            safeBottom = cutout.bottom,
+            minOffset = (16 * density).toInt(),
+            maxOffset = (64 * density).toInt(),
+        )
+        savedPillX = 0
+        savedPillY = params.y
 
         overlayViewModel?.setDockedOnRight(toRight)
         HapticUtil.performLightHaptic(view)
@@ -498,6 +545,7 @@ object GameOverlayManager {
         overlayViewModel = null
         isOverlayShowing = false
         hasUserPositionedPill = false
+        isDraggingPill = false
         appContext = null
         Log.d(TAG, "Overlay hidden and destroyed successfully")
     }

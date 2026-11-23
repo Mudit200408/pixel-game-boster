@@ -383,9 +383,9 @@ private fun DashboardPerformanceProfileCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 val modeOptions = listOf(
-                    Triple(2, stringResource(R.string.dash_mode_performance), Icons.Rounded.Speed),
-                    Triple(1, stringResource(R.string.dash_mode_standard), Icons.Rounded.Tune),
                     Triple(3, stringResource(R.string.dash_mode_battery), Icons.Rounded.BatteryChargingFull),
+                    Triple(1, stringResource(R.string.dash_mode_standard), Icons.Rounded.Tune),
+                    Triple(2, stringResource(R.string.dash_mode_performance), Icons.Rounded.Speed),
                 )
                 modeOptions.forEach { (targetMode, label, icon) ->
                     val isSelected = mode == targetMode

@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Speed
@@ -184,11 +184,11 @@ fun ExpandedPanel(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // 1. Unified Real-time Telemetry Pill Header: [60 FPS • 38°C • 4.2W]
+                // 1. Unified Real-time Telemetry Pill Header: [60 FPS • 38°C • 4.2W • 85%]
                 val metricTextStyle = MaterialTheme.typography.titleLarge.copy(
                     fontFamily = GoogleSansFlexRounded,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 19.sp,
+                    fontSize = 17.sp,
                 )
 
                 Box(
@@ -197,7 +197,7 @@ fun ExpandedPanel(
                         .height(74.dp)
                         .clip(RoundedCornerShape(37.dp))
                         .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 20.dp),
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(
@@ -210,6 +210,8 @@ fun ExpandedPanel(
                             text = stringResource(R.string.overlay_fps_badge, state.currentFps),
                             style = metricTextStyle,
                             color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
+                            softWrap = false,
                         )
 
                         Text(
@@ -223,6 +225,8 @@ fun ExpandedPanel(
                             text = "${state.temperatureC}°C",
                             style = metricTextStyle,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
                         )
 
                         Text(
@@ -236,6 +240,23 @@ fun ExpandedPanel(
                             text = "${state.wattageW}W",
                             style = metricTextStyle,
                             color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
+                        )
+
+                        Text(
+                            text = "•",
+                            style = metricTextStyle,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                        )
+
+                        // Battery Percentage
+                        Text(
+                            text = "${state.batteryPercent}%",
+                            style = metricTextStyle,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            softWrap = false,
                         )
                     }
                 }
@@ -305,7 +326,7 @@ fun ExpandedPanel(
                     )
 
                     M3EActionTile(
-                        icon = Icons.Rounded.Bedtime,
+                        icon = Icons.Rounded.DoNotDisturbOn,
                         label = stringResource(R.string.overlay_dnd_title),
                         isActive = state.dndEnabled,
                         onClick = { viewModel.toggleDnd() },

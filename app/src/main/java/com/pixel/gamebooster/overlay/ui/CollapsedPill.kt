@@ -1,8 +1,9 @@
 package com.pixel.gamebooster.overlay.ui
 
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -12,15 +13,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -37,23 +31,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.utils.HapticUtil
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CollapsedPill(
     visible: Boolean = true,
@@ -68,15 +69,34 @@ fun CollapsedPill(
     doubleTapToStopEnabled: Boolean = true,
     onExpand: () -> Unit,
     onStopRecording: () -> Unit = {},
-    onDrag: (Float, Float) -> Unit,
-    onDragEnd: () -> Unit,
+    onDragStart: () -> Pair<Int, Int> = { 0 to 0 },
+    onDrag: (Int, Int) -> Unit,
+    onDragEnd: (Int, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     val isCircle = overlayStyle == 1
     var isInteracting by remember { mutableStateOf(false) }
     var lastInteractionTime by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var isIdle by remember { mutableStateOf(false) }
+
+    val dragState = remember {
+        object {
+            var downRawX = 0f
+            var downRawY = 0f
+            var startWinX = 0
+            var startWinY = 0
+            var lastTargetX = 0
+            var lastTargetY = 0
+            var isDragging = false
+            var lastTapUpTime = 0L
+            var pendingTapJob: Job? = null
+        }
+    }
+    val dragThresholdPx = with(density) { 8.dp.toPx() }
+    val doubleTapTimeoutMs = remember { ViewConfiguration.getDoubleTapTimeout().toLong() }
 
     LaunchedEffect(lastInteractionTime, isInteracting) {
         if (!isInteracting) {
@@ -107,45 +127,82 @@ fun CollapsedPill(
                 height = if (isCircle && showLiveFps) 60.dp else 56.dp,
             )
             .alpha(pillAlpha)
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = {
-                        isInteracting = true
-                        isIdle = false
+            .pointerInteropFilter { event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        dragState.downRawX = event.rawX
+                        dragState.downRawY = event.rawY
+                        dragState.isDragging = false
                         lastInteractionTime = System.currentTimeMillis()
-                        HapticUtil.performLightHaptic(view)
-                    },
-                    onDragEnd = {
-                        isInteracting = false
-                        lastInteractionTime = System.currentTimeMillis()
-                        onDragEnd()
-                    },
-                    onDragCancel = {
-                        isInteracting = false
-                        lastInteractionTime = System.currentTimeMillis()
-                        onDragEnd()
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        lastInteractionTime = System.currentTimeMillis()
-                        onDrag(dragAmount.x, dragAmount.y)
+                        true
                     }
-                )
-            }
-            .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    HapticUtil.performUIHaptic(view)
-                    onExpand()
-                },
-                onDoubleClick = if (isRecording && doubleTapToStopEnabled) {
-                    {
-                        HapticUtil.performToggle(view)
-                        onStopRecording()
+                    MotionEvent.ACTION_MOVE -> {
+                        val dx = event.rawX - dragState.downRawX
+                        val dy = event.rawY - dragState.downRawY
+                        if (!dragState.isDragging && (abs(dx) > dragThresholdPx || abs(dy) > dragThresholdPx)) {
+                            dragState.isDragging = true
+                            dragState.pendingTapJob?.cancel()
+                            dragState.pendingTapJob = null
+                            val pos = onDragStart()
+                            dragState.startWinX = pos.first
+                            dragState.startWinY = pos.second
+                            dragState.lastTargetX = pos.first
+                            dragState.lastTargetY = pos.second
+                            isInteracting = true
+                            isIdle = false
+                            HapticUtil.performLightHaptic(view)
+                        }
+                        if (dragState.isDragging) {
+                            lastInteractionTime = System.currentTimeMillis()
+                            dragState.lastTargetX = (dragState.startWinX + dx).roundToInt()
+                            dragState.lastTargetY = (dragState.startWinY + dy).roundToInt()
+                            onDrag(dragState.lastTargetX, dragState.lastTargetY)
+                        }
+                        true
                     }
-                } else null,
-            ),
+                    MotionEvent.ACTION_UP -> {
+                        lastInteractionTime = System.currentTimeMillis()
+                        if (dragState.isDragging) {
+                            dragState.isDragging = false
+                            isInteracting = false
+                            onDragEnd(dragState.lastTargetX, dragState.lastTargetY)
+                        } else {
+                            if (isRecording && doubleTapToStopEnabled) {
+                                val now = System.currentTimeMillis()
+                                if (now - dragState.lastTapUpTime <= doubleTapTimeoutMs) {
+                                    dragState.pendingTapJob?.cancel()
+                                    dragState.pendingTapJob = null
+                                    dragState.lastTapUpTime = 0L
+                                    HapticUtil.performToggle(view)
+                                    onStopRecording()
+                                } else {
+                                    dragState.lastTapUpTime = now
+                                    dragState.pendingTapJob?.cancel()
+                                    dragState.pendingTapJob = scope.launch {
+                                        delay(doubleTapTimeoutMs)
+                                        HapticUtil.performUIHaptic(view)
+                                        onExpand()
+                                    }
+                                }
+                            } else {
+                                HapticUtil.performUIHaptic(view)
+                                onExpand()
+                            }
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        if (dragState.isDragging) {
+                            dragState.isDragging = false
+                            isInteracting = false
+                            lastInteractionTime = System.currentTimeMillis()
+                            onDragEnd(dragState.lastTargetX, dragState.lastTargetY)
+                        }
+                        true
+                    }
+                    else -> false
+                }
+            },
         contentAlignment = if (isCircle) Alignment.Center else if (isDockedOnRight) Alignment.CenterEnd else Alignment.CenterStart
     ) {
         val edgeOrigin = TransformOrigin(if (isDockedOnRight) 1f else 0f, 0.5f)

@@ -44,6 +44,11 @@ class MainActivity : ComponentActivity() {
                         AppDetectionService.start(applicationContext)
                     } else if (!isBoosterEnabled) {
                         AppDetectionService.stop(applicationContext)
+                        if (GameModeManager.isGameModeActive) {
+                            GameModeManager.activeGamePackage?.let { pkg ->
+                                GameModeManager.restoreGameMode(applicationContext, pkg, repo)
+                            }
+                        }
                     }
                 }
             }

@@ -1,6 +1,5 @@
 package com.pixel.gamebooster.ui.screens
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,8 +86,6 @@ fun ScreenRecordingSettingsScreen(
 
     val adaptive = rememberAdaptiveLayoutInfo()
     val bottomPadding = if (adaptive.isCompactHeight) 80.dp else 104.dp
-
-    BackHandler(onBack = onBack)
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(

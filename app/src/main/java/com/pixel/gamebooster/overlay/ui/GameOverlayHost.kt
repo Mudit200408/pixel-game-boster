@@ -97,8 +97,9 @@ fun GameOverlayHost(
             onStopRecording = {
                 viewModel.stopRecording()
             },
-            onDrag = { deltaX, deltaY -> GameOverlayManager.updatePillPosition(deltaX, deltaY) },
-            onDragEnd = { GameOverlayManager.snapToNearestEdge() },
+            onDragStart = { GameOverlayManager.startPillDrag() },
+            onDrag = { targetX, targetY -> GameOverlayManager.dragPillTo(targetX, targetY) },
+            onDragEnd = { finalX, finalY -> GameOverlayManager.endPillDrag(finalX, finalY) },
             modifier = modifier,
         )
     }

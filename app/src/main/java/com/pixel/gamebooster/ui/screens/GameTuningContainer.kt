@@ -122,6 +122,7 @@ fun GameTuningContainer(
             title = stringResource(R.string.app_select_freeze_title),
             isGamePicker = false,
             selectedAppsOverride = profile.suspendedApps,
+            excludedPackages = setOf(packageName),
             onToggleAppOverride = { pkg ->
                 val newSet = if (profile.suspendedApps.contains(pkg)) {
                     profile.suspendedApps - pkg

@@ -1,16 +1,20 @@
 package com.pixel.gamebooster.ui.navigation
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.BackEventCompat
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -65,6 +69,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,8 +78,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -82,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.coroutines.cancellation.CancellationException
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.screens.AppFreezerScreen
@@ -255,14 +264,38 @@ fun AppNavigation(
         mutableStateOf(false)
     }
 
-    // Intercept hardware / gesture back button when in Game Tuning or Screen Recording mode
-    BackHandler(enabled = selectedGamePackageForTuning != null || isShowingScreenRecording) {
-        if (selectedGamePackageForTuning != null) {
-            selectedGamePackageForTuning = null
-        } else if (isShowingScreenRecording) {
-            isShowingScreenRecording = false
+    var isPredictingBack by remember { mutableStateOf(false) }
+    var backProgress by remember { mutableFloatStateOf(0f) }
+    var backSwipeEdge by remember { mutableIntStateOf(BackEventCompat.EDGE_LEFT) }
+
+    // Predictive back gesture for Game Tuning and Screen Recording sub-screens;
+    // disabled on root tabs so Android's native predictive back-to-home works.
+    PredictiveBackHandler(enabled = selectedGamePackageForTuning != null || isShowingScreenRecording) { progressFlow ->
+        isPredictingBack = true
+        try {
+            progressFlow.collect { backEvent ->
+                backProgress = backEvent.progress
+                backSwipeEdge = backEvent.swipeEdge
+            }
+            isPredictingBack = false
+            backProgress = 0f
+            if (selectedGamePackageForTuning != null) {
+                selectedGamePackageForTuning = null
+            } else if (isShowingScreenRecording) {
+                isShowingScreenRecording = false
+            }
+        } catch (e: CancellationException) {
+            isPredictingBack = false
+            backProgress = 0f
+            throw e
         }
     }
+
+    val smoothBackProgress by animateFloatAsState(
+        targetValue = if (isPredictingBack) backProgress else 0f,
+        animationSpec = if (isPredictingBack) spring(stiffness = Spring.StiffnessHigh) else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "predictiveBackProgress",
+    )
 
     AnimatedContent(
         targetState = currentScreen,
@@ -295,6 +328,7 @@ fun AppNavigation(
             )
             AppScreen.MAIN, AppScreen.LIBRARY -> {
                 val view = LocalView.current
+                val density = LocalDensity.current
                 val adaptive = rememberAdaptiveLayoutInfo()
                 var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
                 var activeMainTab by rememberSaveable { mutableStateOf(MainTab.GAMES) }
@@ -306,18 +340,22 @@ fun AppNavigation(
                     )
                 }
 
-                if (selectedGamePackageForTuning != null) {
-                    GameTuningContainer(
-                        packageName = selectedGamePackageForTuning!!,
-                        repository = repo,
-                        onBack = { selectedGamePackageForTuning = null },
-                    )
-                } else if (isShowingScreenRecording) {
-                    ScreenRecordingSettingsScreen(
-                        repo = repo,
-                        onBack = { isShowingScreenRecording = false },
-                    )
-                } else {
+                val hasSubScreen = selectedGamePackageForTuning != null || isShowingScreenRecording
+                val subScreenModifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val p = smoothBackProgress.coerceIn(0f, 1f)
+                        val scale = 1f - 0.10f * p
+                        scaleX = scale
+                        scaleY = scale
+                        val shiftPx = with(density) { 28.dp.toPx() } * p
+                        translationX = if (backSwipeEdge == BackEventCompat.EDGE_LEFT) shiftPx else -shiftPx
+                        shape = RoundedCornerShape(28.dp * p)
+                        clip = p > 0.005f
+                    }
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Underlying Main Tabs (always present so predictive back reveals it smoothly)
                     Box(modifier = Modifier.fillMaxSize()) {
                         when (activeMainTab) {
                             MainTab.GAMES -> {
@@ -445,6 +483,43 @@ fun AppNavigation(
                                 }
                             }
                         }
+                    }
+
+                    // Subtle scrim behind the sub-screen that fades out as predictive back progresses
+                    if (hasSubScreen && smoothBackProgress > 0.005f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.28f * (1f - smoothBackProgress))),
+                        )
+                    }
+
+                    // Predictive-back-animated Sub-Screens (Game Tuning / Screen Recording)
+                    AnimatedVisibility(
+                        visible = selectedGamePackageForTuning != null,
+                        enter = fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 6 },
+                        exit = fadeOut(tween(180)) + slideOutHorizontally(tween(220)) { it / 6 },
+                    ) {
+                        selectedGamePackageForTuning?.let { pkg ->
+                            GameTuningContainer(
+                                packageName = pkg,
+                                repository = repo,
+                                onBack = { selectedGamePackageForTuning = null },
+                                modifier = subScreenModifier,
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isShowingScreenRecording && selectedGamePackageForTuning == null,
+                        enter = fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 6 },
+                        exit = fadeOut(tween(180)) + slideOutHorizontally(tween(220)) { it / 6 },
+                    ) {
+                        ScreenRecordingSettingsScreen(
+                            repo = repo,
+                            onBack = { isShowingScreenRecording = false },
+                            modifier = subScreenModifier,
+                        )
                     }
                 }
             }
