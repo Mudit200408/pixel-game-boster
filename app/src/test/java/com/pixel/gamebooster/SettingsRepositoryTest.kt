@@ -76,6 +76,18 @@ class SettingsRepositoryTest {
         assertTrue(fakePrefs.getBoolean(SettingsRepository.KEY_TACTILE_HAPTICS, false))
     }
 
+    @Test
+    fun setGameModeToastEnabledUpdatesStateAndPrefs() {
+        assertTrue(repository.isGameModeToastEnabled.value)
+        repository.setGameModeToastEnabled(false)
+        assertFalse(repository.isGameModeToastEnabled.value)
+        assertFalse(fakePrefs.getBoolean(SettingsRepository.KEY_GAME_MODE_TOASTS, true))
+
+        repository.setGameModeToastEnabled(true)
+        assertTrue(repository.isGameModeToastEnabled.value)
+        assertTrue(fakePrefs.getBoolean(SettingsRepository.KEY_GAME_MODE_TOASTS, false))
+    }
+
     class FakeSharedPreferences : SharedPreferences {
         private val values = mutableMapOf<String, Any?>()
 

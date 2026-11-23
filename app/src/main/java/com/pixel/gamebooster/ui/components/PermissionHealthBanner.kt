@@ -72,13 +72,13 @@ fun PermissionHealthBanner(
         }
     }
 
-    // If critical permissions and fallback paths are satisfied, banner is hidden
-    if (hasShizuku && hasAccessibility) {
+    // If critical permissions are satisfied, banner is hidden
+    if (hasShizuku && hasAccessibility && hasDnd) {
         return
     }
 
     val (title, description) = when {
-        !hasShizuku && !hasDnd -> Pair(
+        !hasDnd -> Pair(
             stringResource(R.string.banner_dnd_title),
             stringResource(R.string.banner_dnd_desc),
         )

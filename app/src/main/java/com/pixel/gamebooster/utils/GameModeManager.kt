@@ -5,6 +5,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
@@ -83,8 +84,59 @@ object GameModeManager {
     private var pendingRestoreJob: Job? = null
     private var gameWakeLock: PowerManager.WakeLock? = null
 
+    private const val PREFS_NAME = "pixel_game_booster_system_snapshot"
+    private const val KEY_BACK_GESTURE_LOCKED = "back_gesture_locked"
+    private const val KEY_BACK_SCALE_LEFT = "back_scale_left"
+    private const val KEY_BACK_SCALE_RIGHT = "back_scale_right"
+
+    private fun getPrefs(context: Context): SharedPreferences {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private fun persistBackGestureSnapshot(context: Context, left: String?, right: String?) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_BACK_GESTURE_LOCKED, true)
+            .putString(KEY_BACK_SCALE_LEFT, left)
+            .putString(KEY_BACK_SCALE_RIGHT, right)
+            .apply()
+    }
+
+    private fun clearBackGestureSnapshot(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_BACK_GESTURE_LOCKED)
+            .remove(KEY_BACK_SCALE_LEFT)
+            .remove(KEY_BACK_SCALE_RIGHT)
+            .apply()
+    }
+
+    fun isBackGestureSystemLocked(context: Context): Boolean {
+        if (isBackGestureLocked) return true
+        val left = runCatching {
+            Settings.Secure.getString(context.contentResolver, "back_gesture_inset_scale_left")
+        }.getOrNull()
+        val right = runCatching {
+            Settings.Secure.getString(context.contentResolver, "back_gesture_inset_scale_right")
+        }.getOrNull()
+        return left == "-1" || right == "-1"
+    }
+
+    fun recoverLeakedBackGestureLock(context: Context) {
+        val prefs = getPrefs(context)
+        val wasPersistedLocked = prefs.getBoolean(KEY_BACK_GESTURE_LOCKED, false)
+        val isSysLocked = isBackGestureSystemLocked(context)
+
+        if ((wasPersistedLocked || isSysLocked) && !isGameModeActive) {
+            Log.w(
+                TAG,
+                "Detected dangling back gesture lock state (persisted=$wasPersistedLocked, sysLocked=$isSysLocked). Recovering...",
+            )
+            restoreBackGestureLock(context)
+        }
+    }
+
     fun init(context: Context) {
         DNDManager.recoverLeakedDndState(context)
+        recoverLeakedBackGestureLock(context)
     }
 
     fun onGameForeground(context: Context, packageName: String, repo: SettingsRepository) {
@@ -194,6 +246,11 @@ object GameModeManager {
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed quick tap disable", e)
                 }
+            }
+
+            // 2b. Edge Back-Gesture Lock
+            if (profile.lockBackGesture) {
+                setBackGestureLock(context, true)
             }
 
             // 3. Fixed 120Hz Refresh Rate & Preferred Mode
@@ -926,14 +983,18 @@ object GameModeManager {
         if (locked) {
             try {
                 if (!isBackGestureLocked) {
-                    snapshottedBackScaleLeft = Settings.Secure.getString(
+                    val currentLeft = Settings.Secure.getString(
                         context.contentResolver,
                         "back_gesture_inset_scale_left",
-                    ) ?: "UNSET"
-                    snapshottedBackScaleRight = Settings.Secure.getString(
+                    )
+                    val currentRight = Settings.Secure.getString(
                         context.contentResolver,
                         "back_gesture_inset_scale_right",
-                    ) ?: "UNSET"
+                    )
+                    // If current value is already -1 or null, snapshot UNSET so we never restore a locked -1 state
+                    snapshottedBackScaleLeft = if (currentLeft == null || currentLeft == "-1") "UNSET" else currentLeft
+                    snapshottedBackScaleRight = if (currentRight == null || currentRight == "-1") "UNSET" else currentRight
+                    persistBackGestureSnapshot(context, snapshottedBackScaleLeft, snapshottedBackScaleRight)
                 }
                 isBackGestureLocked = true
                 runCatching {
@@ -957,14 +1018,32 @@ object GameModeManager {
     }
 
     fun restoreBackGestureLock(context: Context) {
-        if (!isBackGestureLocked && snapshottedBackScaleLeft == null && snapshottedBackScaleRight == null) return
+        val prefs = getPrefs(context)
+        val hasPersisted = prefs.getBoolean(KEY_BACK_GESTURE_LOCKED, false)
+        val currentLeft = runCatching {
+            Settings.Secure.getString(context.contentResolver, "back_gesture_inset_scale_left")
+        }.getOrNull()
+        val currentRight = runCatching {
+            Settings.Secure.getString(context.contentResolver, "back_gesture_inset_scale_right")
+        }.getOrNull()
+        val isSystemLocked = currentLeft == "-1" || currentRight == "-1"
+
+        if (!isBackGestureLocked && !hasPersisted && !isSystemLocked && snapshottedBackScaleLeft == null && snapshottedBackScaleRight == null) {
+            return
+        }
+
         try {
             val prevLeft = snapshottedBackScaleLeft
+                ?: prefs.getString(KEY_BACK_SCALE_LEFT, null)
+                ?: if (isSystemLocked) "UNSET" else null
             val prevRight = snapshottedBackScaleRight
+                ?: prefs.getString(KEY_BACK_SCALE_RIGHT, null)
+                ?: if (isSystemLocked) "UNSET" else null
+
             val cmds = mutableListOf<String>()
 
             if (prevLeft != null) {
-                if (prevLeft == "UNSET") {
+                if (prevLeft == "UNSET" || prevLeft == "-1") {
                     cmds.add("settings delete secure back_gesture_inset_scale_left")
                 } else {
                     runCatching {
@@ -972,9 +1051,12 @@ object GameModeManager {
                     }
                     cmds.add("settings put secure back_gesture_inset_scale_left $prevLeft")
                 }
+            } else if (isSystemLocked) {
+                cmds.add("settings delete secure back_gesture_inset_scale_left")
             }
+
             if (prevRight != null) {
-                if (prevRight == "UNSET") {
+                if (prevRight == "UNSET" || prevRight == "-1") {
                     cmds.add("settings delete secure back_gesture_inset_scale_right")
                 } else {
                     runCatching {
@@ -982,6 +1064,8 @@ object GameModeManager {
                     }
                     cmds.add("settings put secure back_gesture_inset_scale_right $prevRight")
                 }
+            } else if (isSystemLocked) {
+                cmds.add("settings delete secure back_gesture_inset_scale_right")
             }
 
             if (cmds.isNotEmpty()) {
@@ -994,6 +1078,7 @@ object GameModeManager {
             snapshottedBackScaleLeft = null
             snapshottedBackScaleRight = null
             isBackGestureLocked = false
+            clearBackGestureSnapshot(context)
         }
     }
 

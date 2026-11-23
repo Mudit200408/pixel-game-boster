@@ -14,6 +14,7 @@ data class GameProfileEntity(
     val cachedFreezer: Boolean = true,
     val disableAutoBrightness: Boolean = true,
     val disableQuickTap: Boolean = true,
+    val lockBackGesture: Boolean = false,
     val interventionMode: Int = 2,
     val stabilizeWifi: Boolean = true,
     val wifiLowLatency: Boolean = true,

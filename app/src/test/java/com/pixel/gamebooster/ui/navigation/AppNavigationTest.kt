@@ -18,7 +18,7 @@ class AppNavigationTest {
         assertEquals(NavDestination.NETWORK, NavDestination.NetworkSync)
 
         assertEquals("Dashboard", NavDestination.Dashboard.label)
-        assertEquals("Performance", NavDestination.PerformanceDisplay.label)
+        assertEquals("Display", NavDestination.PerformanceDisplay.label)
         assertEquals("Suspension", NavDestination.AppFreezer.label)
         assertEquals("Network", NavDestination.NetworkSync.label)
     }
@@ -38,7 +38,7 @@ class AppNavigationTest {
 
         // Specific deterministic routes
         assertEquals("dashboard", NavDestination.DASHBOARD.route)
-        assertEquals("performance_display", NavDestination.PERFORMANCE.route)
+        assertEquals("display", NavDestination.PERFORMANCE.route)
         assertEquals("app_freezer", NavDestination.FREEZER.route)
         assertEquals("network_sync", NavDestination.NETWORK.route)
     }
@@ -150,5 +150,35 @@ class AppNavigationTest {
             tuningGame = null
         }
         assertNull(tuningGame)
+    }
+
+    @Test
+    fun screenRecordingNavigationStateTransitionsCorrectly() {
+        val navState = AppNavigationState(initialScreen = AppScreen.MAIN)
+        assertFalse(navState.isShowingScreenRecording)
+
+        navState.openScreenRecording()
+        assertTrue("Screen recording sub-page should be showing", navState.isShowingScreenRecording)
+
+        navState.backFromScreenRecording()
+        assertFalse("Screen recording sub-page should no longer be showing", navState.isShowingScreenRecording)
+    }
+
+    @Test
+    fun navigatingAwayFromMainResetsScreenRecordingState() {
+        val navState = AppNavigationState(initialScreen = AppScreen.MAIN)
+        navState.openScreenRecording()
+        assertTrue(navState.isShowingScreenRecording)
+
+        navState.navigateTo(AppScreen.PERMISSIONS)
+        assertFalse("Navigating away from main should reset screen recording state", navState.isShowingScreenRecording)
+    }
+
+    @Test
+    fun mainTabValuesContainGamesAndOverlay() {
+        val tabs = MainTab.values()
+        assertEquals(2, tabs.size)
+        assertEquals(MainTab.GAMES, tabs[0])
+        assertEquals(MainTab.OVERLAY, tabs[1])
     }
 }

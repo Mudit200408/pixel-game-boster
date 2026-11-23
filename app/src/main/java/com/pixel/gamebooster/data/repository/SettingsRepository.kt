@@ -41,6 +41,7 @@ class SettingsRepository(
         const val KEY_CACHED_FREEZER = "cached_freezer"
         const val KEY_DISABLE_AUTO_BRIGHTNESS = "disable_auto_brightness"
         const val KEY_DISABLE_QUICK_TAP = "disable_quick_tap"
+        const val KEY_LOCK_BACK_GESTURE = "lock_back_gesture"
         const val KEY_STABILIZE_WIFI = "stabilize_wifi"
         const val KEY_WIFI_LOW_LATENCY = "wifi_low_latency"
         const val KEY_WIFI_SUPPRESS_SCANS = "wifi_suppress_scans"
@@ -90,6 +91,7 @@ class SettingsRepository(
     val isCachedFreezer = MutableStateFlow(prefs.getBoolean(KEY_CACHED_FREEZER, true))
     val isDisableAutoBrightness = MutableStateFlow(prefs.getBoolean(KEY_DISABLE_AUTO_BRIGHTNESS, true))
     val isDisableQuickTap = MutableStateFlow(prefs.getBoolean(KEY_DISABLE_QUICK_TAP, true))
+    val isLockBackGesture = MutableStateFlow(prefs.getBoolean(KEY_LOCK_BACK_GESTURE, false))
     val isStabilizeWifi = MutableStateFlow(prefs.getBoolean(KEY_STABILIZE_WIFI, true))
     val isWifiLowLatency = MutableStateFlow(prefs.getBoolean(KEY_WIFI_LOW_LATENCY, true))
     val isWifiSuppressScans = MutableStateFlow(prefs.getBoolean(KEY_WIFI_SUPPRESS_SCANS, true))
@@ -127,6 +129,7 @@ class SettingsRepository(
             KEY_CACHED_FREEZER -> isCachedFreezer.value = prefs.getBoolean(KEY_CACHED_FREEZER, true)
             KEY_DISABLE_AUTO_BRIGHTNESS -> isDisableAutoBrightness.value = prefs.getBoolean(KEY_DISABLE_AUTO_BRIGHTNESS, true)
             KEY_DISABLE_QUICK_TAP -> isDisableQuickTap.value = prefs.getBoolean(KEY_DISABLE_QUICK_TAP, true)
+            KEY_LOCK_BACK_GESTURE -> isLockBackGesture.value = prefs.getBoolean(KEY_LOCK_BACK_GESTURE, false)
             KEY_STABILIZE_WIFI -> isStabilizeWifi.value = prefs.getBoolean(KEY_STABILIZE_WIFI, true)
             KEY_WIFI_LOW_LATENCY -> isWifiLowLatency.value = prefs.getBoolean(KEY_WIFI_LOW_LATENCY, true)
             KEY_WIFI_SUPPRESS_SCANS -> isWifiSuppressScans.value = prefs.getBoolean(KEY_WIFI_SUPPRESS_SCANS, true)
@@ -214,6 +217,11 @@ class SettingsRepository(
     fun setDisableQuickTap(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_DISABLE_QUICK_TAP, enabled).apply()
         isDisableQuickTap.value = enabled
+    }
+
+    fun setLockBackGesture(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCK_BACK_GESTURE, enabled).apply()
+        isLockBackGesture.value = enabled
     }
 
     fun setStabilizeWifi(enabled: Boolean) {
@@ -386,6 +394,7 @@ class SettingsRepository(
             cachedFreezer = isCachedFreezer.value,
             disableAutoBrightness = isDisableAutoBrightness.value,
             disableQuickTap = isDisableQuickTap.value,
+            lockBackGesture = isLockBackGesture.value,
             interventionMode = interventionMode.value,
             stabilizeWifi = isStabilizeWifi.value,
             wifiLowLatency = isWifiLowLatency.value,
@@ -425,6 +434,7 @@ class SettingsRepository(
                 isCachedFreezer,
                 isDisableAutoBrightness,
                 isDisableQuickTap,
+                isLockBackGesture,
                 isStabilizeWifi,
                 isWifiLowLatency,
                 isWifiSuppressScans,

@@ -18,6 +18,7 @@ import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.ui.navigation.AppNavigation
 import com.pixel.gamebooster.ui.theme.PixelGameBoosterTheme
+import com.pixel.gamebooster.utils.GameModeManager
 import com.pixel.gamebooster.utils.PermissionHelper
 
 class MainActivity : ComponentActivity() {
@@ -31,9 +32,10 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(Unit) {
                 PermissionHelper.initShizuku {
-                    // Shizuku state updated
+                    DNDManager.ensureDndAccessAndRegisterRule(applicationContext)
                 }
-                DNDManager.getOrCreateGamingZenRuleId(applicationContext)
+                GameModeManager.init(applicationContext)
+                DNDManager.ensureDndAccessAndRegisterRule(applicationContext)
             }
 
             LaunchedEffect(isBoosterEnabled) {
@@ -71,6 +73,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        DNDManager.getOrCreateGamingZenRuleId(applicationContext)
+        DNDManager.ensureDndAccessAndRegisterRule(applicationContext)
     }
 }

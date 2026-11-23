@@ -149,6 +149,13 @@ object PermissionHelper {
         }
     }
 
+    fun grantDndAccessViaShizuku(context: Context, onResult: (Boolean) -> Unit = {}) {
+        val cmd = "cmd notification allow_dnd ${context.packageName}"
+        ShellUtils.runCommand(context, cmd) { success ->
+            onResult(success && hasDndAccess(context))
+        }
+    }
+
     fun hasOverlayPermission(context: Context): Boolean {
         return Settings.canDrawOverlays(context)
     }

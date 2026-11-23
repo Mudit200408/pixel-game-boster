@@ -11,6 +11,7 @@
     <string name="nav_freezer">App Freezer</string>
     <string name="nav_network">Network &amp; Sync</string>
     <string name="nav_tab_dashboard">Dashboard</string>
+    <string name="nav_tab_display">Display</string>
     <string name="nav_tab_performance">Performance</string>
     <string name="nav_tab_suspension">Suspension</string>
     <string name="nav_tab_network">Network</string>
@@ -49,7 +50,7 @@
 
     <!-- PermissionsScreen (perm_) -->
     <string name="perm_title">Permission Setup</string>
-    <string name="perm_ready_count">Permissions Ready: %1$d / 6</string>
+    <string name="perm_ready_count">Permissions Ready: %1$d / 7</string>
     <string name="perm_status_all_ready">All Ready</string>
     <string name="perm_status_optimizations_ready">Optimizations Ready</string>
     <string name="perm_status_shizuku_required">Shizuku Required</string>
@@ -78,7 +79,7 @@
     <string name="perm_feature_foreground_service">Foreground Service Indicator</string>
     <string name="perm_feature_quick_controls">Quick Optimization Tile Controls</string>
     <string name="perm_btn_enter">Enter Game Booster</string>
-    <string name="perm_btn_grant_all_continue">Grant all permissions to continue (%1$d / 6)</string>
+    <string name="perm_btn_grant_all_continue">Grant all permissions to continue (%1$d / 7)</string>
 
     <!-- GameScanningSetupScreen (scan_) -->
     <string name="scan_headline_scanning">Checking downloaded games &amp; optimizing…</string>
@@ -93,6 +94,7 @@
     <string name="scan_section_auto_configured">Auto-Configured Games</string>
 
     <!-- PerformanceDisplayScreen (perf_) -->
+    <string name="display_header_title">Display</string>
     <string name="perf_header_title">Display &amp; Memory</string>
     <string name="perf_section_display_refresh">Display</string>
     <string name="perf_force_120hz_title">Force 120Hz Physical Display Mode</string>
@@ -109,6 +111,9 @@
     <string name="perf_disable_auto_brightness_title">Disable Auto-Brightness</string>
     <string name="perf_disable_auto_brightness_desc">Locks current brightness to prevent sudden light sensor dips mid-game.</string>
     <string name="perf_disable_auto_brightness_cmd" translatable="false">settings put system screen_brightness_mode 0</string>
+    <string name="perf_lock_back_gesture_title">Lock Back Navigation</string>
+    <string name="perf_lock_back_gesture_desc">Temporarily disables edge back gestures during gameplay to prevent accidental exits.</string>
+    <string name="perf_lock_back_gesture_cmd" translatable="false">settings put secure back_gesture_inset_scale_left -1</string>
 
     <!-- AppFreezerScreen (freezer_) -->
     <string name="freezer_header_title">App Suspension</string>
@@ -167,6 +172,8 @@
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_tactile_haptics_title">Tactile Haptics</string>
     <string name="settings_tactile_haptics_desc">Provide subtle haptic feedback for UI touches and toggles</string>
+    <string name="settings_game_mode_toast_title">Game Mode Toasts</string>
+    <string name="settings_game_mode_toast_desc">Show toast message when Game Booster activates or deactivates</string>
     <string name="settings_section_permissions">Permissions</string>
     <string name="settings_cd_all_perms_granted">All permissions granted</string>
     <string name="settings_all_perms_granted">All permissions are granted</string>
@@ -200,6 +207,8 @@
     <string name="services_carrier_wifi_desc">Suspends background carrier network auto-discovery.</string>
     <string name="services_gearhead_title">Android Auto (Gearhead)</string>
     <string name="services_gearhead_desc">Suspends projection services and car connectivity daemon.</string>
+    <string name="services_as_title">Android System Intelligence</string>
+    <string name="services_as_desc">Suspends Now Playing, Live Caption, and ambient audio ML pipeline during gameplay.</string>
 
     <!-- AppSelectionSheet (app_select_) -->
     <string name="app_select_default_title">Select Apps to Freeze</string>
@@ -366,6 +375,7 @@
     <string name="overlay_net_boost_title">Network Boost</string>
     <string name="overlay_quick_tap_title">Quick Tap Lock</string>
     <string name="overlay_brightness_lock_title">Brightness Lock</string>
+    <string name="overlay_back_gesture_lock_title">Lock Back Button</string>
     <string name="overlay_settings_title">In-Game Overlay</string>
     <string name="overlay_settings_enable">Enable In-Game Overlay</string>
     <string name="overlay_settings_enable_desc">Show quick dashboard while playing configured games</string>
@@ -374,6 +384,8 @@
     <string name="overlay_style_bar_desc">Slim translucent capsule docked along the screen edge</string>
     <string name="overlay_style_circle">Floating Button</string>
     <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
+    <string name="overlay_show_live_fps_title">Show Live FPS</string>
+    <string name="overlay_show_live_fps_desc">Display real-time FPS pill on the edge bar or inside the floating button</string>
     <string name="overlay_navbar_label">Overlay</string>
 
     <!-- Overlay Permissions (perm_) -->
@@ -385,4 +397,18 @@
     <string name="perm_write_settings_desc">Enables direct adjustment of display brightness and system settings from within the in-game overlay.</string>
     <string name="perm_feature_direct_brightness">Direct Brightness Control</string>
     <string name="perm_action_auto_grant">Auto-Grant via Shizuku</string>
+
+    <!-- Screen Recording Settings -->
+    <string name="screen_recording_title">Screen Recording</string>
+    <string name="screen_recording_subtitle">Configure audio capture, video quality presets, and in-game recording controls</string>
+    <string name="screen_recording_tile_desc">Resolution, framerate, audio source &amp; options</string>
+    <string name="screen_recording_section_audio">Audio Capture</string>
+    <string name="screen_recording_audio_title">Audio Capture Source</string>
+    <string name="screen_recording_section_video">Video Quality</string>
+    <string name="screen_recording_resolution_title">Resolution &amp; Framerate</string>
+    <string name="screen_recording_section_options">Recording Controls</string>
+    <string name="screen_recording_double_tap_title">Double Tap to Stop</string>
+    <string name="screen_recording_double_tap_desc">Quickly double tap the edge bar or overlay button to stop recording</string>
+    <string name="screen_recording_show_touches_title">Show Visual Touches</string>
+    <string name="screen_recording_show_touches_desc">Display on-screen touch circles during gameplay recording</string>
 </resources>

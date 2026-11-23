@@ -43,7 +43,7 @@ class PermissionHelperTest {
         val destinations = NavDestination.values()
         assertEquals(4, destinations.size)
         assertEquals("Dashboard", NavDestination.DASHBOARD.label)
-        assertEquals("Performance", NavDestination.PERFORMANCE.label)
+        assertEquals("Display", NavDestination.PERFORMANCE.label)
         assertEquals("Suspension", NavDestination.FREEZER.label)
         assertEquals("Network", NavDestination.NETWORK.label)
     }

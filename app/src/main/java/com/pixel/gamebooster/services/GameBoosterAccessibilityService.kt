@@ -22,6 +22,7 @@ class GameBoosterAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         settingsRepository = SettingsRepository(this)
+        GameModeManager.init(this)
         Log.d(TAG, "Accessibility service connected")
     }
 

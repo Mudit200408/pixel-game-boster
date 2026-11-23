@@ -9,12 +9,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BrightnessAuto
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pixel.gamebooster.R
@@ -25,6 +27,7 @@ import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import com.pixel.gamebooster.utils.GameModeManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -35,6 +38,7 @@ fun DisplayScreen(
     modifier: Modifier = Modifier,
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val isScoped = scopedPackage != null
 
     val currentProfileState = if (scopedPackage != null) {
@@ -45,9 +49,11 @@ fun DisplayScreen(
 
     val globalLockRefresh by repo.isLockRefreshRate.collectAsState()
     val globalDisableBrightness by repo.isDisableAutoBrightness.collectAsState()
+    val globalLockBackGesture by repo.isLockBackGesture.collectAsState()
 
     val lockRefresh = currentProfile?.lockRefreshRate ?: globalLockRefresh
     val disableBrightness = currentProfile?.disableAutoBrightness ?: globalDisableBrightness
+    val lockBackGesture = currentProfile?.lockBackGesture ?: globalLockBackGesture
 
     fun updateScoped(transform: (GameProfile) -> GameProfile) {
         if (isScoped && currentProfile != null) {
@@ -80,6 +86,7 @@ fun DisplayScreen(
         DisplayRefreshSection(
             lockRefresh = lockRefresh,
             disableBrightness = disableBrightness,
+            lockBackGesture = lockBackGesture,
             onLockRefreshChange = {
                 if (isScoped) updateScoped { p -> p.copy(lockRefreshRate = it) }
                 else repo.setLockRefreshRate(it)
@@ -87,6 +94,19 @@ fun DisplayScreen(
             onDisableBrightnessChange = {
                 if (isScoped) updateScoped { p -> p.copy(disableAutoBrightness = it) }
                 else repo.setDisableAutoBrightness(it)
+            },
+            onLockBackGestureChange = {
+                if (isScoped) {
+                    updateScoped { p -> p.copy(lockBackGesture = it) }
+                    if (GameModeManager.isGameModeActive && GameModeManager.activeGamePackage == scopedPackage) {
+                        GameModeManager.setBackGestureLock(context, it)
+                    }
+                } else {
+                    repo.setLockBackGesture(it)
+                    if (GameModeManager.isGameModeActive) {
+                        GameModeManager.setBackGestureLock(context, it)
+                    }
+                }
             },
         )
 
@@ -105,8 +125,10 @@ fun DisplayScreen(
 private fun DisplayRefreshSection(
     lockRefresh: Boolean,
     disableBrightness: Boolean,
+    lockBackGesture: Boolean,
     onLockRefreshChange: (Boolean) -> Unit,
     onDisableBrightnessChange: (Boolean) -> Unit,
+    onLockBackGestureChange: (Boolean) -> Unit,
 ) {
     androidx.compose.material3.Text(
         text = stringResource(R.string.perf_section_display_refresh),
@@ -124,8 +146,18 @@ private fun DisplayRefreshSection(
             isChecked = lockRefresh,
             onCheckedChange = onLockRefreshChange,
             index = 0,
-            count = 2,
+            count = 1,
         )
+    }
+
+    androidx.compose.material3.Text(
+        text = stringResource(R.string.perf_section_display_brightness),
+        style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+        color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
         IconToggleItem(
             title = stringResource(R.string.perf_disable_auto_brightness_title),
             subtitle = stringResource(R.string.perf_disable_auto_brightness_desc),
@@ -133,6 +165,16 @@ private fun DisplayRefreshSection(
             icon = Icons.Rounded.BrightnessAuto,
             isChecked = disableBrightness,
             onCheckedChange = onDisableBrightnessChange,
+            index = 0,
+            count = 2,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.perf_lock_back_gesture_title),
+            subtitle = stringResource(R.string.perf_lock_back_gesture_desc),
+            command = stringResource(R.string.perf_lock_back_gesture_cmd),
+            icon = Icons.Rounded.TouchApp,
+            isChecked = lockBackGesture,
+            onCheckedChange = onLockBackGestureChange,
             index = 1,
             count = 2,
         )

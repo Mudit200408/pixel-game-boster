@@ -59,6 +59,14 @@ class SettingsRepositorySyncTest {
         assertEquals(true, repoB.isTactileHaptics.value)
     }
 
+    @Test
+    fun testGameModeToastSyncAcrossInstances() {
+        repoA.setGameModeToastEnabled(false)
+        assertEquals(false, repoB.isGameModeToastEnabled.value)
+        repoA.setGameModeToastEnabled(true)
+        assertEquals(true, repoB.isGameModeToastEnabled.value)
+    }
+
     class SyncingFakeSharedPreferences : SharedPreferences {
         private val values = mutableMapOf<String, Any?>()
         private val listeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()

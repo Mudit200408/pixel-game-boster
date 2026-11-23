@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessibilityNew
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
@@ -55,6 +56,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
@@ -85,6 +87,7 @@ fun PermissionsScreen(
     var isNotificationGranted by remember { mutableStateOf(PermissionHelper.hasNotificationPermission(context)) }
     var isOverlayGranted by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
     var isWriteSettingsGranted by remember { mutableStateOf(PermissionHelper.hasWriteSettingsPermission(context)) }
+    var isDndGranted by remember { mutableStateOf(PermissionHelper.hasDndAccess(context)) }
     var showPairingDialog by remember { mutableStateOf(false) }
 
     fun refreshAllPermissions() {
@@ -95,6 +98,10 @@ fun PermissionsScreen(
         isNotificationGranted = PermissionHelper.hasNotificationPermission(context)
         isOverlayGranted = PermissionHelper.hasOverlayPermission(context)
         isWriteSettingsGranted = PermissionHelper.hasWriteSettingsPermission(context)
+        isDndGranted = PermissionHelper.hasDndAccess(context)
+        if (isDndGranted) {
+            DNDManager.getOrCreateGamingZenRuleId(context)
+        }
     }
 
     // Lifecycle auto-refresh: Re-check permissions immediately upon returning from Settings
@@ -131,9 +138,10 @@ fun PermissionsScreen(
         isNotificationGranted,
         isOverlayGranted,
         isWriteSettingsGranted,
+        isDndGranted,
     ).count { it }
-    val progress = grantedCount / 6f
-    val allGranted = isShizukuGranted && isAccessibilityGranted && isUsageStatsGranted && isNotificationGranted && isOverlayGranted && isWriteSettingsGranted
+    val progress = grantedCount / 7f
+    val allGranted = isShizukuGranted && isAccessibilityGranted && isUsageStatsGranted && isNotificationGranted && isOverlayGranted && isWriteSettingsGranted && isDndGranted
 
     if (showPairingDialog) {
         ShizukuPairingDialog(onDismissRequest = { showPairingDialog = false })
@@ -306,6 +314,40 @@ fun PermissionsScreen(
         }
     }
 
+    val dndCard = @Composable {
+        // 7. Do Not Disturb / Modes Access (Game Booster Priority Mode)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.DoNotDisturbOn,
+                title = stringResource(R.string.perm_dnd_title),
+                description = stringResource(R.string.perm_dnd_desc),
+                isGranted = isDndGranted,
+                isMandatory = false,
+                actionLabel = if (isShizukuGranted) {
+                    stringResource(R.string.perm_action_auto_grant)
+                } else {
+                    stringResource(R.string.perm_action_grant_dnd)
+                },
+                onActionClick = {
+                    if (isShizukuGranted) {
+                        PermissionHelper.grantDndAccessViaShizuku(context) { granted ->
+                            if (granted) {
+                                DNDManager.getOrCreateGamingZenRuleId(context)
+                            }
+                            refreshAllPermissions()
+                        }
+                    } else {
+                        PermissionHelper.openDndSettings(context)
+                    }
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_dnd_peeking),
+                    stringResource(R.string.perm_feature_dnd_audio),
+                ),
+            )
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.surface,
@@ -392,6 +434,7 @@ fun PermissionsScreen(
                         shizukuCard()
                         accessibilityCard()
                         overlayCard()
+                        dndCard()
                     }
                     Column(
                         modifier = Modifier.weight(1f),
@@ -409,6 +452,7 @@ fun PermissionsScreen(
                 notificationCard()
                 overlayCard()
                 writeSettingsCard()
+                dndCard()
             }
 
             Spacer(modifier = Modifier.height(8.dp))

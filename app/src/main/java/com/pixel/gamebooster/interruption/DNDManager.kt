@@ -14,6 +14,7 @@ import android.service.notification.ZenPolicy
 import android.util.Log
 import com.pixel.gamebooster.MainActivity
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.utils.PermissionHelper
 import com.pixel.gamebooster.utils.ShellUtils
 
 object DNDManager {
@@ -176,22 +177,49 @@ object DNDManager {
     }
 
     /**
+     * Ensures Do Not Disturb / Modes policy access (auto-granting via Shizuku if available)
+     * and registers the Game Booster AutomaticZenRule.
+     */
+    fun ensureDndAccessAndRegisterRule(context: Context, onComplete: ((String?) -> Unit)? = null) {
+        if (PermissionHelper.hasDndAccess(context)) {
+            val id = getOrCreateGamingZenRuleId(context)
+            onComplete?.invoke(id)
+            return
+        }
+        if (ShellUtils.hasPermission(context)) {
+            PermissionHelper.grantDndAccessViaShizuku(context) { granted ->
+                val id = if (granted) getOrCreateGamingZenRuleId(context) else null
+                onComplete?.invoke(id)
+            }
+        } else {
+            onComplete?.invoke(null)
+        }
+    }
+
+    /**
      * Opens Android's native configuration page for this specific Gaming Mode.
      */
     fun openGameDashboardPrioritiesSettings(context: Context) {
-        val ruleId = getOrCreateGamingZenRuleId(context)
-        if (!ruleId.isNullOrBlank() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-            val intent = Intent(Settings.ACTION_AUTOMATIC_ZEN_RULE_SETTINGS).apply {
-                putExtra(Settings.EXTRA_AUTOMATIC_ZEN_RULE_ID, ruleId)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        if (!PermissionHelper.hasDndAccess(context)) {
+            if (ShellUtils.hasPermission(context)) {
+                PermissionHelper.grantDndAccessViaShizuku(context) { granted ->
+                    if (granted) {
+                        val ruleId = getOrCreateGamingZenRuleId(context)
+                        if (!launchRuleSettings(context, ruleId)) {
+                            PermissionHelper.openDndSettings(context)
+                        }
+                    } else {
+                        PermissionHelper.openDndSettings(context)
+                    }
+                }
+                return
             }
-            val launched = runCatching {
-                context.startActivity(intent)
-                true
-            }.getOrDefault(false)
-
-            if (launched) return
+            PermissionHelper.openDndSettings(context)
+            return
         }
+
+        val ruleId = getOrCreateGamingZenRuleId(context)
+        if (launchRuleSettings(context, ruleId)) return
 
         // Fallback to general Zen Priority Settings
         val fallbackIntent = Intent(Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS).apply {
@@ -200,11 +228,22 @@ object DNDManager {
         runCatching {
             context.startActivity(fallbackIntent)
         }.onFailure {
-            val accessIntent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            }
-            runCatching { context.startActivity(accessIntent) }
+            PermissionHelper.openDndSettings(context)
         }
+    }
+
+    private fun launchRuleSettings(context: Context, ruleId: String?): Boolean {
+        if (ruleId.isNullOrBlank() || Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return false
+        }
+        val intent = Intent(Settings.ACTION_AUTOMATIC_ZEN_RULE_SETTINGS).apply {
+            putExtra(Settings.EXTRA_AUTOMATIC_ZEN_RULE_ID, ruleId)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrDefault(false)
     }
 
     fun openSystemPrioritySettings(context: Context) = openGameDashboardPrioritiesSettings(context)
