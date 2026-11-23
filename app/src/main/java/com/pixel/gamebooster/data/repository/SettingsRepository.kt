@@ -2,16 +2,31 @@ package com.pixel.gamebooster.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.pixel.gamebooster.data.db.AppDatabase
+import com.pixel.gamebooster.data.db.dao.GameProfileDao
+import com.pixel.gamebooster.data.model.GameProfile
+import com.pixel.gamebooster.data.model.toDomain
+import com.pixel.gamebooster.data.model.toEntity
 import com.pixel.gamebooster.utils.HapticUtil
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 class SettingsRepository(
     private val prefs: SharedPreferences,
+    val gameProfileDao: GameProfileDao? = null,
 ) {
     constructor(context: Context) : this(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE),
+        AppDatabase.getInstance(context).gameProfileDao(),
     )
 
     companion object {
@@ -53,6 +68,8 @@ class SettingsRepository(
             "com.google.android.projection.gearhead",
         )
     }
+
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // Live StateFlows for UI observation
     val hasCompletedOnboarding = MutableStateFlow(prefs.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false))
@@ -118,6 +135,11 @@ class SettingsRepository(
     init {
         prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
         HapticUtil.isAppHapticsEnabled.value = prefs.getBoolean(KEY_TACTILE_HAPTICS, true)
+        if (gameProfileDao != null) {
+            repositoryScope.launch {
+                seedConfiguredGames()
+            }
+        }
     }
 
     fun setCompletedOnboarding(completed: Boolean) {
@@ -218,6 +240,11 @@ class SettingsRepository(
         val updated = (gameApps.value + pkg).toSet()
         prefs.edit().putStringSet(KEY_GAMES, updated).apply()
         gameApps.value = updated
+        repositoryScope.launch {
+            if (gameProfileDao?.getProfile(pkg) == null) {
+                gameProfileDao?.upsertProfile(createDefaultEffectiveProfile(pkg).toEntity())
+            }
+        }
     }
 
     fun addGames(pkgs: Collection<String>) {
@@ -225,12 +252,22 @@ class SettingsRepository(
         val updated = (gameApps.value + pkgs).toSet()
         prefs.edit().putStringSet(KEY_GAMES, updated).apply()
         gameApps.value = updated
+        repositoryScope.launch {
+            for (pkg in pkgs) {
+                if (gameProfileDao?.getProfile(pkg) == null) {
+                    gameProfileDao?.upsertProfile(createDefaultEffectiveProfile(pkg).toEntity())
+                }
+            }
+        }
     }
 
     fun removeGame(pkg: String) {
         val updated = (gameApps.value - pkg).toSet()
         prefs.edit().putStringSet(KEY_GAMES, updated).apply()
         gameApps.value = updated
+        repositoryScope.launch {
+            gameProfileDao?.deleteByPackageName(pkg)
+        }
     }
 
     fun setSuspendedApps(apps: Set<String>) {
@@ -269,5 +306,133 @@ class SettingsRepository(
         prefs.edit().putBoolean(KEY_TACTILE_HAPTICS, enabled).apply()
         isTactileHaptics.value = enabled
         HapticUtil.isAppHapticsEnabled.value = enabled
+    }
+
+    // --- Per-Game Fallback Engine & Persistence ---
+
+    fun createDefaultEffectiveProfile(packageName: String): GameProfile {
+        return GameProfile(
+            packageName = packageName,
+            customized = false,
+            fpsOverride = fpsOverride.value,
+            lockRefreshRate = isLockRefreshRate.value,
+            boostRam = isBoostRam.value,
+            cachedFreezer = isCachedFreezer.value,
+            disableAutoBrightness = isDisableAutoBrightness.value,
+            disableQuickTap = isDisableQuickTap.value,
+            interventionMode = interventionMode.value,
+            stabilizeWifi = isStabilizeWifi.value,
+            wifiLowLatency = isWifiLowLatency.value,
+            wifiSuppressScans = isWifiSuppressScans.value,
+            wifiLockSufficiency = isWifiLockSufficiency.value,
+            wifiPreventArp = isWifiPreventArp.value,
+            blockBatterySaver = isBlockBatterySaver.value,
+            pauseAutoSync = isPauseAutoSync.value,
+            disablePrivateDns = isDisablePrivateDns.value,
+            interruptionMode = 1,
+            callHandlingMode = 0,
+            suspendedApps = suspendedApps.value,
+            lastPlayedTimestamp = 0L,
+        )
+    }
+
+    suspend fun getEffectiveProfile(packageName: String): GameProfile {
+        val entity = gameProfileDao?.getProfile(packageName)
+        return if (entity != null && entity.customized) {
+            entity.toDomain()
+        } else {
+            createDefaultEffectiveProfile(packageName).copy(
+                lastPlayedTimestamp = entity?.lastPlayedTimestamp ?: 0L,
+            )
+        }
+    }
+
+    suspend fun getGameProfile(packageName: String): GameProfile? {
+        return gameProfileDao?.getProfile(packageName)?.toDomain()
+    }
+
+    fun observeEffectiveProfile(packageName: String): Flow<GameProfile> {
+        val globalTriggers = combine(
+            listOf(
+                isLockRefreshRate,
+                isBoostRam,
+                isCachedFreezer,
+                isDisableAutoBrightness,
+                isDisableQuickTap,
+                isStabilizeWifi,
+                isWifiLowLatency,
+                isWifiSuppressScans,
+                isWifiLockSufficiency,
+                isWifiPreventArp,
+                isBlockBatterySaver,
+                isPauseAutoSync,
+                isDisablePrivateDns,
+                fpsOverride,
+                interventionMode,
+                suspendedApps,
+            )
+        ) { Unit }
+
+        val profileFlow = gameProfileDao?.getProfileFlow(packageName) ?: flowOf(null)
+
+        return combine(profileFlow, globalTriggers) { entity, _ ->
+            if (entity != null && entity.customized) {
+                entity.toDomain()
+            } else {
+                createDefaultEffectiveProfile(packageName).copy(
+                    lastPlayedTimestamp = entity?.lastPlayedTimestamp ?: 0L,
+                )
+            }
+        }
+    }
+
+    fun getAllProfilesFlow(): Flow<List<GameProfile>> {
+        return gameProfileDao?.getAllProfilesFlow()?.map { list ->
+            list.map { it.toDomain() }
+        } ?: flowOf(emptyList())
+    }
+
+    suspend fun saveGameProfile(profile: GameProfile) {
+        gameProfileDao?.upsertProfile(profile.toEntity())
+    }
+
+    suspend fun saveProfile(profile: GameProfile) = saveGameProfile(profile)
+
+    suspend fun setProfileCustomized(packageName: String, customized: Boolean) {
+        val existing = gameProfileDao?.getProfile(packageName)
+        val entityToSave = if (existing != null) {
+            existing.copy(customized = customized)
+        } else {
+            createDefaultEffectiveProfile(packageName).toEntity().copy(customized = customized)
+        }
+        gameProfileDao?.upsertProfile(entityToSave)
+    }
+
+    suspend fun deleteGameProfile(packageName: String) {
+        gameProfileDao?.deleteByPackageName(packageName)
+    }
+
+    suspend fun removeProfile(packageName: String) = deleteGameProfile(packageName)
+
+    suspend fun updateLastPlayed(packageName: String, timestamp: Long = System.currentTimeMillis()) {
+        val existing = gameProfileDao?.getProfile(packageName)
+        if (existing != null) {
+            gameProfileDao.upsertProfile(existing.copy(lastPlayedTimestamp = timestamp))
+        } else {
+            val defaultEntity = createDefaultEffectiveProfile(packageName).toEntity().copy(
+                lastPlayedTimestamp = timestamp,
+            )
+            gameProfileDao?.upsertProfile(defaultEntity)
+        }
+    }
+
+    suspend fun seedConfiguredGames() {
+        val dao = gameProfileDao ?: return
+        val configured = gameApps.value
+        for (pkg in configured) {
+            if (dao.getProfile(pkg) == null) {
+                dao.upsertProfile(createDefaultEffectiveProfile(pkg).toEntity())
+            }
+        }
     }
 }

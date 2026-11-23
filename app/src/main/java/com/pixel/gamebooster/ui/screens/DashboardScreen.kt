@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -50,6 +51,7 @@ import com.airbnb.lottie.compose.rememberLottieComposition
 import com.airbnb.lottie.compose.rememberLottieDynamicProperties
 import com.airbnb.lottie.compose.rememberLottieDynamicProperty
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.ui.components.GameLauncherGrid
@@ -61,6 +63,7 @@ import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.GameModeManager
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.PermissionHelper
+import kotlinx.coroutines.launch
 
 /**
  * Determines whether the Dashboard should render in two-pane mode.
@@ -86,13 +89,36 @@ fun DashboardScreen(
     repo: SettingsRepository,
     onAddGameClick: () -> Unit = {},
     onFixPermissionsClick: () -> Unit = {},
+    scopedPackage: String? = null,
+    scopedProfile: GameProfile? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val view = LocalView.current
+    val coroutineScope = rememberCoroutineScope()
+    val isScoped = scopedPackage != null
+
+    val currentProfileState = if (scopedPackage != null) {
+        val initial = scopedProfile ?: repo.createDefaultEffectiveProfile(scopedPackage)
+        repo.observeEffectiveProfile(scopedPackage).collectAsState(initial = initial)
+    } else null
+    val currentProfile = currentProfileState?.value
+
     val isBoosterEnabled by repo.isBoosterEnabled.collectAsState()
-    val mode by repo.interventionMode.collectAsState()
+    val globalMode by repo.interventionMode.collectAsState()
     val delay by repo.restoreDelay.collectAsState()
+
+    val mode = currentProfile?.interventionMode ?: globalMode
+
+    val onModeChange: (Int) -> Unit = { targetMode ->
+        if (isScoped && currentProfile != null) {
+            coroutineScope.launch {
+                repo.saveProfile(currentProfile.copy(customized = true, interventionMode = targetMode))
+            }
+        } else {
+            repo.setInterventionMode(targetMode)
+        }
+    }
 
     val adaptive = rememberAdaptiveLayoutInfo()
     val isTwoPane = isDashboardTwoPane(adaptive)
@@ -177,42 +203,62 @@ fun DashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Split below Master Switch: Left pane controls (mode + delay), Right pane game launcher
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.Top,
-            ) {
-                // Left Column: mode buttons, delay slider
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+            if (!isScoped) {
+                // Split below Master Switch: Left pane controls (mode + delay), Right pane game launcher
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
-                    DashboardPerformanceProfileCard(
-                        mode = mode,
-                        view = view,
-                        repo = repo,
-                    )
+                    // Left Column: mode buttons, delay slider
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        DashboardPerformanceProfileCard(
+                            mode = mode,
+                            view = view,
+                            onModeChange = onModeChange,
+                        )
 
-                    DashboardRestorationDelayCard(
-                        delay = delay,
-                        context = context,
-                        repo = repo,
-                    )
-                }
+                        DashboardRestorationDelayCard(
+                            delay = delay,
+                            context = context,
+                            repo = repo,
+                        )
+                    }
 
-                // Right Column: My Games launcher grid
-                Column(
-                    modifier = Modifier.weight(1.1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    GameLauncherGrid(
-                        repo = repo,
-                        onAddGameClick = onAddGameClick,
-                        isTwoPane = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    // Right Column: My Games launcher grid
+                    Column(
+                        modifier = Modifier.weight(1.1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        GameLauncherGrid(
+                            repo = repo,
+                            onAddGameClick = onAddGameClick,
+                            isTwoPane = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                 }
+            } else {
+                DashboardPerformanceProfileCard(
+                    mode = mode,
+                    view = view,
+                    onModeChange = onModeChange,
+                )
+
+                DashboardRestorationDelayCard(
+                    delay = delay,
+                    context = context,
+                    repo = repo,
+                )
+
+                InterruptionControlScreen(
+                    repo = repo,
+                    scopedPackage = scopedPackage,
+                    scopedProfile = currentProfile ?: scopedProfile,
+                )
             }
         }
     } else {
@@ -269,7 +315,7 @@ fun DashboardScreen(
             DashboardPerformanceProfileCard(
                 mode = mode,
                 view = view,
-                repo = repo,
+                onModeChange = onModeChange,
             )
 
             DashboardRestorationDelayCard(
@@ -278,12 +324,22 @@ fun DashboardScreen(
                 repo = repo,
             )
 
-            // Section: My Games Launcher Grid (at bottom of homepage)
-            GameLauncherGrid(
-                repo = repo,
-                onAddGameClick = onAddGameClick,
-                isTwoPane = false,
-            )
+            if (isScoped) {
+                InterruptionControlScreen(
+                    repo = repo,
+                    scopedPackage = scopedPackage,
+                    scopedProfile = currentProfile ?: scopedProfile,
+                )
+            }
+
+            if (!isScoped) {
+                // Section: My Games Launcher Grid (at bottom of homepage)
+                GameLauncherGrid(
+                    repo = repo,
+                    onAddGameClick = onAddGameClick,
+                    isTwoPane = false,
+                )
+            }
         }
     }
 }
@@ -292,7 +348,7 @@ fun DashboardScreen(
 private fun DashboardPerformanceProfileCard(
     mode: Int,
     view: View,
-    repo: SettingsRepository,
+    onModeChange: (Int) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.dash_performance_profile),
@@ -338,7 +394,7 @@ private fun DashboardPerformanceProfileCard(
                         onClick = {
                             if (!isSelected) {
                                 HapticUtil.performUIHaptic(view)
-                                repo.setInterventionMode(targetMode)
+                                onModeChange(targetMode)
                             }
                         },
                         shape = RoundedCornerShape(18.dp),

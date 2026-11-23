@@ -26,6 +26,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
@@ -40,19 +42,47 @@ import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import kotlinx.coroutines.launch
 
 @Composable
 fun NetworkSyncScreen(
     repo: SettingsRepository,
+    scopedPackage: String? = null,
+    scopedProfile: GameProfile? = null,
     modifier: Modifier = Modifier,
 ) {
-    val lowLatency by repo.isWifiLowLatency.collectAsState()
-    val suppressScans by repo.isWifiSuppressScans.collectAsState()
-    val lockSufficiency by repo.isWifiLockSufficiency.collectAsState()
-    val preventArp by repo.isWifiPreventArp.collectAsState()
-    val disablePrivateDns by repo.isDisablePrivateDns.collectAsState()
-    val pauseSync by repo.isPauseAutoSync.collectAsState()
-    val blockBatterySaver by repo.isBlockBatterySaver.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val isScoped = scopedPackage != null
+
+    val currentProfileState = if (scopedPackage != null) {
+        val initial = scopedProfile ?: repo.createDefaultEffectiveProfile(scopedPackage)
+        repo.observeEffectiveProfile(scopedPackage).collectAsState(initial = initial)
+    } else null
+    val currentProfile = currentProfileState?.value
+
+    val globalLowLatency by repo.isWifiLowLatency.collectAsState()
+    val globalSuppressScans by repo.isWifiSuppressScans.collectAsState()
+    val globalLockSufficiency by repo.isWifiLockSufficiency.collectAsState()
+    val globalPreventArp by repo.isWifiPreventArp.collectAsState()
+    val globalDisablePrivateDns by repo.isDisablePrivateDns.collectAsState()
+    val globalPauseSync by repo.isPauseAutoSync.collectAsState()
+    val globalBlockBatterySaver by repo.isBlockBatterySaver.collectAsState()
+
+    val lowLatency = currentProfile?.wifiLowLatency ?: globalLowLatency
+    val suppressScans = currentProfile?.wifiSuppressScans ?: globalSuppressScans
+    val lockSufficiency = currentProfile?.wifiLockSufficiency ?: globalLockSufficiency
+    val preventArp = currentProfile?.wifiPreventArp ?: globalPreventArp
+    val disablePrivateDns = currentProfile?.disablePrivateDns ?: globalDisablePrivateDns
+    val pauseSync = currentProfile?.pauseAutoSync ?: globalPauseSync
+    val blockBatterySaver = currentProfile?.blockBatterySaver ?: globalBlockBatterySaver
+
+    fun updateScoped(transform: (GameProfile) -> GameProfile) {
+        if (isScoped && currentProfile != null) {
+            coroutineScope.launch {
+                repo.saveProfile(transform(currentProfile).copy(customized = true))
+            }
+        }
+    }
 
     val headerState = rememberPullTitleHeaderState()
     val adaptive = rememberAdaptiveLayoutInfo()
@@ -77,6 +107,40 @@ fun NetworkSyncScreen(
                 "Balanced"
             },
         )
+    }
+
+    val onProfileSelected: (String) -> Unit = { profile ->
+        selectedProfile = profile
+        if (isScoped && currentProfile != null) {
+            val updated = if (profile == "Competitive") {
+                currentProfile.copy(
+                    customized = true,
+                    wifiLowLatency = true,
+                    wifiSuppressScans = true,
+                    wifiLockSufficiency = true,
+                    wifiPreventArp = true,
+                    disablePrivateDns = true,
+                    pauseAutoSync = true,
+                    blockBatterySaver = true,
+                )
+            } else {
+                currentProfile.copy(
+                    customized = true,
+                    wifiLowLatency = true,
+                    wifiSuppressScans = true,
+                    wifiLockSufficiency = false,
+                    wifiPreventArp = false,
+                    disablePrivateDns = false,
+                    pauseAutoSync = false,
+                    blockBatterySaver = false,
+                )
+            }
+            coroutineScope.launch {
+                repo.saveProfile(updated)
+            }
+        } else {
+            applyNetworkProfile(profile, repo)
+        }
     }
 
     Column(
@@ -109,16 +173,20 @@ fun NetworkSyncScreen(
                         selectedProfile = selectedProfile,
                         competitiveLabel = competitiveLabel,
                         balancedLabel = balancedLabel,
-                        onProfileSelected = { profile ->
-                            selectedProfile = profile
-                            applyNetworkProfile(profile, repo)
-                        },
+                        onProfileSelected = onProfileSelected,
                     )
 
                     NetworkBackgroundSyncSection(
                         pauseSync = pauseSync,
                         blockBatterySaver = blockBatterySaver,
-                        repo = repo,
+                        onPauseSyncChange = {
+                            if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
+                            else repo.setPauseAutoSync(it)
+                        },
+                        onBlockBatterySaverChange = {
+                            if (isScoped) updateScoped { p -> p.copy(blockBatterySaver = it) }
+                            else repo.setBlockBatterySaver(it)
+                        },
                     )
                 }
 
@@ -133,7 +201,26 @@ fun NetworkSyncScreen(
                         lockSufficiency = lockSufficiency,
                         preventArp = preventArp,
                         disablePrivateDns = disablePrivateDns,
-                        repo = repo,
+                        onLowLatencyChange = {
+                            if (isScoped) updateScoped { p -> p.copy(wifiLowLatency = it) }
+                            else repo.setWifiLowLatency(it)
+                        },
+                        onSuppressScansChange = {
+                            if (isScoped) updateScoped { p -> p.copy(wifiSuppressScans = it) }
+                            else repo.setWifiSuppressScans(it)
+                        },
+                        onLockSufficiencyChange = {
+                            if (isScoped) updateScoped { p -> p.copy(wifiLockSufficiency = it) }
+                            else repo.setWifiLockSufficiency(it)
+                        },
+                        onPreventArpChange = {
+                            if (isScoped) updateScoped { p -> p.copy(wifiPreventArp = it) }
+                            else repo.setWifiPreventArp(it)
+                        },
+                        onDisablePrivateDnsChange = {
+                            if (isScoped) updateScoped { p -> p.copy(disablePrivateDns = it) }
+                            else repo.setDisablePrivateDns(it)
+                        },
                     )
                 }
             }
@@ -143,10 +230,7 @@ fun NetworkSyncScreen(
                 selectedProfile = selectedProfile,
                 competitiveLabel = competitiveLabel,
                 balancedLabel = balancedLabel,
-                onProfileSelected = { profile ->
-                    selectedProfile = profile
-                    applyNetworkProfile(profile, repo)
-                },
+                onProfileSelected = onProfileSelected,
             )
 
             NetworkWifiLatencySection(
@@ -155,13 +239,39 @@ fun NetworkSyncScreen(
                 lockSufficiency = lockSufficiency,
                 preventArp = preventArp,
                 disablePrivateDns = disablePrivateDns,
-                repo = repo,
+                onLowLatencyChange = {
+                    if (isScoped) updateScoped { p -> p.copy(wifiLowLatency = it) }
+                    else repo.setWifiLowLatency(it)
+                },
+                onSuppressScansChange = {
+                    if (isScoped) updateScoped { p -> p.copy(wifiSuppressScans = it) }
+                    else repo.setWifiSuppressScans(it)
+                },
+                onLockSufficiencyChange = {
+                    if (isScoped) updateScoped { p -> p.copy(wifiLockSufficiency = it) }
+                    else repo.setWifiLockSufficiency(it)
+                },
+                onPreventArpChange = {
+                    if (isScoped) updateScoped { p -> p.copy(wifiPreventArp = it) }
+                    else repo.setWifiPreventArp(it)
+                },
+                onDisablePrivateDnsChange = {
+                    if (isScoped) updateScoped { p -> p.copy(disablePrivateDns = it) }
+                    else repo.setDisablePrivateDns(it)
+                },
             )
 
             NetworkBackgroundSyncSection(
                 pauseSync = pauseSync,
                 blockBatterySaver = blockBatterySaver,
-                repo = repo,
+                onPauseSyncChange = {
+                    if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
+                    else repo.setPauseAutoSync(it)
+                },
+                onBlockBatterySaverChange = {
+                    if (isScoped) updateScoped { p -> p.copy(blockBatterySaver = it) }
+                    else repo.setBlockBatterySaver(it)
+                },
             )
         }
     }
@@ -239,7 +349,11 @@ private fun NetworkWifiLatencySection(
     lockSufficiency: Boolean,
     preventArp: Boolean,
     disablePrivateDns: Boolean,
-    repo: SettingsRepository,
+    onLowLatencyChange: (Boolean) -> Unit,
+    onSuppressScansChange: (Boolean) -> Unit,
+    onLockSufficiencyChange: (Boolean) -> Unit,
+    onPreventArpChange: (Boolean) -> Unit,
+    onDisablePrivateDnsChange: (Boolean) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.net_section_wifi_latency),
@@ -255,7 +369,7 @@ private fun NetworkWifiLatencySection(
             command = stringResource(R.string.net_low_latency_cmd),
             icon = Icons.Rounded.Wifi,
             isChecked = lowLatency,
-            onCheckedChange = { repo.setWifiLowLatency(it) },
+            onCheckedChange = onLowLatencyChange,
             index = 0,
             count = 5,
         )
@@ -265,7 +379,7 @@ private fun NetworkWifiLatencySection(
             command = stringResource(R.string.net_suppress_scans_cmd),
             icon = Icons.Rounded.Radar,
             isChecked = suppressScans,
-            onCheckedChange = { repo.setWifiSuppressScans(it) },
+            onCheckedChange = onSuppressScansChange,
             index = 1,
             count = 5,
         )
@@ -275,7 +389,7 @@ private fun NetworkWifiLatencySection(
             command = stringResource(R.string.net_lock_sufficiency_cmd),
             icon = Icons.Rounded.NetworkCheck,
             isChecked = lockSufficiency,
-            onCheckedChange = { repo.setWifiLockSufficiency(it) },
+            onCheckedChange = onLockSufficiencyChange,
             index = 2,
             count = 5,
         )
@@ -285,7 +399,7 @@ private fun NetworkWifiLatencySection(
             command = stringResource(R.string.net_prevent_arp_cmd),
             icon = Icons.Rounded.WifiTetheringOff,
             isChecked = preventArp,
-            onCheckedChange = { repo.setWifiPreventArp(it) },
+            onCheckedChange = onPreventArpChange,
             index = 3,
             count = 5,
         )
@@ -295,7 +409,7 @@ private fun NetworkWifiLatencySection(
             command = stringResource(R.string.net_disable_private_dns_cmd),
             icon = Icons.Rounded.Dns,
             isChecked = disablePrivateDns,
-            onCheckedChange = { repo.setDisablePrivateDns(it) },
+            onCheckedChange = onDisablePrivateDnsChange,
             index = 4,
             count = 5,
         )
@@ -306,7 +420,8 @@ private fun NetworkWifiLatencySection(
 private fun NetworkBackgroundSyncSection(
     pauseSync: Boolean,
     blockBatterySaver: Boolean,
-    repo: SettingsRepository,
+    onPauseSyncChange: (Boolean) -> Unit,
+    onBlockBatterySaverChange: (Boolean) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.net_section_sync_power),
@@ -322,7 +437,7 @@ private fun NetworkBackgroundSyncSection(
             command = stringResource(R.string.net_pause_sync_cmd),
             icon = Icons.Rounded.SyncDisabled,
             isChecked = pauseSync,
-            onCheckedChange = { repo.setPauseAutoSync(it) },
+            onCheckedChange = onPauseSyncChange,
             index = 0,
             count = 2,
         )
@@ -332,7 +447,7 @@ private fun NetworkBackgroundSyncSection(
             command = stringResource(R.string.net_block_battery_saver_cmd),
             icon = Icons.Rounded.BatteryAlert,
             isChecked = blockBatterySaver,
-            onCheckedChange = { repo.setBlockBatterySaver(it) },
+            onCheckedChange = onBlockBatterySaverChange,
             index = 1,
             count = 2,
         )

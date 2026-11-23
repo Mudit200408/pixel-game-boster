@@ -18,28 +18,55 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import kotlinx.coroutines.launch
 
 @Composable
 fun PerformanceDisplayScreen(
     repo: SettingsRepository,
+    scopedPackage: String? = null,
+    scopedProfile: GameProfile? = null,
     modifier: Modifier = Modifier,
 ) {
-    val lockRefresh by repo.isLockRefreshRate.collectAsState()
-    val boostRam by repo.isBoostRam.collectAsState()
-    val cachedFreezer by repo.isCachedFreezer.collectAsState()
-    val disableBrightness by repo.isDisableAutoBrightness.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+    val isScoped = scopedPackage != null
+
+    val currentProfileState = if (scopedPackage != null) {
+        val initial = scopedProfile ?: repo.createDefaultEffectiveProfile(scopedPackage)
+        repo.observeEffectiveProfile(scopedPackage).collectAsState(initial = initial)
+    } else null
+    val currentProfile = currentProfileState?.value
+
+    val globalLockRefresh by repo.isLockRefreshRate.collectAsState()
+    val globalBoostRam by repo.isBoostRam.collectAsState()
+    val globalCachedFreezer by repo.isCachedFreezer.collectAsState()
+    val globalDisableBrightness by repo.isDisableAutoBrightness.collectAsState()
+
+    val lockRefresh = currentProfile?.lockRefreshRate ?: globalLockRefresh
+    val boostRam = currentProfile?.boostRam ?: globalBoostRam
+    val cachedFreezer = currentProfile?.cachedFreezer ?: globalCachedFreezer
+    val disableBrightness = currentProfile?.disableAutoBrightness ?: globalDisableBrightness
+
+    fun updateScoped(transform: (GameProfile) -> GameProfile) {
+        if (isScoped && currentProfile != null) {
+            coroutineScope.launch {
+                repo.saveProfile(transform(currentProfile).copy(customized = true))
+            }
+        }
+    }
 
     val headerState = rememberPullTitleHeaderState()
     val adaptive = rememberAdaptiveLayoutInfo()
@@ -74,7 +101,14 @@ fun PerformanceDisplayScreen(
                     DisplayRefreshSection(
                         lockRefresh = lockRefresh,
                         disableBrightness = disableBrightness,
-                        repo = repo,
+                        onLockRefreshChange = {
+                            if (isScoped) updateScoped { p -> p.copy(lockRefreshRate = it) }
+                            else repo.setLockRefreshRate(it)
+                        },
+                        onDisableBrightnessChange = {
+                            if (isScoped) updateScoped { p -> p.copy(disableAutoBrightness = it) }
+                            else repo.setDisableAutoBrightness(it)
+                        },
                     )
                 }
 
@@ -86,7 +120,14 @@ fun PerformanceDisplayScreen(
                     MemoryKernelSection(
                         boostRam = boostRam,
                         cachedFreezer = cachedFreezer,
-                        repo = repo,
+                        onBoostRamChange = {
+                            if (isScoped) updateScoped { p -> p.copy(boostRam = it) }
+                            else repo.setBoostRam(it)
+                        },
+                        onCachedFreezerChange = {
+                            if (isScoped) updateScoped { p -> p.copy(cachedFreezer = it) }
+                            else repo.setCachedFreezer(it)
+                        },
                     )
                 }
             }
@@ -95,12 +136,26 @@ fun PerformanceDisplayScreen(
             DisplayRefreshSection(
                 lockRefresh = lockRefresh,
                 disableBrightness = disableBrightness,
-                repo = repo,
+                onLockRefreshChange = {
+                    if (isScoped) updateScoped { p -> p.copy(lockRefreshRate = it) }
+                    else repo.setLockRefreshRate(it)
+                },
+                onDisableBrightnessChange = {
+                    if (isScoped) updateScoped { p -> p.copy(disableAutoBrightness = it) }
+                    else repo.setDisableAutoBrightness(it)
+                },
             )
             MemoryKernelSection(
                 boostRam = boostRam,
                 cachedFreezer = cachedFreezer,
-                repo = repo,
+                onBoostRamChange = {
+                    if (isScoped) updateScoped { p -> p.copy(boostRam = it) }
+                    else repo.setBoostRam(it)
+                },
+                onCachedFreezerChange = {
+                    if (isScoped) updateScoped { p -> p.copy(cachedFreezer = it) }
+                    else repo.setCachedFreezer(it)
+                },
             )
         }
     }
@@ -110,7 +165,8 @@ fun PerformanceDisplayScreen(
 private fun DisplayRefreshSection(
     lockRefresh: Boolean,
     disableBrightness: Boolean,
-    repo: SettingsRepository,
+    onLockRefreshChange: (Boolean) -> Unit,
+    onDisableBrightnessChange: (Boolean) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.perf_section_display_refresh),
@@ -126,7 +182,7 @@ private fun DisplayRefreshSection(
             command = stringResource(R.string.perf_force_120hz_cmd),
             icon = Icons.Rounded.Speed,
             isChecked = lockRefresh,
-            onCheckedChange = { repo.setLockRefreshRate(it) },
+            onCheckedChange = onLockRefreshChange,
             index = 0,
             count = 2,
         )
@@ -136,7 +192,7 @@ private fun DisplayRefreshSection(
             command = stringResource(R.string.perf_disable_auto_brightness_cmd),
             icon = Icons.Rounded.BrightnessAuto,
             isChecked = disableBrightness,
-            onCheckedChange = { repo.setDisableAutoBrightness(it) },
+            onCheckedChange = onDisableBrightnessChange,
             index = 1,
             count = 2,
         )
@@ -147,7 +203,8 @@ private fun DisplayRefreshSection(
 private fun MemoryKernelSection(
     boostRam: Boolean,
     cachedFreezer: Boolean,
-    repo: SettingsRepository,
+    onBoostRamChange: (Boolean) -> Unit,
+    onCachedFreezerChange: (Boolean) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.perf_section_memory_kernel),
@@ -163,7 +220,7 @@ private fun MemoryKernelSection(
             command = stringResource(R.string.perf_purge_ram_cmd),
             icon = Icons.Rounded.CleaningServices,
             isChecked = boostRam,
-            onCheckedChange = { repo.setBoostRam(it) },
+            onCheckedChange = onBoostRamChange,
             index = 0,
             count = 2,
         )
@@ -173,7 +230,7 @@ private fun MemoryKernelSection(
             command = stringResource(R.string.perf_cached_freezer_cmd),
             icon = Icons.Rounded.Memory,
             isChecked = cachedFreezer,
-            onCheckedChange = { repo.setCachedFreezer(it) },
+            onCheckedChange = onCachedFreezerChange,
             index = 1,
             count = 2,
         )

@@ -53,6 +53,7 @@ class AppDetectionService : Service() {
         super.onCreate()
         instance = this
         settingsRepository = SettingsRepository(this)
+        GameModeManager.init(this)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
         isRunning = true

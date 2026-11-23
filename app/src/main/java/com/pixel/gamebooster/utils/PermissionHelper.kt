@@ -2,6 +2,7 @@ package com.pixel.gamebooster.utils
 
 import android.Manifest
 import android.app.AppOpsManager
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -129,5 +130,22 @@ object PermissionHelper {
             }
         }
         runCatching { context.startActivity(intent) }
+    }
+
+    fun hasDndAccess(context: Context): Boolean {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return false
+        return nm.isNotificationPolicyAccessGranted
+    }
+
+    fun getDndSettingsIntent(): Intent {
+        return Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+    }
+
+    fun openDndSettings(context: Context) {
+        runCatching {
+            context.startActivity(getDndSettingsIntent())
+        }
     }
 }

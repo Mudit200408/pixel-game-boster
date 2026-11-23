@@ -1,25 +1,39 @@
 package com.pixel.gamebooster.ui.navigation
 
-import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,25 +47,36 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.screens.AppFreezerScreen
-import com.pixel.gamebooster.ui.screens.DashboardScreen
+import com.pixel.gamebooster.ui.screens.GameLibraryScreen
 import com.pixel.gamebooster.ui.screens.GameScanningSetupScreen
+import com.pixel.gamebooster.ui.screens.GameTuningContainer
 import com.pixel.gamebooster.ui.screens.NetworkSyncScreen
 import com.pixel.gamebooster.ui.screens.OnboardingScreen
 import com.pixel.gamebooster.ui.screens.PerformanceDisplayScreen
 import com.pixel.gamebooster.ui.screens.PermissionsScreen
+import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
 import com.pixel.gamebooster.ui.sheets.SettingsSheet
+import com.pixel.gamebooster.ui.sheets.SystemServicesSheet
+import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
-import com.pixel.gamebooster.utils.GameModeManager
 
 enum class AppScreen {
     ONBOARDING,
     PERMISSIONS,
     GAME_SCANNING,
-    MAIN,
+    MAIN;
+
+    companion object {
+        val LIBRARY: AppScreen get() = MAIN
+    }
 }
 
 enum class NavDestination(
@@ -80,6 +105,72 @@ enum class NavDestination(
 }
 
 /**
+ * Resolves the primary landing screen when user enters application.
+ * Defaults to AppScreen.MAIN when onboarding has completed.
+ */
+fun resolveLandingScreen(hasCompletedOnboarding: Boolean): AppScreen {
+    return if (hasCompletedOnboarding) AppScreen.MAIN else AppScreen.ONBOARDING
+}
+
+/**
+ * Handles game selection event from the Game Library grid, transitioning to game tuning.
+ */
+fun handleGameSelection(
+    packageName: String,
+    onNavigateToTuning: (String) -> Unit,
+) {
+    if (packageName.isNotBlank()) {
+        onNavigateToTuning(packageName)
+    }
+}
+
+/**
+ * Handles back navigation event from the Game Tuning view, resetting selected package.
+ */
+fun handleBackFromTuning(
+    onResetSelection: () -> Unit,
+) {
+    onResetSelection()
+}
+
+/**
+ * Encapsulates navigation state logic for AppNavigation to allow deterministic unit testing.
+ */
+class AppNavigationState(
+    initialScreen: AppScreen = AppScreen.MAIN,
+    initialSelectedGame: String? = null,
+) {
+    var currentScreen: AppScreen = initialScreen
+        private set
+
+    var selectedGamePackageForTuning: String? = initialSelectedGame
+        private set
+
+    val isShowingLibrary: Boolean
+        get() = (currentScreen == AppScreen.MAIN || currentScreen == AppScreen.LIBRARY) &&
+            selectedGamePackageForTuning == null
+
+    val isShowingGameTuning: Boolean
+        get() = (currentScreen == AppScreen.MAIN || currentScreen == AppScreen.LIBRARY) &&
+            selectedGamePackageForTuning != null
+
+    fun selectGameForTuning(packageName: String) {
+        selectedGamePackageForTuning = packageName
+    }
+
+    fun backFromTuning() {
+        selectedGamePackageForTuning = null
+    }
+
+    fun navigateTo(screen: AppScreen) {
+        currentScreen = screen
+        if (screen != AppScreen.MAIN && screen != AppScreen.LIBRARY) {
+            selectedGamePackageForTuning = null
+        }
+    }
+}
+
+/**
  * Dispatches FAB click events: launches active game if running, otherwise opens game picker.
  */
 fun handleFabClick(
@@ -102,7 +193,16 @@ fun AppNavigation(
     val hasCompletedOnboarding by repo.hasCompletedOnboarding.collectAsState()
 
     var currentScreen by rememberSaveable {
-        mutableStateOf(if (hasCompletedOnboarding) AppScreen.MAIN else AppScreen.ONBOARDING)
+        mutableStateOf(resolveLandingScreen(hasCompletedOnboarding))
+    }
+
+    var selectedGamePackageForTuning by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+
+    // Intercept hardware / gesture back button when in Game Tuning mode
+    BackHandler(enabled = selectedGamePackageForTuning != null) {
+        selectedGamePackageForTuning = null
     }
 
     AnimatedContent(
@@ -134,106 +234,29 @@ fun AppNavigation(
                 repo = repo,
                 onComplete = { currentScreen = AppScreen.MAIN },
             )
-            AppScreen.MAIN -> MainScaffold(
-                repo = repo,
-                onNavigateToPermissions = { currentScreen = AppScreen.PERMISSIONS },
-            )
-        }
-    }
-}
+            AppScreen.MAIN, AppScreen.LIBRARY -> {
+                var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
 
-@Composable
-private fun MainScaffold(
-    repo: SettingsRepository,
-    onNavigateToPermissions: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val context = LocalContext.current
-    var currentDestination by rememberSaveable { mutableStateOf(NavDestination.DASHBOARD) }
-    var showAppSelectionSheet by rememberSaveable { mutableStateOf(false) }
-    var showServicesSheet by rememberSaveable { mutableStateOf(false) }
-    var showGamePickerSheet by rememberSaveable { mutableStateOf(false) }
-    var showSettingsSheet by rememberSaveable { mutableStateOf(false) }
+                if (showSettingsSheet) {
+                    SettingsSheet(
+                        repo = repo,
+                        onDismissRequest = { showSettingsSheet = false },
+                    )
+                }
 
-    if (showSettingsSheet) {
-        SettingsSheet(
-            repo = repo,
-            onDismissRequest = { showSettingsSheet = false },
-        )
-    }
-
-    if (showAppSelectionSheet) {
-        com.pixel.gamebooster.ui.sheets.AppSelectionSheet(
-            repo = repo,
-            onDismissRequest = { showAppSelectionSheet = false },
-            title = stringResource(R.string.app_select_freeze_title),
-            isGamePicker = false,
-        )
-    }
-
-    if (showServicesSheet) {
-        com.pixel.gamebooster.ui.sheets.SystemServicesSheet(
-            repo = repo,
-            onDismissRequest = { showServicesSheet = false },
-        )
-    }
-
-    if (showGamePickerSheet) {
-        com.pixel.gamebooster.ui.sheets.AppSelectionSheet(
-            repo = repo,
-            onDismissRequest = { showGamePickerSheet = false },
-            title = stringResource(R.string.app_select_add_game_title),
-            isGamePicker = true,
-        )
-    }
-
-    val adaptive = rememberAdaptiveLayoutInfo()
-    val layoutDirection = LocalLayoutDirection.current
-
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(bottom = if (adaptive.isCompactHeight) 2.dp else 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                PixelFloatingToolbar(
-                    destinations = NavDestination.entries,
-                    currentDestination = currentDestination,
-                    onDestinationSelected = { currentDestination = it },
-                    onSettingsClick = { showSettingsSheet = true },
-                )
-            }
-        },
-    ) { innerPadding ->
-        AnimatedContent(
-            targetState = currentDestination,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "tabTransition",
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = innerPadding.calculateTopPadding(),
-                    start = innerPadding.calculateStartPadding(layoutDirection),
-                    end = innerPadding.calculateEndPadding(layoutDirection),
-                ),
-        ) { destination ->
-            when (destination) {
-                NavDestination.DASHBOARD -> DashboardScreen(
-                    repo = repo,
-                    onAddGameClick = { showGamePickerSheet = true },
-                    onFixPermissionsClick = onNavigateToPermissions,
-                )
-                NavDestination.PERFORMANCE -> PerformanceDisplayScreen(repo = repo)
-                NavDestination.FREEZER -> AppFreezerScreen(
-                    repo = repo,
-                    onOpenAppSelectionSheet = { showAppSelectionSheet = true },
-                    onOpenServicesSheet = { showServicesSheet = true },
-                )
-                NavDestination.NETWORK -> NetworkSyncScreen(repo = repo)
+                if (selectedGamePackageForTuning != null) {
+                    GameTuningContainer(
+                        packageName = selectedGamePackageForTuning!!,
+                        repository = repo,
+                        onBack = { selectedGamePackageForTuning = null },
+                    )
+                } else {
+                    GameLibraryScreen(
+                        repo = repo,
+                        onGameClick = { selectedGamePackageForTuning = it },
+                        onOpenSettings = { showSettingsSheet = true },
+                    )
+                }
             }
         }
     }

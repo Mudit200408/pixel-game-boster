@@ -69,6 +69,8 @@ fun AppSelectionSheet(
     onDismissRequest: () -> Unit,
     title: String = stringResource(R.string.app_select_default_title),
     isGamePicker: Boolean = false,
+    selectedAppsOverride: Set<String>? = null,
+    onToggleAppOverride: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -79,6 +81,7 @@ fun AppSelectionSheet(
 
     val suspendedApps by repo.suspendedApps.collectAsState()
     val gameApps by repo.gameApps.collectAsState()
+    val effectiveSuspendedApps = selectedAppsOverride ?: suspendedApps
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -186,7 +189,7 @@ fun AppSelectionSheet(
                         val isSelected = if (isGamePicker) {
                             gameApps.contains(app.packageName)
                         } else {
-                            suspendedApps.contains(app.packageName)
+                            effectiveSuspendedApps.contains(app.packageName)
                         }
 
                         Row(
@@ -197,6 +200,8 @@ fun AppSelectionSheet(
                                     if (isGamePicker) {
                                         if (isSelected) repo.removeGame(app.packageName)
                                         else repo.addGame(app.packageName)
+                                    } else if (onToggleAppOverride != null) {
+                                        onToggleAppOverride(app.packageName)
                                     } else {
                                         repo.toggleSuspendedApp(app.packageName)
                                     }
@@ -237,6 +242,8 @@ fun AppSelectionSheet(
                                     if (isGamePicker) {
                                         if (it) repo.addGame(app.packageName)
                                         else repo.removeGame(app.packageName)
+                                    } else if (onToggleAppOverride != null) {
+                                        onToggleAppOverride(app.packageName)
                                     } else {
                                         repo.toggleSuspendedApp(app.packageName)
                                     }

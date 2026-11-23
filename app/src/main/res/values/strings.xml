@@ -257,4 +257,90 @@
     <string name="slider_range_format">Range: %1$s – %2$s</string>
     <string name="slider_btn_ok">OK</string>
     <string name="slider_btn_cancel">Cancel</string>
+
+    <!-- GameLibrary (game_library_) -->
+    <string name="game_library_title">Game Library</string>
+    <string name="game_library_subtitle">Configure per-game performance and interruption profiles</string>
+    <string name="game_library_add_game">Add Game</string>
+    <string name="game_library_customized_badge">Custom</string>
+    <string name="game_library_default_badge">Default</string>
+    <string name="game_library_launch_game">Launch</string>
+    <string name="game_library_empty_title">No Games Added Yet</string>
+    <string name="game_library_empty_desc">Add installed games to configure tailored refresh rates, thermal profiles, and distraction-free gaming rules.</string>
+    <string name="game_library_global_settings">Global Settings</string>
+    <string name="game_library_search_games">Search games</string>
+    <string name="game_library_cannot_launch">Cannot launch %1$s</string>
+    <string name="game_library_cd_add_game">Add game to library</string>
+    <string name="game_library_cd_launch_game">Launch %1$s</string>
+    <string name="game_library_cd_game_card">%1$s profile settings, %2$s</string>
+    <string name="game_library_cd_settings">Global booster settings</string>
+    <string name="game_library_cd_search">Search games in library</string>
+    <string name="game_library_clear_search">Clear search</string>
+
+    <!-- GameTuning Placeholder (tuning_) -->
+    <string name="tuning_placeholder_title">%1$s Tuning</string>
+    <string name="tuning_placeholder_desc">Configuring per-game profile overrides and interruption controls.</string>
+    <string name="tuning_placeholder_back">Back to Library</string>
+
+    <!-- GameTuningContainer (game_tuning_) -->
+    <string name="game_tuning_title">Game Tuning</string>
+    <string name="game_tuning_customize_switch">Customize for this game</string>
+    <string name="game_tuning_customize_desc">Configure custom display, suspension, and network settings for this game</string>
+    <string name="game_tuning_reset_defaults">Reset to Global Defaults</string>
+    <string name="game_tuning_reset_confirm_title">Reset to Global Defaults?</string>
+    <string name="game_tuning_reset_confirm_desc">Revert %1$s to global defaults? All custom settings for this game will be cleared.</string>
+    <string name="game_tuning_reset_confirm_btn">Reset</string>
+    <string name="game_tuning_reset_cancel_btn">Cancel</string>
+    <string name="game_tuning_cd_back">Navigate back</string>
+    <string name="game_tuning_tab_dashboard">Dashboard</string>
+    <string name="game_tuning_tab_performance">Performance</string>
+    <string name="game_tuning_tab_freezer">Suspension</string>
+    <string name="game_tuning_tab_network">Network</string>
+    <string name="game_tuning_banner_inherited">Using Global Defaults</string>
+    <string name="game_tuning_banner_customized">Custom Profile</string>
+    <string name="game_tuning_inherited_desc">Settings are inherited from global booster defaults. Turn on \"Customize for this game\" to set specific refresh rates, DND rules, and background app freezer policies.</string>
+    <string name="game_tuning_status_customized">Customized</string>
+    <string name="game_tuning_status_inherited">Inherited</string>
+    <string name="game_tuning_cd_icon">Game icon</string>
+
+    <!-- Interruption & Do Not Disturb (dnd_) -->
+    <string name="dnd_permission_title">Do Not Disturb Access</string>
+    <string name="dnd_permission_desc">Allows Pixel Game Booster to suppress heads-up notification banners and alerts during gameplay.</string>
+    <string name="dnd_mode_full">Full DND</string>
+    <string name="dnd_mode_priority">Priority Only</string>
+    <string name="dnd_mode_off">Off / Inherit</string>
+    <string name="dnd_mode_off_desc">Standard notification sounds, vibrations, and banners will appear</string>
+    <string name="dnd_mode_priority_desc">Allows starred contacts and critical alarms through while suppressing third-party notifications</string>
+    <string name="dnd_mode_full_desc">Completely silences all heads-up banners, alerts, and vibrations during gameplay</string>
+    <string name="perm_dnd_title">Do Not Disturb Access</string>
+    <string name="perm_dnd_desc">Suppresses heads-up notification banners and distraction chimes while gaming.</string>
+    <string name="perm_feature_dnd_peeking">Suppress Heads-Up Banners</string>
+    <string name="perm_feature_dnd_audio">Distraction-Free Audio</string>
+    <string name="perm_action_grant_dnd">Grant DND Access</string>
+    <string name="banner_dnd_title">Do Not Disturb Access Required</string>
+    <string name="banner_dnd_desc">Notification policy access is required to suppress heads-up alerts during gameplay.</string>
+    <string name="banner_fix_permissions">Fix Permissions</string>
+    <string name="banner_shizuku_revoked_title">Shizuku Permission Revoked</string>
+    <string name="banner_shizuku_revoked_desc">Pixel Game Booster lost Shizuku privilege. Game-mode settings cannot be applied or restored. Open Shizuku and grant permission to Pixel Game Booster.</string>
+    <string name="banner_accessibility_disabled_title">Detection Service Disabled</string>
+    <string name="banner_accessibility_disabled_desc">Accessibility Service is not enabled. Automated instant game launch detection is inactive.</string>
+    <string name="banner_permissions_incomplete_title">Permissions Incomplete</string>
+    <string name="banner_permissions_incomplete_desc">One or more recommended permissions are missing. Some automated optimizations may be limited.</string>
+
+    <!-- Interruption & Call Handling (call_ & interruption_) -->
+    <string name="interruption_dnd_policy_title">Do Not Disturb Policy</string>
+    <string name="interruption_dnd_policy_desc">Configure notification suppression and audio muting while in game</string>
+    <string name="call_handling_title">In-Game Call Handling</string>
+    <string name="call_handling_desc">Choose how incoming voice calls are handled while gaming</string>
+    <string name="call_handling_headsup_title">Floating Banner</string>
+    <string name="call_handling_headsup_desc">Incoming calls appear as a floating heads-up banner without full-screen dialer interruption</string>
+    <string name="call_handling_silent_title">Silent Ringing</string>
+    <string name="call_handling_silent_desc">Rings silently in the background without sound or vibration</string>
+    <string name="call_handling_reject_title">Auto-Reject</string>
+    <string name="call_handling_reject_desc">Instantly declines incoming calls during gameplay</string>
+    <string name="call_screening_role_title">Call Screening Access Required</string>
+    <string name="call_screening_role_desc">Android requires the Call Screening role to enable automated call rejection and silent background ringing</string>
+    <string name="call_screening_role_grant_btn">Set as Call Screening App</string>
+    <string name="call_screening_role_active">Call Screening Active</string>
+    <string name="call_screening_role_active_desc">Pixel Game Booster is configured to screen and manage incoming calls during gameplay</string>
 </resources>

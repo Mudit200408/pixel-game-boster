@@ -15,6 +15,8 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.interruption.CallScreeningHelper
+import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.services.GameBoosterAccessibilityService
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +73,10 @@ object GameModeManager {
     private val scope = CoroutineScope(Dispatchers.IO)
     private var pendingRestoreJob: Job? = null
 
+    fun init(context: Context) {
+        DNDManager.recoverLeakedDndState(context)
+    }
+
     fun onGameForeground(context: Context, packageName: String, repo: SettingsRepository) {
         if (!repo.isBoosterEnabled.value) return
         if (!GameDetectionUtils.isGame(context, packageName, repo.gameApps.value)) return
@@ -85,6 +91,18 @@ object GameModeManager {
         Log.d(TAG, "Entering Game Mode for $packageName")
 
         scope.launch {
+            // 0. Interruption Policy (DND) & Call Screening
+            try {
+                val profile = repo.getEffectiveProfile(packageName)
+                if (profile.interruptionMode != 0) {
+                    DNDManager.applyInterruptionPolicy(context, profile.interruptionMode)
+                }
+                CallScreeningHelper.activeCallHandlingMode = profile.callHandlingMode
+                Log.d(TAG, "Configured call handling mode: ${profile.callHandlingMode} for $packageName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply interruption policy for $packageName", e)
+            }
+
             // 1. Auto-Brightness: Fast-path ContentResolver write with shell fallback
             if (repo.isDisableAutoBrightness.value) {
                 try {
@@ -494,6 +512,11 @@ object GameModeManager {
         }
     }
 
+    fun onGameBackground(context: Context) {
+        DNDManager.restoreInterruptionPolicy(context)
+        CallScreeningHelper.activeCallHandlingMode = CallScreeningHelper.MODE_HEADS_UP
+    }
+
     fun onGameBackground(
         context: Context,
         oldPackage: String?,
@@ -562,6 +585,14 @@ object GameModeManager {
         AppDetectionService.instance?.resetLastPackage()
 
         scope.launch {
+            // 0. Restore DND interruption policy & Call Screening
+            try {
+                DNDManager.restoreInterruptionPolicy(context)
+                CallScreeningHelper.activeCallHandlingMode = CallScreeningHelper.MODE_HEADS_UP
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to restore DND interruption policy", e)
+            }
+
             // 1. Reset Game Manager intervention
             if (didApplyGameIntervention) {
                 ShellUtils.runCommand(context, "cmd game reset $gamePackage && cmd game mode standard $gamePackage")

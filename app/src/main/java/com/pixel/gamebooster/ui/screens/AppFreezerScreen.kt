@@ -49,6 +49,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
+import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
@@ -65,6 +66,8 @@ fun AppFreezerScreen(
     repo: SettingsRepository,
     onOpenAppSelectionSheet: () -> Unit,
     onOpenServicesSheet: () -> Unit,
+    scopedPackage: String? = null,
+    scopedProfile: GameProfile? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -72,9 +75,47 @@ fun AppFreezerScreen(
     val scope = rememberCoroutineScope()
     val pm = context.packageManager
 
-    val suspendedApps by repo.suspendedApps.collectAsState()
+    val isScoped = scopedPackage != null
+    val currentProfileState = if (scopedPackage != null) {
+        val initial = scopedProfile ?: repo.createDefaultEffectiveProfile(scopedPackage)
+        repo.observeEffectiveProfile(scopedPackage).collectAsState(initial = initial)
+    } else null
+    val currentProfile = currentProfileState?.value
+
+    val globalSuspendedApps by repo.suspendedApps.collectAsState()
     val suspendedServices by repo.suspendedServices.collectAsState()
-    val disableQuickTap by repo.isDisableQuickTap.collectAsState()
+    val globalDisableQuickTap by repo.isDisableQuickTap.collectAsState()
+
+    val suspendedApps = currentProfile?.suspendedApps ?: globalSuspendedApps
+    val disableQuickTap = currentProfile?.disableQuickTap ?: globalDisableQuickTap
+
+    val onRemoveApp: (String) -> Unit = { pkg ->
+        if (isScoped && currentProfile != null) {
+            val updated = currentProfile.copy(
+                customized = true,
+                suspendedApps = currentProfile.suspendedApps - pkg,
+            )
+            scope.launch {
+                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg")
+                repo.saveProfile(updated)
+            }
+        } else {
+            scope.launch {
+                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg")
+                repo.setSuspendedApps(suspendedApps - pkg)
+            }
+        }
+    }
+
+    val onDisableQuickTapChange: (Boolean) -> Unit = { value ->
+        if (isScoped && currentProfile != null) {
+            scope.launch {
+                repo.saveProfile(currentProfile.copy(customized = true, disableQuickTap = value))
+            }
+        } else {
+            repo.setDisableQuickTap(value)
+        }
+    }
 
     val headerState = rememberPullTitleHeaderState()
     val adaptive = rememberAdaptiveLayoutInfo()
@@ -109,10 +150,8 @@ fun AppFreezerScreen(
                     FreezerConfiguredAppsSection(
                         suspendedApps = suspendedApps,
                         pm = pm,
-                        context = context,
                         view = view,
-                        scope = scope,
-                        repo = repo,
+                        onRemoveApp = onRemoveApp,
                     )
                     FreezerWarningNote()
                 }
@@ -128,7 +167,7 @@ fun AppFreezerScreen(
                         onOpenAppSelectionSheet = onOpenAppSelectionSheet,
                         onOpenServicesSheet = onOpenServicesSheet,
                         disableQuickTap = disableQuickTap,
-                        onDisableQuickTapChange = { repo.setDisableQuickTap(it) },
+                        onDisableQuickTapChange = onDisableQuickTapChange,
                     )
                 }
             }
@@ -137,10 +176,8 @@ fun AppFreezerScreen(
             FreezerConfiguredAppsSection(
                 suspendedApps = suspendedApps,
                 pm = pm,
-                context = context,
                 view = view,
-                scope = scope,
-                repo = repo,
+                onRemoveApp = onRemoveApp,
             )
 
             FreezerProcessManagementSection(
@@ -149,7 +186,7 @@ fun AppFreezerScreen(
                 onOpenAppSelectionSheet = onOpenAppSelectionSheet,
                 onOpenServicesSheet = onOpenServicesSheet,
                 disableQuickTap = disableQuickTap,
-                onDisableQuickTapChange = { repo.setDisableQuickTap(it) },
+                onDisableQuickTapChange = onDisableQuickTapChange,
             )
 
             // Suspension Disclaimer / Warning Note at end of screen
@@ -162,10 +199,8 @@ fun AppFreezerScreen(
 private fun FreezerConfiguredAppsSection(
     suspendedApps: Set<String>,
     pm: PackageManager,
-    context: Context,
     view: View,
-    scope: CoroutineScope,
-    repo: SettingsRepository,
+    onRemoveApp: (String) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.freezer_section_configured_apps, suspendedApps.size),
@@ -271,10 +306,7 @@ private fun FreezerConfiguredAppsSection(
                     IconButton(
                         onClick = {
                             HapticUtil.performVirtualKeyHaptic(view)
-                            scope.launch {
-                                ShellUtils.runCommand(context, "cmd package unsuspend --user 0 $pkg")
-                                repo.setSuspendedApps(suspendedApps - pkg)
-                            }
+                            onRemoveApp(pkg)
                         },
                     ) {
                         Icon(

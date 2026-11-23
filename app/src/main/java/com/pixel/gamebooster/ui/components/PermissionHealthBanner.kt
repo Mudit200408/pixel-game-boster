@@ -28,11 +28,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.PermissionHelper
 import com.pixel.gamebooster.utils.ShellUtils
@@ -49,11 +51,13 @@ fun PermissionHealthBanner(
     var hasShizuku by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
     var hasAccessibility by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
     var hasUsageStats by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
+    var hasDnd by remember { mutableStateOf(PermissionHelper.hasDndAccess(context)) }
 
     fun refreshHealth() {
         hasShizuku = ShellUtils.hasPermission(context)
         hasAccessibility = PermissionHelper.isAccessibilityServiceEnabled(context)
         hasUsageStats = PermissionHelper.hasUsageStatsPermission(context)
+        hasDnd = PermissionHelper.hasDndAccess(context)
     }
 
     DisposableEffect(lifecycleOwner) {
@@ -68,23 +72,27 @@ fun PermissionHealthBanner(
         }
     }
 
-    // If critical permissions are satisfied, banner is hidden
+    // If critical permissions and fallback paths are satisfied, banner is hidden
     if (hasShizuku && hasAccessibility) {
         return
     }
 
     val (title, description) = when {
+        !hasShizuku && !hasDnd -> Pair(
+            stringResource(R.string.banner_dnd_title),
+            stringResource(R.string.banner_dnd_desc),
+        )
         !hasShizuku -> Pair(
-            "Shizuku Permission Revoked",
-            "Pixel Game Booster lost Shizuku privilege. Game-mode settings (brightness, DNS, refresh rate, Wi-Fi) cannot be applied or restored. Open Shizuku and grant permission to Pixel Game Booster.",
+            stringResource(R.string.banner_shizuku_revoked_title),
+            stringResource(R.string.banner_shizuku_revoked_desc),
         )
         !hasAccessibility -> Pair(
-            "Detection Service Disabled",
-            "Accessibility Service is not enabled. Automated instant game launch detection is inactive.",
+            stringResource(R.string.banner_accessibility_disabled_title),
+            stringResource(R.string.banner_accessibility_disabled_desc),
         )
         else -> Pair(
-            "Permissions Incomplete",
-            "One or more recommended permissions are missing. Some automated optimizations may be limited.",
+            stringResource(R.string.banner_permissions_incomplete_title),
+            stringResource(R.string.banner_permissions_incomplete_desc),
         )
     }
 
@@ -139,7 +147,7 @@ fun PermissionHealthBanner(
                 shape = RoundedCornerShape(14.dp),
             ) {
                 Text(
-                    text = "Fix Permissions",
+                    text = stringResource(R.string.banner_fix_permissions),
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.SemiBold,
                 )
