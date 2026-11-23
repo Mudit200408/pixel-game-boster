@@ -28,8 +28,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.utils.GameModeManager
 import com.pixel.gamebooster.utils.HapticUtil
@@ -79,7 +81,7 @@ fun PixelGamingHeroCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Bolt,
-                            contentDescription = "Pixel Game Booster",
+                            contentDescription = stringResource(R.string.app_name),
                             tint = if (isEnabled) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(28.dp),
@@ -88,15 +90,15 @@ fun PixelGamingHeroCard(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Pixel Game Booster",
+                            text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = if (isEnabled) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = if (isEnabled) "Active · Automating performance for games"
-                            else "Standby · Game automation is paused",
+                            text = if (isEnabled) stringResource(R.string.hero_status_active)
+                            else stringResource(R.string.hero_status_standby),
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isEnabled) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                             else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -132,13 +134,13 @@ fun PixelGamingHeroCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SportsEsports,
-                            contentDescription = "Active Game",
+                            contentDescription = stringResource(R.string.hero_cd_active_game),
                             tint = if (isEnabled) MaterialTheme.colorScheme.onPrimaryContainer
                             else MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp),
                         )
                         Text(
-                            text = "Active Game Session: $activeGame",
+                            text = stringResource(R.string.hero_active_game_session, activeGame),
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isEnabled) MaterialTheme.colorScheme.onPrimaryContainer

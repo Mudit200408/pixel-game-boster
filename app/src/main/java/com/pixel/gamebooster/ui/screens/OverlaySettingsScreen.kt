@@ -172,7 +172,7 @@ fun OverlaySettingsScreen(
 
             // Screen Subtitle
             Text(
-                text = "Floating system dashboard accessible directly during gameplay",
+                text = stringResource(R.string.overlay_settings_subtitle),
                 style = TextStyle(
                     fontFamily = GoogleSansFlexRounded,
                     fontWeight = FontWeight.Normal,
@@ -202,7 +202,7 @@ fun OverlaySettingsScreen(
 
             // Section 1: General Activation
             Text(
-                text = "General",
+                text = stringResource(R.string.overlay_section_general),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(start = 8.dp),
@@ -328,7 +328,11 @@ fun OverlaySettingsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     val isFloatingButton = overlayStyle == 1
                                     Text(
-                                        text = if (isFloatingButton) "Floating Button Opacity" else "Edge Bar Opacity",
+                                        text = if (isFloatingButton) {
+                                            stringResource(R.string.overlay_opacity_button_title)
+                                        } else {
+                                            stringResource(R.string.overlay_opacity_bar_title)
+                                        },
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontFamily = GoogleSansFlexRounded,
                                             fontWeight = FontWeight.SemiBold,
@@ -337,9 +341,9 @@ fun OverlaySettingsScreen(
                                     )
                                     Text(
                                         text = if (isFloatingButton) {
-                                            "Keep the floating button subtle during gameplay (20%–100%)"
+                                            stringResource(R.string.overlay_opacity_button_desc)
                                         } else {
-                                            "Keep the edge bar subtle during gameplay (20%–100%)"
+                                            stringResource(R.string.overlay_opacity_bar_desc)
                                         },
                                         style = TextStyle(
                                             fontFamily = GoogleSansFlexRounded,
@@ -501,7 +505,7 @@ fun OverlaySettingsScreen(
                                         )
                                         Column {
                                             Text(
-                                                text = "Selected Color",
+                                                text = stringResource(R.string.overlay_color_selected),
                                                 style = MaterialTheme.typography.titleSmall.copy(
                                                     fontFamily = GoogleSansFlexRounded,
                                                     fontWeight = FontWeight.SemiBold,
@@ -531,7 +535,7 @@ fun OverlaySettingsScreen(
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
-                                            text = "Change Color",
+                                            text = stringResource(R.string.overlay_color_change),
                                             style = MaterialTheme.typography.labelLarge.copy(
                                                 fontFamily = GoogleSansFlexRounded,
                                                 fontWeight = FontWeight.SemiBold,
@@ -582,7 +586,7 @@ fun OverlaySettingsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Text(
-                                            text = "Color Picker",
+                                            text = stringResource(R.string.overlay_color_picker_title),
                                             style = MaterialTheme.typography.titleSmall.copy(
                                                 fontFamily = GoogleSansFlexRounded,
                                                 fontWeight = FontWeight.SemiBold,
@@ -752,7 +756,7 @@ fun OverlaySettingsScreen(
                                             },
                                         ) {
                                             Text(
-                                                text = "Cancel",
+                                                text = stringResource(R.string.overlay_color_cancel),
                                                 style = MaterialTheme.typography.labelLarge.copy(
                                                     fontFamily = GoogleSansFlexRounded,
                                                     fontWeight = FontWeight.Medium,
@@ -773,7 +777,7 @@ fun OverlaySettingsScreen(
                                             )
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text(
-                                                text = "Confirm",
+                                                text = stringResource(R.string.overlay_color_confirm),
                                                 style = MaterialTheme.typography.labelLarge.copy(
                                                     fontFamily = GoogleSansFlexRounded,
                                                     fontWeight = FontWeight.SemiBold,

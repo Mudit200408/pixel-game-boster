@@ -9,6 +9,7 @@ import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.model.RecordAudioSource
 import com.pixel.gamebooster.data.repository.SettingsRepository
 
@@ -68,7 +69,7 @@ class ScreenRecordTrampolineActivity : Activity() {
                 @Suppress("DEPRECATION")
                 startActivityForResult(captureIntent, REQUEST_MEDIA_PROJECTION)
             } else {
-                Toast.makeText(this, "Screen recording not supported on this device", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.screen_record_unsupported), Toast.LENGTH_SHORT).show()
                 finish()
             }
         } catch (e: Exception) {
@@ -86,7 +87,7 @@ class ScreenRecordTrampolineActivity : Activity() {
                 // User authorized recording: start ScreenRecordService with MediaProjection token
                 com.pixel.gamebooster.recording.ScreenRecordService.startRecording(this, resultCode, data)
             } else {
-                Toast.makeText(this, "Screen recording cancelled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.screen_record_cancelled), Toast.LENGTH_SHORT).show()
                 GameOverlayManager.overlayViewModel?.setRecording(false)
             }
             finish()

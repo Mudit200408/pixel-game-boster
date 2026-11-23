@@ -319,7 +319,7 @@ fun ExpandedPanel(
                 ) {
                     M3EActionTile(
                         icon = ImageVector.vectorResource(R.drawable.ic_120hz),
-                        label = "Lock 120Hz",
+                        label = stringResource(R.string.overlay_lock_120hz),
                         isActive = state.lockRefreshRate,
                         onClick = { viewModel.toggle120Hz() },
                         modifier = Modifier.weight(1f),

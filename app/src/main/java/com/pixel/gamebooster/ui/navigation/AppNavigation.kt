@@ -459,7 +459,7 @@ fun AppNavigation(
                                         // Tab 1: Game Library
                                         FloatingNavTabItem(
                                             selected = isGamesSelected,
-                                            label = "Games",
+                                            label = stringResource(R.string.nav_tab_games),
                                             icon = Icons.Rounded.SportsEsports,
                                             width = gamesSlotWidth,
                                             onClick = {
@@ -471,7 +471,7 @@ fun AppNavigation(
                                         // Tab 2: In-Game Overlay Page
                                         FloatingNavTabItem(
                                             selected = !isGamesSelected,
-                                            label = "Overlay",
+                                            label = stringResource(R.string.nav_tab_overlay),
                                             icon = Icons.Rounded.Layers,
                                             width = overlaySlotWidth,
                                             onClick = {

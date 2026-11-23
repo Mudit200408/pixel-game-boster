@@ -185,10 +185,10 @@ class AppDetectionService : Service() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Game Detection Service",
+                getString(R.string.detection_channel_name),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Monitors foreground games to automate optimizations"
+                description = getString(R.string.detection_channel_desc)
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -197,8 +197,8 @@ class AppDetectionService : Service() {
 
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Pixel Game Booster Active")
-            .setContentText("Monitoring games for automated performance tuning")
+            .setContentTitle(getString(R.string.detection_notif_title))
+            .setContentText(getString(R.string.detection_notif_text))
             .setSmallIcon(R.mipmap.ic_launcher)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

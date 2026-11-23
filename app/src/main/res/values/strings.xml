@@ -417,4 +417,44 @@
     <string name="screen_recording_double_tap_desc">Quickly double tap the edge bar or overlay button to stop recording</string>
     <string name="screen_recording_show_touches_title">Show Visual Touches</string>
     <string name="screen_recording_show_touches_desc">Display on-screen touch circles during gameplay recording</string>
+
+    <!-- Hero Card, Navigation, Overlay & Services -->
+    <string name="hero_status_active">Active · Automating performance for games</string>
+    <string name="hero_status_standby">Standby · Game automation is paused</string>
+    <string name="hero_active_game_session">Active Game Session: %1$s</string>
+    <string name="hero_cd_active_game">Active Game</string>
+    <string name="nav_tab_games">Games</string>
+    <string name="nav_tab_overlay">Overlay</string>
+    <string name="overlay_settings_subtitle">Floating system dashboard accessible directly during gameplay</string>
+    <string name="overlay_section_general">General</string>
+    <string name="overlay_opacity_button_title">Floating Button Opacity</string>
+    <string name="overlay_opacity_bar_title">Edge Bar Opacity</string>
+    <string name="overlay_opacity_button_desc">Keep the floating button subtle during gameplay (20%–100%)</string>
+    <string name="overlay_opacity_bar_desc">Keep the edge bar subtle during gameplay (20%–100%)</string>
+    <string name="overlay_color_selected">Selected Color</string>
+    <string name="overlay_color_change">Change Color</string>
+    <string name="overlay_color_picker_title">Color Picker</string>
+    <string name="overlay_color_cancel">Cancel</string>
+    <string name="overlay_color_confirm">Confirm</string>
+    <string name="overlay_lock_120hz">Lock 120Hz</string>
+    <string name="overlay_cd_trigger">Game Booster Overlay</string>
+    <string name="screen_record_started">Screen recording started</string>
+    <string name="screen_record_start_failed">Failed to start recording: %1$s</string>
+    <string name="screen_record_saved_toast">Recording saved: %1$s</string>
+    <string name="screen_record_channel_name">In-Game Screen Recording</string>
+    <string name="screen_record_channel_desc">Status and controls for in-game screen capture</string>
+    <string name="screen_record_notif_title">Recording Screen • %1$s</string>
+    <string name="screen_record_notif_text">Capturing gameplay (%1$s)</string>
+    <string name="screen_record_notif_stop">Stop Recording</string>
+    <string name="screen_record_saved_title">Screen Recording Saved</string>
+    <string name="screen_record_audio_mute">Mute</string>
+    <string name="screen_record_audio_mic">Mic</string>
+    <string name="screen_record_audio_device">Device Audio</string>
+    <string name="screen_record_audio_both">Game + Mic</string>
+    <string name="screen_record_unsupported">Screen recording not supported on this device</string>
+    <string name="screen_record_cancelled">Screen recording cancelled</string>
+    <string name="detection_channel_name">Game Detection Service</string>
+    <string name="detection_channel_desc">Monitors foreground games to automate optimizations</string>
+    <string name="detection_notif_title">Pixel Game Booster Active</string>
+    <string name="detection_notif_text">Monitoring games for automated performance tuning</string>
 </resources>

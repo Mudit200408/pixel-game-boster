@@ -34,6 +34,8 @@ import com.pixel.gamebooster.utils.ShellUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.isActive
@@ -85,7 +87,7 @@ class ScreenRecordService : Service() {
         }
     }
 
-    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var durationJob: Job? = null
 
     private var mediaProjection: MediaProjection? = null
@@ -186,13 +188,13 @@ class ScreenRecordService : Service() {
         ).apply { mkdirs() }
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        finalOutputFile = File(moviesDir, "game_record_$timestamp.mp4")
+        val outFile = File(moviesDir, "game_record_$timestamp.mp4").also { finalOutputFile = it }
 
         val isMuxingRequired = activeAudioSource == RecordAudioSource.DEVICE || activeAudioSource == RecordAudioSource.BOTH
         val targetVideoFile = if (isMuxingRequired) {
             File(cacheDir, "temp_vid_$timestamp.mp4").also { tempVideoFile = it }
         } else {
-            finalOutputFile!!
+            outFile
         }
 
         // 3. Configure MediaRecorder
@@ -262,10 +264,10 @@ class ScreenRecordService : Service() {
 
             // 5. Start Internal Audio Recording if requested
             if (isMuxingRequired) {
-                tempAudioFile = File(cacheDir, "temp_aud_$timestamp.mp4")
+                val audioOutFile = File(cacheDir, "temp_aud_$timestamp.mp4").also { tempAudioFile = it }
                 internalAudioRecorder = InternalAudioRecorder(
                     mediaProjection = projection,
-                    outputFile = tempAudioFile!!,
+                    outputFile = audioOutFile,
                     includeMic = activeAudioSource == RecordAudioSource.BOTH,
                 ).apply {
                     start()
@@ -286,10 +288,10 @@ class ScreenRecordService : Service() {
             isRecording.value = true
             recordingDurationSeconds.value = 0
             startDurationCounter()
-            Toast.makeText(this, "Screen recording started", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.screen_record_started), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start screen recording pipeline", e)
-            Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.screen_record_start_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
             cleanup()
             stopSelf()
         }
@@ -351,7 +353,7 @@ class ScreenRecordService : Service() {
                         null
                     )
                     launch(Dispatchers.Main) {
-                        Toast.makeText(applicationContext, "Recording saved: ${targetFile.name}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(applicationContext, getString(R.string.screen_record_saved_toast, targetFile.name), Toast.LENGTH_SHORT).show()
                         showCompletedNotification(targetFile)
                     }
                 }
@@ -386,10 +388,10 @@ class ScreenRecordService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "In-Game Screen Recording",
+                getString(R.string.screen_record_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Status and controls for in-game screen capture"
+                description = getString(R.string.screen_record_channel_desc)
                 setShowBadge(false)
             }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -413,18 +415,18 @@ class ScreenRecordService : Service() {
         val timeString = String.format(Locale.US, "%02d:%02d", minutes, remainingSeconds)
 
         val audioLabel = when (activeAudioSource) {
-            RecordAudioSource.MUTE -> "Mute"
-            RecordAudioSource.MIC -> "Mic"
-            RecordAudioSource.DEVICE -> "Device Audio"
-            RecordAudioSource.BOTH -> "Game + Mic"
+            RecordAudioSource.MUTE -> getString(R.string.screen_record_audio_mute)
+            RecordAudioSource.MIC -> getString(R.string.screen_record_audio_mic)
+            RecordAudioSource.DEVICE -> getString(R.string.screen_record_audio_device)
+            RecordAudioSource.BOTH -> getString(R.string.screen_record_audio_both)
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Recording Screen • $timeString")
-            .setContentText("Capturing gameplay ($audioLabel)")
+            .setContentTitle(getString(R.string.screen_record_notif_title, timeString))
+            .setContentText(getString(R.string.screen_record_notif_text, audioLabel))
             .setSmallIcon(android.R.drawable.presence_video_busy)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause, "Stop Recording", stopPendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, getString(R.string.screen_record_notif_stop), stopPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
@@ -447,7 +449,7 @@ class ScreenRecordService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Screen Recording Saved")
+            .setContentTitle(getString(R.string.screen_record_saved_title))
             .setContentText(file.name)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setAutoCancel(true)
@@ -462,5 +464,6 @@ class ScreenRecordService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopRecordingInternal()
+        serviceScope.cancel()
     }
 }

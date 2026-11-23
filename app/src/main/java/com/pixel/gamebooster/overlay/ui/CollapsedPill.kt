@@ -43,9 +43,11 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.Job
@@ -268,7 +270,7 @@ fun CollapsedPill(
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.SportsEsports,
-                            contentDescription = "Game Booster Overlay",
+                            contentDescription = stringResource(R.string.overlay_cd_trigger),
                             tint = accentTint,
                             modifier = Modifier.size(24.dp),
                         )
