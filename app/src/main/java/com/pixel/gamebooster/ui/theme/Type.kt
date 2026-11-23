@@ -11,6 +11,47 @@ import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.R
 
 @OptIn(ExperimentalTextApi::class)
+val GoogleSansFlexTitle =
+    FontFamily(
+        Font(
+            R.font.google_sans_flex,
+            weight = FontWeight.Normal,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.Setting("ROND", 0f),
+                    FontVariation.weight(FontWeight.Normal.weight),
+                ),
+        ),
+        Font(
+            R.font.google_sans_flex,
+            weight = FontWeight.Medium,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.Setting("ROND", 0f),
+                    FontVariation.weight(FontWeight.Medium.weight),
+                ),
+        ),
+        Font(
+            R.font.google_sans_flex,
+            weight = FontWeight.SemiBold,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.Setting("ROND", 0f),
+                    FontVariation.weight(FontWeight.SemiBold.weight),
+                ),
+        ),
+        Font(
+            R.font.google_sans_flex,
+            weight = FontWeight.Bold,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.Setting("ROND", 0f),
+                    FontVariation.weight(FontWeight.Bold.weight),
+                ),
+        ),
+    )
+
+@OptIn(ExperimentalTextApi::class)
 val GoogleSansFlexRounded =
     FontFamily(
         Font(
@@ -51,23 +92,23 @@ val GoogleSansFlexRounded =
         ),
     )
 
-val GoogleSansFlex = GoogleSansFlexRounded
+val GoogleSansFlex = GoogleSansFlexTitle
 
 val Typography =
     Typography(
-        displayLarge = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
-        displayMedium = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
-        displaySmall = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp),
-        headlineLarge = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
-        headlineMedium = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 36.sp, letterSpacing = 0.sp),
-        headlineSmall = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 24.sp, lineHeight = 32.sp, letterSpacing = 0.sp),
-        titleLarge = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp),
-        titleMedium = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp),
-        titleSmall = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
-        bodyLarge = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
-        bodyMedium = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.25.sp),
-        bodySmall = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.4.sp),
-        labelLarge = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
-        labelMedium = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp),
-        labelSmall = TextStyle(fontFamily = GoogleSansFlex, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp),
+        displayLarge = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 57.sp, lineHeight = 64.sp, letterSpacing = (-0.25).sp),
+        displayMedium = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 45.sp, lineHeight = 52.sp, letterSpacing = 0.sp),
+        displaySmall = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 36.sp, lineHeight = 44.sp, letterSpacing = 0.sp),
+        headlineLarge = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = 0.sp),
+        headlineMedium = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 28.sp, lineHeight = 36.sp, letterSpacing = 0.sp),
+        headlineSmall = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Normal, fontSize = 24.sp, lineHeight = 32.sp, letterSpacing = 0.sp),
+        titleLarge = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, lineHeight = 28.sp, letterSpacing = 0.sp),
+        titleMedium = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Medium, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.15.sp),
+        titleSmall = TextStyle(fontFamily = GoogleSansFlexTitle, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
+        bodyLarge = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Normal, fontSize = 16.sp, lineHeight = 24.sp, letterSpacing = 0.5.sp),
+        bodyMedium = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Normal, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.25.sp),
+        bodySmall = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Normal, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.4.sp),
+        labelLarge = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp, letterSpacing = 0.1.sp),
+        labelMedium = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Medium, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp),
+        labelSmall = TextStyle(fontFamily = GoogleSansFlexRounded, fontWeight = FontWeight.Medium, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.5.sp),
     )

@@ -4,17 +4,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.BrightnessAuto
@@ -26,6 +28,7 @@ import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,19 +51,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.dialogs.ShizukuPairingDialog
 import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.PermissionHelper
 import com.pixel.gamebooster.utils.ShellUtils
@@ -86,7 +95,7 @@ fun SettingsSheet(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val themeMode by repo.themeMode.collectAsState()
-    val isPitchBlack by repo.isPitchBlack.collectAsState()
+    val isTactileHaptics by repo.isTactileHaptics.collectAsState()
 
     var isShizukuGranted by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
     var isAccessibilityGranted by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
@@ -116,8 +125,8 @@ fun SettingsSheet(
     val permissionItems = listOf(
         PermissionItem(
             id = "shizuku",
-            title = "Privileged Shell (Shizuku / Root)",
-            description = "Enables 120Hz display locking, kernel freezer, and system tuning.",
+            title = stringResource(R.string.settings_perm_shizuku_title),
+            description = stringResource(R.string.settings_perm_shizuku_desc),
             isGranted = isShizukuGranted,
             icon = Icons.Rounded.Terminal,
             onFix = {
@@ -130,24 +139,24 @@ fun SettingsSheet(
         ),
         PermissionItem(
             id = "accessibility",
-            title = "Accessibility Window Trigger",
-            description = "Detects foreground game switches with zero battery drain.",
+            title = stringResource(R.string.settings_perm_accessibility_title),
+            description = stringResource(R.string.settings_perm_accessibility_desc),
             isGranted = isAccessibilityGranted,
             icon = Icons.Rounded.AccessibilityNew,
             onFix = { PermissionHelper.openAccessibilitySettings(context) },
         ),
         PermissionItem(
             id = "usage",
-            title = "Usage Statistics Access",
-            description = "Monitors game lifecycle to automate booster activation and restore delay.",
+            title = stringResource(R.string.settings_perm_usage_title),
+            description = stringResource(R.string.settings_perm_usage_desc),
             isGranted = isUsageStatsGranted,
             icon = Icons.Rounded.QueryStats,
             onFix = { PermissionHelper.openUsageStatsSettings(context) },
         ),
         PermissionItem(
             id = "notification",
-            title = "Notifications Access",
-            description = "Displays active game session notifications and quick toggles.",
+            title = stringResource(R.string.settings_perm_notification_title),
+            description = stringResource(R.string.settings_perm_notification_desc),
             isGranted = isNotificationGranted,
             icon = Icons.Rounded.Notifications,
             onFix = { PermissionHelper.openNotificationSettings(context) },
@@ -157,125 +166,186 @@ fun SettingsSheet(
     val (grantedList, missingList) = permissionItems.partition { it.isGranted }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val configuration = LocalConfiguration.current
+    val adaptive = rememberAdaptiveLayoutInfo()
+    val maxHeight = when {
+        adaptive.isCompactHeight -> 260.dp
+        adaptive.isTablet -> (configuration.screenHeightDp * 0.70f).dp
+        else -> (configuration.screenHeightDp * 0.85f).dp
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        sheetMaxWidth = 600.dp,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surface,
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 32.dp),
+                .heightIn(max = maxHeight),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 40.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
+            item {
+                // Header - Clean "Settings" title only
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
                     Text(
-                        text = "Settings & Diagnostics",
-                        style = MaterialTheme.typography.headlineSmall,
+                        text = stringResource(R.string.settings_title),
+                        style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    Text(
-                        text = "Theme preferences and system permissions health",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        HapticUtil.performUIHaptic(view)
-                        onDismissRequest()
-                    },
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close",
-                    )
+                    IconButton(
+                        onClick = {
+                            HapticUtil.performUIHaptic(view)
+                            onDismissRequest()
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = stringResource(R.string.settings_cd_close),
+                        )
+                    }
                 }
             }
 
-            // Appearance Section
-            Text(
-                text = "Appearance",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-
-            RoundedCardContainer {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = "Theme Mode",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    SegmentedPicker(
-                        items = listOf(0, 1, 2),
-                        selectedItem = themeMode,
-                        onItemSelected = { repo.setThemeMode(it) },
-                        labelProvider = {
-                            when (it) {
-                                1 -> "Light"
-                                2 -> "Dark"
-                                else -> "System"
-                            }
-                        },
-                        iconProvider = {
-                            when (it) {
-                                1 -> Icons.Rounded.LightMode
-                                2 -> Icons.Rounded.DarkMode
-                                else -> Icons.Rounded.BrightnessAuto
-                            }
-                        },
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    IconToggleItem(
-                        title = "Pitch Black AMOLED",
-                        subtitle = "True pitch black background for dark theme on OLED displays",
-                        icon = Icons.Rounded.Contrast,
-                        isChecked = isPitchBlack,
-                        onCheckedChange = { repo.setPitchBlack(it) },
-                        index = 0,
-                        count = 1,
-                    )
-                }
-            }
-
-            // Permissions Section
-            Text(
-                text = "Permissions Health",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-
-            if (missingList.isNotEmpty()) {
+            item {
+                // Appearance Section
                 Text(
-                    text = "Action Required (${missingList.size})",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error,
+                    text = stringResource(R.string.settings_section_appearance),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 4.dp),
                 )
+            }
 
-                missingList.forEach { perm ->
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_theme_mode),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        val lightLabel = stringResource(R.string.settings_theme_light)
+                        val darkLabel = stringResource(R.string.settings_theme_dark)
+                        val systemLabel = stringResource(R.string.settings_theme_system)
+                        SegmentedPicker(
+                            items = listOf(0, 1, 2),
+                            selectedItem = themeMode,
+                            onItemSelected = { repo.setThemeMode(it) },
+                            labelProvider = {
+                                when (it) {
+                                    1 -> lightLabel
+                                    2 -> darkLabel
+                                    else -> systemLabel
+                                }
+                            },
+                            iconProvider = {
+                                when (it) {
+                                    1 -> Icons.Rounded.LightMode
+                                    2 -> Icons.Rounded.DarkMode
+                                    else -> Icons.Rounded.BrightnessAuto
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = stringResource(R.string.settings_section_preferences),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+            item {
+                IconToggleItem(
+                    title = stringResource(R.string.settings_tactile_haptics_title),
+                    subtitle = stringResource(R.string.settings_tactile_haptics_desc),
+                    icon = Icons.Rounded.Vibration,
+                    checked = isTactileHaptics,
+                    onCheckedChange = { repo.setTactileHaptics(it) },
+                )
+            }
+
+            item {
+                // Permissions Section - Clean "Permissions" title only
+                Text(
+                    text = stringResource(R.string.settings_section_permissions),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+            }
+
+            if (missingList.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.CheckCircle,
+                                contentDescription = stringResource(R.string.settings_cd_all_perms_granted),
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(32.dp),
+                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.settings_all_perms_granted),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                                Text(
+                                    text = stringResource(R.string.settings_all_perms_granted_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                item {
+                    Text(
+                        text = stringResource(R.string.settings_action_required, missingList.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+
+                items(missingList, key = { it.id }) { perm ->
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
@@ -332,82 +402,79 @@ fun SettingsSheet(
                                 shape = RoundedCornerShape(14.dp),
                                 modifier = Modifier.align(Alignment.End),
                             ) {
-                                Text("Grant Permission")
+                                Text(stringResource(R.string.settings_grant_permission))
+                            }
+                        }
+                    }
+                }
+
+                if (grantedList.isNotEmpty()) {
+                    item {
+                        RoundedCardContainer {
+                            grantedList.forEachIndexed { index, perm ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surfaceContainer)
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primaryContainer),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.CheckCircle,
+                                            contentDescription = stringResource(R.string.settings_cd_granted),
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp),
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = perm.title,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = perm.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
 
-            Text(
-                text = "Granted Permissions (${grantedList.size})",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 4.dp),
-            )
-
-            RoundedCardContainer {
-                grantedList.forEachIndexed { index, perm ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceBright)
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.CheckCircle,
-                                contentDescription = "Granted",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = perm.title,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = perm.description,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // About Footer
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
+            item {
+                // About Footer - Clean minimal text without background card
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     Text(
-                        text = "Pixel Game Booster",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        text = stringResource(R.string.settings_app_name),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = "Version 1.0.0 · Material 3 Expressive Suite",
+                        text = stringResource(R.string.settings_version),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.outline,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }

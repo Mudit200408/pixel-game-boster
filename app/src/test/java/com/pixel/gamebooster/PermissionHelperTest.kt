@@ -19,9 +19,10 @@ class PermissionHelperTest {
     @Test
     fun verifyAppScreenEnumRoutes() {
         val screens = AppScreen.values()
-        assertEquals(3, screens.size)
+        assertEquals(4, screens.size)
         assertTrue(screens.contains(AppScreen.ONBOARDING))
         assertTrue(screens.contains(AppScreen.PERMISSIONS))
+        assertTrue(screens.contains(AppScreen.GAME_SCANNING))
         assertTrue(screens.contains(AppScreen.MAIN))
     }
 
@@ -31,7 +32,7 @@ class PermissionHelperTest {
         assertEquals(4, destinations.size)
         assertEquals("Dashboard", NavDestination.DASHBOARD.label)
         assertEquals("Performance", NavDestination.PERFORMANCE.label)
-        assertEquals("App Freezer", NavDestination.FREEZER.label)
+        assertEquals("Suspension", NavDestination.FREEZER.label)
         assertEquals("Network", NavDestination.NETWORK.label)
     }
 }

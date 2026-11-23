@@ -3,8 +3,10 @@ package com.pixel.gamebooster.ui.sheets
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -15,53 +17,57 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 
 data class SystemServiceDef(
     val id: String,
-    val title: String,
-    val description: String,
+    val titleRes: Int,
+    val descriptionRes: Int,
     val command: String,
 )
 
 val SYSTEM_SERVICES_DEFINITIONS = listOf(
     SystemServiceDef(
         id = "com.google.android.aicore",
-        title = "Google AICore",
-        description = "Suspends on-device Gemini Nano inference worker to free up RAM & NPU.",
+        titleRes = R.string.services_aicore_title,
+        descriptionRes = R.string.services_aicore_desc,
         command = "pm disable-user --user 0 com.google.android.aicore",
     ),
     SystemServiceDef(
         id = "com.google.android.apps.turbo",
-        title = "Device Health Services (Turbo)",
-        description = "Suspends background battery prediction and usage telemetry worker.",
+        titleRes = R.string.services_turbo_title,
+        descriptionRes = R.string.services_turbo_desc,
         command = "pm disable-user --user 0 com.google.android.apps.turbo",
     ),
     SystemServiceDef(
         id = "com.google.android.settings.intelligence",
-        title = "Settings Intelligence",
-        description = "Suspends background settings suggestions and search index indexing.",
+        titleRes = R.string.services_intelligence_title,
+        descriptionRes = R.string.services_intelligence_desc,
         command = "pm disable-user --user 0 com.google.android.settings.intelligence",
     ),
     SystemServiceDef(
         id = "com.google.android.apps.scone",
-        title = "Adaptive Connectivity (Scone)",
-        description = "Suspends adaptive network state evaluator to eliminate Wi-Fi ping spikes.",
+        titleRes = R.string.services_scone_title,
+        descriptionRes = R.string.services_scone_desc,
         command = "pm disable-user --user 0 com.google.android.apps.scone",
     ),
     SystemServiceDef(
         id = "com.google.android.apps.carrier.carrierwifi",
-        title = "Carrier Wi-Fi",
-        description = "Suspends background carrier network auto-discovery.",
+        titleRes = R.string.services_carrier_wifi_title,
+        descriptionRes = R.string.services_carrier_wifi_desc,
         command = "cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi",
     ),
     SystemServiceDef(
         id = "com.google.android.projection.gearhead",
-        title = "Android Auto (Gearhead)",
-        description = "Suspends projection services and car connectivity daemon.",
+        titleRes = R.string.services_gearhead_title,
+        descriptionRes = R.string.services_gearhead_desc,
         command = "cmd package suspend --user 0 com.google.android.projection.gearhead",
     ),
 )
@@ -74,26 +80,36 @@ fun SystemServicesSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val suspendedServices by repo.suspendedServices.collectAsState()
+    val configuration = LocalConfiguration.current
+    val adaptive = rememberAdaptiveLayoutInfo()
+    val maxHeight = when {
+        adaptive.isCompactHeight -> 260.dp
+        adaptive.isTablet -> (configuration.screenHeightDp * 0.70f).dp
+        else -> (configuration.screenHeightDp * 0.85f).dp
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        sheetMaxWidth = 600.dp,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxHeight)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "System Services Suspension",
+                    text = stringResource(R.string.services_sheet_title),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Select which background Google services are suspended during gameplay.",
+                    text = stringResource(R.string.services_sheet_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -103,8 +119,8 @@ fun SystemServicesSheet(
                 SYSTEM_SERVICES_DEFINITIONS.forEach { service ->
                     val isChecked = suspendedServices.contains(service.id)
                     IconToggleItem(
-                        title = service.title,
-                        description = service.description,
+                        title = stringResource(service.titleRes),
+                        description = stringResource(service.descriptionRes),
                         command = service.command,
                         isChecked = isChecked,
                         onCheckedChange = { repo.toggleSuspendedService(service.id) },

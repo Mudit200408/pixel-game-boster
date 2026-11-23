@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,19 +19,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccessibilityNew
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -44,19 +44,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.services.AppDetectionService
+import com.pixel.gamebooster.ui.components.PullTitleHeader
+import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.PermissionCard
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.dialogs.ShizukuPairingDialog
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.PermissionHelper
 import com.pixel.gamebooster.utils.ShellUtils
@@ -73,7 +78,7 @@ fun PermissionsScreen(
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var isShizukuOrRootGranted by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
+    var isShizukuGranted by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
     var isShizukuAvailable by remember { mutableStateOf(ShellUtils.isShizukuAvailable()) }
     var isAccessibilityGranted by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
     var isUsageStatsGranted by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
@@ -81,7 +86,7 @@ fun PermissionsScreen(
     var showPairingDialog by remember { mutableStateOf(false) }
 
     fun refreshAllPermissions() {
-        isShizukuOrRootGranted = ShellUtils.hasPermission(context)
+        isShizukuGranted = ShellUtils.hasPermission(context)
         isShizukuAvailable = ShellUtils.isShizukuAvailable()
         isAccessibilityGranted = PermissionHelper.isAccessibilityServiceEnabled(context)
         isUsageStatsGranted = PermissionHelper.hasUsageStatsPermission(context)
@@ -116,15 +121,122 @@ fun PermissionsScreen(
     }
 
     val grantedCount = listOf(
-        isShizukuOrRootGranted,
+        isShizukuGranted,
         isAccessibilityGranted,
         isUsageStatsGranted,
         isNotificationGranted,
     ).count { it }
     val progress = grantedCount / 4f
+    val allGranted = isShizukuGranted && isAccessibilityGranted && isUsageStatsGranted && isNotificationGranted
 
     if (showPairingDialog) {
         ShizukuPairingDialog(onDismissRequest = { showPairingDialog = false })
+    }
+
+    val headerState = rememberPullTitleHeaderState(minHeight = 44.dp, maxHeight = 76.dp)
+    val adaptive = rememberAdaptiveLayoutInfo()
+
+    val shizukuCard = @Composable {
+        // 1. Shizuku / Root ADB privilege (MANDATORY)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.Terminal,
+                title = stringResource(R.string.perm_shizuku_title),
+                description = stringResource(R.string.perm_shizuku_desc),
+                isGranted = isShizukuGranted,
+                isMandatory = true,
+                actionLabel = if (isShizukuAvailable) {
+                    stringResource(R.string.perm_action_grant)
+                } else {
+                    stringResource(R.string.perm_action_launch_shizuku)
+                },
+                onActionClick = {
+                    if (isShizukuAvailable) {
+                        PermissionHelper.requestShizukuPermission()
+                    } else {
+                        PermissionHelper.launchShizuku(context)
+                    }
+                },
+                secondaryActionLabel = stringResource(R.string.perm_action_pairing_guide),
+                onSecondaryActionClick = { showPairingDialog = true },
+                instructions = if (!isShizukuAvailable && !isShizukuGranted) {
+                    stringResource(R.string.perm_shizuku_not_running)
+                } else null,
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_120hz),
+                    stringResource(R.string.perm_feature_app_suspension),
+                    stringResource(R.string.perm_feature_ram_cache),
+                    stringResource(R.string.perm_feature_wifi_mode),
+                ),
+            )
+        }
+    }
+
+    val accessibilityCard = @Composable {
+        // 2. Accessibility Service (Recommended for zero-latency detection)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.AccessibilityNew,
+                title = stringResource(R.string.perm_accessibility_title),
+                description = stringResource(R.string.perm_accessibility_desc),
+                isGranted = isAccessibilityGranted,
+                isMandatory = false,
+                actionLabel = stringResource(R.string.perm_action_open_settings),
+                onActionClick = {
+                    PermissionHelper.openAccessibilitySettings(context)
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_instant_detection),
+                    stringResource(R.string.perm_feature_zero_battery),
+                ),
+            )
+        }
+    }
+
+    val usageStatsCard = @Composable {
+        // 3. Usage Access (Secondary detection fallback)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.QueryStats,
+                title = stringResource(R.string.perm_usage_title),
+                description = stringResource(R.string.perm_usage_desc),
+                isGranted = isUsageStatsGranted,
+                isMandatory = false,
+                actionLabel = stringResource(R.string.perm_action_open_settings),
+                onActionClick = {
+                    PermissionHelper.openUsageStatsSettings(context)
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_secondary_tracking),
+                    stringResource(R.string.perm_feature_usage_auditing),
+                ),
+            )
+        }
+    }
+
+    val notificationCard = @Composable {
+        // 4. Notifications (API 33+)
+        RoundedCardContainer {
+            PermissionCard(
+                icon = Icons.Rounded.Notifications,
+                title = stringResource(R.string.perm_notifications_title),
+                description = stringResource(R.string.perm_notifications_desc),
+                isGranted = isNotificationGranted,
+                isMandatory = false,
+                actionLabel = stringResource(R.string.perm_action_allow_notifications),
+                onActionClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        PermissionHelper.openNotificationSettings(context)
+                    }
+                },
+                dependentFeatures = listOf(
+                    stringResource(R.string.perm_feature_foreground_service),
+                    stringResource(R.string.perm_feature_quick_controls),
+                ),
+            )
+        }
     }
 
     Scaffold(
@@ -132,33 +244,30 @@ fun PermissionsScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
-                title = {
-                    Column {
+                title = {},
+                actions = {
+                    Button(
+                        onClick = {
+                            HapticUtil.performClick(view)
+                            repo.setBoosterEnabled(true)
+                            if (PermissionHelper.hasUsageStatsPermission(context)) {
+                                AppDetectionService.start(context)
+                            }
+                            onFinish()
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(end = 12.dp),
+                    ) {
                         Text(
-                            text = "Permission Setup",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            text = stringResource(R.string.onboarding_btn_skip),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
                         )
-                        Text(
-                            text = "Configure device privileges for optimizations",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(
-                            onClick = {
-                                HapticUtil.performClick(view)
-                                onBack()
-                            },
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                            )
-                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -166,62 +275,28 @@ fun PermissionsScreen(
                 ),
             )
         },
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (!isShizukuOrRootGranted) {
-                    Text(
-                        text = "Privileged ADB access via Shizuku or Root is strictly required to execute system performance tweaks.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        HapticUtil.performClick(view)
-                        repo.setBoosterEnabled(true)
-                        repo.setCompletedOnboarding(true)
-                        if (PermissionHelper.hasUsageStatsPermission(context)) {
-                            AppDetectionService.start(context)
-                        }
-                        onFinish()
-                    },
-                    enabled = isShizukuOrRootGranted,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                ) {
-                    Text(
-                        text = "Enter Game Booster",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-            }
-        },
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .nestedScroll(headerState.nestedScrollConnection)
                 .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(top = innerPadding.calculateTopPadding())
+                .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            // Collapsible Gestural Header (starts big, scales down as you scroll, no description)
+            PullTitleHeader(
+                title = stringResource(R.string.perm_title),
+                state = headerState,
+            )
+
             // Top Readiness Progress Indicator
             RoundedCardContainer {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surfaceBright)
+                        .background(MaterialTheme.colorScheme.surfaceContainer)
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -231,15 +306,21 @@ fun PermissionsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "Permissions Ready: $grantedCount / 4",
+                            text = stringResource(R.string.perm_ready_count, grantedCount),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = if (grantedCount == 4) "All Ready" else if (isShizukuOrRootGranted) "Optimizations Ready" else "Shizuku Required",
+                            text = if (allGranted) {
+                                stringResource(R.string.perm_status_all_ready)
+                            } else if (isShizukuGranted) {
+                                stringResource(R.string.perm_status_optimizations_ready)
+                            } else {
+                                stringResource(R.string.perm_status_shizuku_required)
+                            },
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (isShizukuOrRootGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            color = if (isShizukuGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold,
                         )
                     }
@@ -250,104 +331,91 @@ fun PermissionsScreen(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(CircleShape),
-                        color = if (isShizukuOrRootGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        color = if (isShizukuGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
                 }
             }
 
-            // 1. Shizuku / Root ADB privilege (MANDATORY)
-            RoundedCardContainer {
-                PermissionCard(
-                    icon = Icons.Rounded.Terminal,
-                    title = "Shizuku / Root ADB",
-                    description = "Required to execute privileged system commands for refresh rate locking, app freezing, and RAM optimization.",
-                    isGranted = isShizukuOrRootGranted,
-                    isMandatory = true,
-                    actionLabel = if (isShizukuAvailable) "Grant Permission" else "Launch Shizuku",
-                    onActionClick = {
-                        if (isShizukuAvailable) {
-                            PermissionHelper.requestShizukuPermission()
-                        } else {
-                            PermissionHelper.launchShizuku(context)
+            if (adaptive.isWideScreen) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        shizukuCard()
+                        accessibilityCard()
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        usageStatsCard()
+                        notificationCard()
+                    }
+                }
+            } else {
+                shizukuCard()
+                accessibilityCard()
+                usageStatsCard()
+                notificationCard()
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Enter Game Booster Button (revealed at bottom, unlocked only when all granted)
+            Button(
+                onClick = {
+                    HapticUtil.performClick(view)
+                    repo.setBoosterEnabled(true)
+                    if (PermissionHelper.hasUsageStatsPermission(context)) {
+                        AppDetectionService.start(context)
+                    }
+                    onFinish()
+                },
+                enabled = allGranted,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+            ) {
+                Text(
+                    text = if (allGranted) {
+                        stringResource(R.string.perm_btn_enter)
+                    } else {
+                        stringResource(R.string.perm_btn_grant_all_continue, grantedCount)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+
+            if (!allGranted) {
+                TextButton(
+                    onClick = {
+                        HapticUtil.performClick(view)
+                        repo.setBoosterEnabled(true)
+                        if (PermissionHelper.hasUsageStatsPermission(context)) {
+                            AppDetectionService.start(context)
                         }
+                        onFinish()
                     },
-                    secondaryActionLabel = "Pairing Guide",
-                    onSecondaryActionClick = { showPairingDialog = true },
-                    instructions = if (!isShizukuAvailable && !isShizukuOrRootGranted) {
-                        "Shizuku service is not running. Launch Shizuku to start it via Wireless Debugging, or open Pairing Guide."
-                    } else null,
-                    dependentFeatures = listOf(
-                        "120Hz Hardware Panel Lock",
-                        "Background App Suspension",
-                        "RAM & Cache Optimization",
-                        "Low-Latency Wi-Fi Mode",
-                    ),
-                )
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(
+                        text = stringResource(R.string.onboarding_btn_skip),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
             }
 
-            // 2. Accessibility Service (Recommended for zero-latency detection)
-            RoundedCardContainer {
-                PermissionCard(
-                    icon = Icons.Rounded.AccessibilityNew,
-                    title = "Accessibility Service",
-                    description = "Enables instant foreground game detection with zero background polling or battery drain.",
-                    isGranted = isAccessibilityGranted,
-                    isMandatory = false,
-                    actionLabel = "Open Settings",
-                    onActionClick = {
-                        PermissionHelper.openAccessibilitySettings(context)
-                    },
-                    dependentFeatures = listOf(
-                        "Instant Game Launch Detection",
-                        "Zero Battery Background Monitoring",
-                    ),
-                )
-            }
-
-            // 3. Usage Access (Secondary detection fallback)
-            RoundedCardContainer {
-                PermissionCard(
-                    icon = Icons.Rounded.QueryStats,
-                    title = "Usage Access",
-                    description = "Secondary fallback detection to verify running game sessions and optimize system background processes.",
-                    isGranted = isUsageStatsGranted,
-                    isMandatory = false,
-                    actionLabel = "Open Settings",
-                    onActionClick = {
-                        PermissionHelper.openUsageStatsSettings(context)
-                    },
-                    dependentFeatures = listOf(
-                        "Secondary Session Tracking",
-                        "Background App Usage Auditing",
-                    ),
-                )
-            }
-
-            // 4. Notifications (API 33+)
-            RoundedCardContainer {
-                PermissionCard(
-                    icon = Icons.Rounded.Notifications,
-                    title = "Notifications",
-                    description = "Allows the Game Booster foreground service to display active optimization status and quick controls.",
-                    isGranted = isNotificationGranted,
-                    isMandatory = false,
-                    actionLabel = "Allow Notifications",
-                    onActionClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            PermissionHelper.openNotificationSettings(context)
-                        }
-                    },
-                    dependentFeatures = listOf(
-                        "Foreground Service Indicator",
-                        "Quick Optimization Tile Controls",
-                    ),
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

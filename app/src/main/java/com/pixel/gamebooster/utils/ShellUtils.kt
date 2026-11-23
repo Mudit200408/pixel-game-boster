@@ -2,12 +2,10 @@ package com.pixel.gamebooster.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.IBinder
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
-import java.io.DataOutputStream
 import java.util.concurrent.Executors
 
 object ShellUtils {
@@ -30,21 +28,8 @@ object ShellUtils {
         }
     }
 
-    fun isRootAvailable(): Boolean =
-        try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "which su"))
-            process.waitFor() == 0
-        } catch (_: Throwable) {
-            false
-        }
-
-    fun isRootPermissionGranted(): Boolean =
-        try {
-            val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
-            process.waitFor() == 0
-        } catch (_: Throwable) {
-            false
-        }
+    // Root support removed: no su binary on test devices, and root is not a
+    // supported privilege path for this app. Shizuku is the only privileged backend.
 
     fun runCommandWithOutput(
         context: Context,
@@ -58,8 +43,6 @@ object ShellUtils {
                     null,
                     "/",
                 )
-            } else if (isRootPermissionGranted()) {
-                Runtime.getRuntime().exec(arrayOf("su", "-c", command))
             } else null
 
             process?.let {
@@ -74,7 +57,7 @@ object ShellUtils {
         }
 
     fun hasPermission(context: Context): Boolean =
-        hasShizukuPermission() || isRootPermissionGranted()
+        hasShizukuPermission()
 
     fun runCommand(
         context: Context,
@@ -93,47 +76,29 @@ object ShellUtils {
 
     fun runCommandBlocking(command: String): Boolean {
         Log.d(TAG, "Executing: $command")
-        // Try Shizuku first
-        if (hasShizukuPermission()) {
-            return try {
-                val process = com.pixel.gamebooster.shizuku.ShizukuProcessHelper.newProcess(
-                    arrayOf("sh", "-c", command),
-                    null,
-                    "/",
-                )
-                val exitCode = process?.waitFor() ?: -1
-                if (exitCode != 0 && process != null) {
-                    val err = process.errorStream.bufferedReader().readText()
-                    Log.e(TAG, "Shizuku error ($exitCode): $err")
-                }
-                exitCode == 0
-            } catch (e: Throwable) {
-                Log.e(TAG, "Shizuku execution failed", e)
-                runCommandRoot(command)
-            }
+        // Shizuku is the only supported privileged backend. If the user has not
+        // granted Pixel Game Booster permission in Shizuku settings, commands
+        // silently fail — surface this so the user knows what's wrong.
+        if (!hasShizukuPermission()) {
+            Log.w(TAG, "Shizuku permission not granted. Cannot execute privileged command: $command")
+            return false
         }
 
-        // Fallback to Root
-        return runCommandRoot(command)
-    }
-
-    private fun runCommandRoot(command: String): Boolean {
-        var process: Process? = null
-        var os: DataOutputStream? = null
         return try {
-            process = Runtime.getRuntime().exec("su")
-            os = DataOutputStream(process.outputStream)
-            os.writeBytes("$command\n")
-            os.writeBytes("exit\n")
-            os.flush()
-            val exit = process.waitFor()
-            exit == 0
+            val process = com.pixel.gamebooster.shizuku.ShizukuProcessHelper.newProcess(
+                arrayOf("sh", "-c", command),
+                null,
+                "/",
+            )
+            val exitCode = process?.waitFor() ?: -1
+            if (exitCode != 0 && process != null) {
+                val err = process.errorStream.bufferedReader().readText()
+                Log.e(TAG, "Shizuku error ($exitCode): $err")
+            }
+            exitCode == 0
         } catch (e: Throwable) {
-            Log.e(TAG, "Root execution failed", e)
+            Log.e(TAG, "Shizuku execution failed", e)
             false
-        } finally {
-            runCatching { os?.close() }
-            runCatching { process?.destroy() }
         }
     }
 }

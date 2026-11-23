@@ -14,10 +14,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pixel.gamebooster.R
 
 @Composable
 fun FeatureInfoDialog(
@@ -44,7 +46,7 @@ fun FeatureInfoDialog(
                 )
                 if (command.isNotBlank()) {
                     Text(
-                        text = "Underlying Privileged Command:",
+                        text = stringResource(R.string.dialog_feature_underlying_command),
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary,
@@ -70,7 +72,7 @@ fun FeatureInfoDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismissRequest) {
-                Text("Got it")
+                Text(stringResource(R.string.dialog_feature_got_it))
             }
         },
         shape = MaterialTheme.shapes.extraLarge,

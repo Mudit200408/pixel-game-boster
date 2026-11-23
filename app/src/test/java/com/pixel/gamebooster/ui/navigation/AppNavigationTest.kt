@@ -17,7 +17,7 @@ class AppNavigationTest {
 
         assertEquals("Dashboard", NavDestination.Dashboard.label)
         assertEquals("Performance", NavDestination.PerformanceDisplay.label)
-        assertEquals("App Freezer", NavDestination.AppFreezer.label)
+        assertEquals("Suspension", NavDestination.AppFreezer.label)
         assertEquals("Network", NavDestination.NetworkSync.label)
     }
 

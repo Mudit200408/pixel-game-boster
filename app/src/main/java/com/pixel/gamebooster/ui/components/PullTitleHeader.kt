@@ -17,7 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
@@ -26,30 +25,36 @@ import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.HapticUtil
 
 @Stable
 class PullTitleHeaderState(
-    val minHeight: Dp = 80.dp,
-    val maxHeight: Dp = 140.dp,
+    val minHeight: Dp = 44.dp,
+    val maxHeight: Dp = 76.dp,
+    initialHeight: Dp = minHeight,
     private val density: Density,
     private val view: View? = null,
 ) {
-    var height by mutableStateOf(minHeight)
+    var height by mutableStateOf(initialHeight)
         internal set
 
     val fraction: Float
-        get() = ((height - minHeight) / (maxHeight - minHeight)).coerceIn(0f, 1f)
+        get() = if (maxHeight > minHeight) {
+            ((height - minHeight) / (maxHeight - minHeight)).coerceIn(0f, 1f)
+        } else 0f
 
     val nestedScrollConnection = object : NestedScrollConnection {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
             val delta = available.y
+            // When user scrolls down (content moves up), collapse header first
             if (delta < 0 && height > minHeight) {
                 val oldHeight = height
                 height = with(density) { (oldHeight.toPx() + delta).toDp() }.coerceAtLeast(minHeight)
@@ -61,6 +66,7 @@ class PullTitleHeaderState(
 
         override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
             val delta = available.y
+            // When user scrolls up (content moves down) and list is at top, expand header
             if (delta > 0 && source == NestedScrollSource.UserInput) {
                 val oldHeight = height
                 height = with(density) { (oldHeight.toPx() + delta).toDp() }.coerceAtMost(maxHeight)
@@ -77,15 +83,17 @@ class PullTitleHeaderState(
 
 @Composable
 fun rememberPullTitleHeaderState(
-    minHeight: Dp = 80.dp,
-    maxHeight: Dp = 140.dp,
+    minHeight: Dp = 44.dp,
+    maxHeight: Dp = 76.dp,
+    initialHeight: Dp = maxHeight,
 ): PullTitleHeaderState {
     val density = LocalDensity.current
     val view = LocalView.current
-    return remember(minHeight, maxHeight, density, view) {
+    return remember(minHeight, maxHeight, initialHeight, density, view) {
         PullTitleHeaderState(
             minHeight = minHeight,
             maxHeight = maxHeight,
+            initialHeight = initialHeight,
             density = density,
             view = view,
         )
@@ -107,45 +115,34 @@ fun PullTitleHeader(
             Font(
                 R.font.google_sans_flex,
                 variationSettings = FontVariation.Settings(
-                    FontVariation.width((100f + safeFraction * 25f).coerceIn(100f, 125f)),
-                    FontVariation.weight((500 + (safeFraction * 200).toInt()).coerceIn(500, 700)),
-                    FontVariation.Setting("ROND", 100f),
+                    FontVariation.width((100f + safeFraction * 20f).coerceIn(100f, 120f)),
+                    FontVariation.weight((600 + (safeFraction * 100).toInt()).coerceIn(600, 700)),
+                    FontVariation.Setting("ROND", 0f),
                 ),
             ),
         )
     }
-    val baseStyle = MaterialTheme.typography.displaySmall
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(state.height)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = title,
-            style = baseStyle.copy(
+            style = MaterialTheme.typography.headlineLarge.copy(
                 fontFamily = fontFamily,
-                fontSize = baseStyle.fontSize * (0.9f + safeFraction * 0.2f),
+                fontSize = (22f + safeFraction * 12f).sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp,
             ),
             color = MaterialTheme.colorScheme.primary,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
+            textAlign = TextAlign.Start,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (caption != null) {
-            Text(
-                text = caption,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .graphicsLayer { alpha = safeFraction },
-            )
-        }
     }
 }

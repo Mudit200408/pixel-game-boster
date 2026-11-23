@@ -93,22 +93,22 @@ object GameModeManager {
                         Settings.System.SCREEN_BRIGHTNESS_MODE,
                         Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC,
                     )
-                    if (currentMode != Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) {
-                        snapshottedAutoBrightness = currentMode
-                        didDisableAutoBrightness = true
-
-                        val wrote = runCatching {
-                            Settings.System.putInt(
-                                context.contentResolver,
-                                Settings.System.SCREEN_BRIGHTNESS_MODE,
-                                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
-                            )
-                        }.getOrDefault(false)
-                        if (!wrote) {
-                            ShellUtils.runCommand(context, "settings put system screen_brightness_mode 0")
-                        }
-                        Log.d(TAG, "Disabled Auto Brightness (was $currentMode)")
+                    didDisableAutoBrightness = true
+                    snapshottedAutoBrightness = if (currentMode == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL) {
+                        Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+                    } else {
+                        currentMode
                     }
+
+                    runCatching {
+                        Settings.System.putInt(
+                            context.contentResolver,
+                            Settings.System.SCREEN_BRIGHTNESS_MODE,
+                            Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+                        )
+                    }
+                    ShellUtils.runCommand(context, "settings put system screen_brightness_mode 0")
+                    Log.d(TAG, "Disabled Auto Brightness (was $currentMode, restore target: $snapshottedAutoBrightness)")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed auto-brightness toggle", e)
                 }
@@ -472,9 +472,8 @@ object GameModeManager {
                 }
             }
 
-            val appLabel = GameDetectionUtils.getAppLabel(context, packageName)
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, context.getString(R.string.game_mode_toast_activated) + " ($appLabel)", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.game_mode_toast_activated), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -610,26 +609,24 @@ object GameModeManager {
             snapshottedRefreshRate = null
 
             // 5. Restore Auto-Brightness: in-process putInt first, fallback shell
-            try {
-                val prevBrightnessMode = snapshottedAutoBrightness
-                if (prevBrightnessMode != null && (didDisableAutoBrightness || prevBrightnessMode == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)) {
-                    Log.d(TAG, "Restoring Auto Brightness to $prevBrightnessMode")
-                    val wrote = runCatching {
+            if (repo.isDisableAutoBrightness.value || didDisableAutoBrightness) {
+                try {
+                    val targetMode = snapshottedAutoBrightness ?: Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+                    Log.d(TAG, "Restoring Auto Brightness to $targetMode")
+                    runCatching {
                         Settings.System.putInt(
                             context.contentResolver,
                             Settings.System.SCREEN_BRIGHTNESS_MODE,
-                            prevBrightnessMode,
+                            targetMode,
                         )
-                    }.getOrDefault(false)
-                    if (!wrote) {
-                        ShellUtils.runCommand(context, "settings put system screen_brightness_mode $prevBrightnessMode")
                     }
+                    ShellUtils.runCommand(context, "settings put system screen_brightness_mode $targetMode")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restore auto brightness", e)
+                } finally {
+                    snapshottedAutoBrightness = null
+                    didDisableAutoBrightness = false
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to restore auto brightness", e)
-            } finally {
-                snapshottedAutoBrightness = null
-                didDisableAutoBrightness = false
             }
 
             // 6. Restore Quick Tap: in-process putInt first, fallback shell
@@ -807,7 +804,7 @@ object GameModeManager {
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, context.getString(R.string.game_mode_toast_restored), Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.game_mode_toast_deactivated), Toast.LENGTH_SHORT).show()
             }
         }
     }

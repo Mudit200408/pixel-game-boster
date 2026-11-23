@@ -28,8 +28,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.HapticUtil
 
 @Composable
@@ -54,7 +56,7 @@ fun PermissionCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
         Column(
@@ -101,36 +103,30 @@ fun PermissionCard(
                     )
                 }
 
-                // Live status badge / chip
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (isGranted) grantedGreen.copy(alpha = 0.15f)
-                    else if (isMandatory) MaterialTheme.colorScheme.errorContainer
-                    else MaterialTheme.colorScheme.tertiaryContainer,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                // Live status badge / chip (only displayed when granted)
+                if (isGranted) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = grantedGreen.copy(alpha = 0.15f),
                     ) {
-                        if (isGranted) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
                                 contentDescription = null,
                                 tint = grantedGreen,
                                 modifier = Modifier.size(14.dp),
                             )
+                            Text(
+                                text = stringResource(R.string.card_perm_status_granted),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = grantedGreen,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
-                        Text(
-                            text = if (isGranted) "Granted"
-                            else if (isMandatory) "Required"
-                            else "Recommended",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isGranted) grantedGreen
-                            else if (isMandatory) MaterialTheme.colorScheme.onErrorContainer
-                            else MaterialTheme.colorScheme.onTertiaryContainer,
-                            fontWeight = FontWeight.SemiBold,
-                        )
                     }
                 }
             }
@@ -155,7 +151,7 @@ fun PermissionCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        text = "Enables:",
+                        text = stringResource(R.string.card_perm_enables),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium,

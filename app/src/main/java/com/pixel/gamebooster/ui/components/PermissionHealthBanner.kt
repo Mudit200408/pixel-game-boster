@@ -46,12 +46,12 @@ fun PermissionHealthBanner(
     val view = LocalView.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    var hasShizukuOrRoot by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
+    var hasShizuku by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
     var hasAccessibility by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
     var hasUsageStats by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
 
     fun refreshHealth() {
-        hasShizukuOrRoot = ShellUtils.hasPermission(context)
+        hasShizuku = ShellUtils.hasPermission(context)
         hasAccessibility = PermissionHelper.isAccessibilityServiceEnabled(context)
         hasUsageStats = PermissionHelper.hasUsageStatsPermission(context)
     }
@@ -69,14 +69,14 @@ fun PermissionHealthBanner(
     }
 
     // If critical permissions are satisfied, banner is hidden
-    if (hasShizukuOrRoot && hasAccessibility) {
+    if (hasShizuku && hasAccessibility) {
         return
     }
 
     val (title, description) = when {
-        !hasShizukuOrRoot -> Pair(
-            "Privileged Access Inactive",
-            "Shizuku or Root ADB privilege is disconnected. 120Hz display locking and app freezing cannot execute.",
+        !hasShizuku -> Pair(
+            "Shizuku Permission Revoked",
+            "Pixel Game Booster lost Shizuku privilege. Game-mode settings (brightness, DNS, refresh rate, Wi-Fi) cannot be applied or restored. Open Shizuku and grant permission to Pixel Game Booster.",
         )
         !hasAccessibility -> Pair(
             "Detection Service Disabled",

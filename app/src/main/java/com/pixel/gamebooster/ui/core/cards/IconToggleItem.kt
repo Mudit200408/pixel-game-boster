@@ -32,9 +32,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.ui.core.dialogs.FeatureInfoDialog
 import com.pixel.gamebooster.utils.HapticUtil
 
@@ -76,19 +78,19 @@ fun IconToggleItem(
     }
 
     val containerColor = if (effectiveChecked) {
-        MaterialTheme.colorScheme.primaryContainer
+        MaterialTheme.colorScheme.secondaryContainer
     } else {
-        MaterialTheme.colorScheme.surfaceBright
+        MaterialTheme.colorScheme.surfaceContainer
     }
 
     val headlineColor = if (effectiveChecked) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        MaterialTheme.colorScheme.onSecondaryContainer
     } else {
         MaterialTheme.colorScheme.onSurface
     }
 
     val supportingColor = if (effectiveChecked) {
-        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -131,37 +133,37 @@ fun IconToggleItem(
             }
         } else null,
         trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (hasInfoAction) {
-                    IconButton(
-                        onClick = {
-                            HapticUtil.performUIHaptic(view)
-                            if (onInfoClick != null) {
-                                onInfoClick()
-                            } else {
-                                showInfoDialog = true
-                            }
-                        },
-                        modifier = Modifier.size(36.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = "Details",
-                            tint = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp),
+            if (showToggle && onCheckedChange != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (hasInfoAction) {
+                        IconButton(
+                            onClick = {
+                                HapticUtil.performUIHaptic(view)
+                                if (onInfoClick != null) {
+                                    onInfoClick()
+                                } else {
+                                    showInfoDialog = true
+                                }
+                            },
+                            modifier = Modifier.size(36.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = stringResource(R.string.card_toggle_cd_details),
+                                tint = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        VerticalDivider(
+                            modifier = Modifier
+                                .height(28.dp)
+                                .width(1.dp)
+                                .padding(horizontal = 4.dp),
+                            color = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                            else MaterialTheme.colorScheme.outlineVariant,
                         )
                     }
-                    VerticalDivider(
-                        modifier = Modifier
-                            .height(28.dp)
-                            .width(1.dp)
-                            .padding(horizontal = 4.dp),
-                        color = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
-                        else MaterialTheme.colorScheme.outlineVariant,
-                    )
-                }
-                if (showToggle && onCheckedChange != null) {
                     Switch(
                         checked = effectiveChecked,
                         onCheckedChange = {
@@ -170,9 +172,9 @@ fun IconToggleItem(
                         },
                         enabled = enabled,
                     )
-                } else if (trailingContent != null) {
-                    trailingContent()
                 }
+            } else if (trailingContent != null) {
+                trailingContent()
             }
         },
         colors = ListItemDefaults.colors(

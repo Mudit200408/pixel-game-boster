@@ -41,7 +41,6 @@ class MainActivity : ComponentActivity() {
             }
 
             val themeMode by repo.themeMode.collectAsState()
-            val isPitchBlack by repo.isPitchBlack.collectAsState()
             val systemDark = isSystemInDarkTheme()
             val isDark = when (themeMode) {
                 1 -> false
@@ -51,7 +50,7 @@ class MainActivity : ComponentActivity() {
 
             PixelGameBoosterTheme(
                 darkTheme = isDark,
-                pitchBlackTheme = isPitchBlack,
+                pitchBlackTheme = false,
             ) {
                 AppNavigation(repo = repo)
             }

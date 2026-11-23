@@ -33,6 +33,13 @@ class SettingsRepositorySyncTest {
     }
 
     @Test
+    fun testAddGamesSyncAcrossInstances() {
+        repoA.addGames(setOf("com.tencent.ig", "com.miHoYo.GenshinImpact"))
+        assertTrue(repoB.gameApps.value.contains("com.tencent.ig"))
+        assertTrue(repoB.gameApps.value.contains("com.miHoYo.GenshinImpact"))
+    }
+
+    @Test
     fun testInterventionModeSyncAcrossInstances() {
         repoA.setInterventionMode(1)
         assertEquals(1, repoB.interventionMode.value)
@@ -48,6 +55,14 @@ class SettingsRepositorySyncTest {
     fun testDisablePrivateDnsSyncAcrossInstances() {
         repoA.setDisablePrivateDns(false)
         assertEquals(false, repoB.isDisablePrivateDns.value)
+    }
+
+    @Test
+    fun testTactileHapticsSyncAcrossInstances() {
+        repoA.setTactileHaptics(false)
+        assertEquals(false, repoB.isTactileHaptics.value)
+        repoA.setTactileHaptics(true)
+        assertEquals(true, repoB.isTactileHaptics.value)
     }
 
     class SyncingFakeSharedPreferences : SharedPreferences {

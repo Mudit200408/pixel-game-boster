@@ -31,7 +31,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalSharedTransitionApi::class)
@@ -44,6 +47,7 @@ fun PixelFloatingToolbar(
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
+    val adaptive = rememberAdaptiveLayoutInfo()
 
     HorizontalFloatingToolbar(
         expanded = true,
@@ -60,11 +64,14 @@ fun PixelFloatingToolbar(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Settings,
-                    contentDescription = "Settings",
+                    contentDescription = stringResource(R.string.nav_cd_settings),
                 )
             }
         },
-        modifier = modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.padding(
+            horizontal = 16.dp,
+            vertical = if (adaptive.isCompactHeight) 2.dp else 8.dp,
+        ),
         colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(
             toolbarContentColor = MaterialTheme.colorScheme.onSurface,
             toolbarContainerColor = MaterialTheme.colorScheme.primary,
@@ -119,7 +126,7 @@ fun PixelFloatingToolbar(
                         ) {
                             Icon(
                                 imageVector = dest.icon,
-                                contentDescription = dest.label,
+                                contentDescription = stringResource(dest.labelRes),
                                 modifier = Modifier.size(24.dp),
                             )
                         }

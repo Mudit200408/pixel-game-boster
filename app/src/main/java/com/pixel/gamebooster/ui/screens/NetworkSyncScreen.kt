@@ -2,9 +2,12 @@ package com.pixel.gamebooster.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryAlert
@@ -14,6 +17,8 @@ import androidx.compose.material.icons.rounded.Radar
 import androidx.compose.material.icons.rounded.SyncDisabled
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.WifiTetheringOff
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,15 +27,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 
 @Composable
 fun NetworkSyncScreen(
@@ -46,6 +55,11 @@ fun NetworkSyncScreen(
     val blockBatterySaver by repo.isBlockBatterySaver.collectAsState()
 
     val headerState = rememberPullTitleHeaderState()
+    val adaptive = rememberAdaptiveLayoutInfo()
+    val bottomPadding = if (adaptive.isCompactHeight) 68.dp else 96.dp
+
+    val competitiveLabel = stringResource(R.string.net_profile_competitive)
+    val balancedLabel = stringResource(R.string.net_profile_balanced)
 
     var selectedProfile by remember(
         lowLatency,
@@ -71,159 +85,256 @@ fun NetworkSyncScreen(
             .nestedScroll(headerState.nestedScrollConnection)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .padding(bottom = 96.dp),
+            .padding(bottom = bottomPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Gestural Pull Title Header (wraps to 2 lines without marquee)
+        // Gestural Pull Title Header (wraps to 2 lines, left aligned)
         PullTitleHeader(
-            title = "Network & Sync",
-            caption = "Wi-Fi low latency, scan suppression & auto-sync",
+            title = stringResource(R.string.net_header_title),
             state = headerState,
         )
 
-        // Section: Optimization Quick Profile Picker
-        Text(
-            text = "Optimization Profile",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp),
-        )
-
-        RoundedCardContainer {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+        if (adaptive.isWideScreen) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top,
             ) {
-                Text(
-                    text = "Preset Mode",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "Select all-out competitive latency tuning or balanced gaming",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                SegmentedPicker(
-                    items = listOf("Competitive", "Balanced"),
-                    selectedItem = selectedProfile,
-                    onItemSelected = { profile ->
-                        selectedProfile = profile
-                        if (profile == "Competitive") {
-                            repo.setWifiLowLatency(true)
-                            repo.setWifiSuppressScans(true)
-                            repo.setWifiLockSufficiency(true)
-                            repo.setWifiPreventArp(true)
-                            repo.setDisablePrivateDns(true)
-                            repo.setPauseAutoSync(true)
-                            repo.setBlockBatterySaver(true)
-                        } else {
-                            repo.setWifiLowLatency(true)
-                            repo.setWifiSuppressScans(true)
-                            repo.setWifiLockSufficiency(false)
-                            repo.setWifiPreventArp(false)
-                            repo.setDisablePrivateDns(false)
-                            repo.setPauseAutoSync(false)
-                            repo.setBlockBatterySaver(false)
-                        }
-                    },
-                    labelProvider = {
-                        if (it == "Competitive") "Competitive" else "Balanced"
-                    },
-                )
+                // Column 1: Quick Profile SegmentedPicker and Background Sync / Battery Saver cards
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    NetworkProfileSection(
+                        selectedProfile = selectedProfile,
+                        competitiveLabel = competitiveLabel,
+                        balancedLabel = balancedLabel,
+                        onProfileSelected = { profile ->
+                            selectedProfile = profile
+                            applyNetworkProfile(profile, repo)
+                        },
+                    )
+
+                    NetworkBackgroundSyncSection(
+                        pauseSync = pauseSync,
+                        blockBatterySaver = blockBatterySaver,
+                        repo = repo,
+                    )
+                }
+
+                // Column 2: Wi-Fi Latency & Packet Loss Optimization cards
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    NetworkWifiLatencySection(
+                        lowLatency = lowLatency,
+                        suppressScans = suppressScans,
+                        lockSufficiency = lockSufficiency,
+                        preventArp = preventArp,
+                        disablePrivateDns = disablePrivateDns,
+                        repo = repo,
+                    )
+                }
             }
-        }
+        } else {
+            // Single-column portrait layout
+            NetworkProfileSection(
+                selectedProfile = selectedProfile,
+                competitiveLabel = competitiveLabel,
+                balancedLabel = balancedLabel,
+                onProfileSelected = { profile ->
+                    selectedProfile = profile
+                    applyNetworkProfile(profile, repo)
+                },
+            )
 
-        // Section: Wi-Fi & Latency Optimization
-        Text(
-            text = "Wi-Fi & Latency Optimization",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp),
+            NetworkWifiLatencySection(
+                lowLatency = lowLatency,
+                suppressScans = suppressScans,
+                lockSufficiency = lockSufficiency,
+                preventArp = preventArp,
+                disablePrivateDns = disablePrivateDns,
+                repo = repo,
+            )
+
+            NetworkBackgroundSyncSection(
+                pauseSync = pauseSync,
+                blockBatterySaver = blockBatterySaver,
+                repo = repo,
+            )
+        }
+    }
+}
+
+private fun applyNetworkProfile(profile: String, repo: SettingsRepository) {
+    if (profile == "Competitive") {
+        repo.setWifiLowLatency(true)
+        repo.setWifiSuppressScans(true)
+        repo.setWifiLockSufficiency(true)
+        repo.setWifiPreventArp(true)
+        repo.setDisablePrivateDns(true)
+        repo.setPauseAutoSync(true)
+        repo.setBlockBatterySaver(true)
+    } else {
+        repo.setWifiLowLatency(true)
+        repo.setWifiSuppressScans(true)
+        repo.setWifiLockSufficiency(false)
+        repo.setWifiPreventArp(false)
+        repo.setDisablePrivateDns(false)
+        repo.setPauseAutoSync(false)
+        repo.setBlockBatterySaver(false)
+    }
+}
+
+@Composable
+private fun NetworkProfileSection(
+    selectedProfile: String,
+    competitiveLabel: String,
+    balancedLabel: String,
+    onProfileSelected: (String) -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.net_section_profile),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.net_preset_mode_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = stringResource(R.string.net_preset_mode_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SegmentedPicker(
+                items = listOf("Competitive", "Balanced"),
+                selectedItem = selectedProfile,
+                onItemSelected = onProfileSelected,
+                labelProvider = {
+                    if (it == "Competitive") competitiveLabel else balancedLabel
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun NetworkWifiLatencySection(
+    lowLatency: Boolean,
+    suppressScans: Boolean,
+    lockSufficiency: Boolean,
+    preventArp: Boolean,
+    disablePrivateDns: Boolean,
+    repo: SettingsRepository,
+) {
+    Text(
+        text = stringResource(R.string.net_section_wifi_latency),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
+        IconToggleItem(
+            title = stringResource(R.string.net_low_latency_title),
+            subtitle = stringResource(R.string.net_low_latency_desc),
+            command = stringResource(R.string.net_low_latency_cmd),
+            icon = Icons.Rounded.Wifi,
+            isChecked = lowLatency,
+            onCheckedChange = { repo.setWifiLowLatency(it) },
+            index = 0,
+            count = 5,
         )
-
-        RoundedCardContainer {
-            IconToggleItem(
-                title = "Wi-Fi Low Latency Lock",
-                subtitle = "Acquires high-perf Wi-Fi lock and disables Wi-Fi power save throttling.",
-                command = "WifiLock(LOW_LATENCY) && settings put global wifi_power_save 0",
-                icon = Icons.Rounded.Wifi,
-                isChecked = lowLatency,
-                onCheckedChange = { repo.setWifiLowLatency(it) },
-                index = 0,
-                count = 5,
-            )
-            IconToggleItem(
-                title = "Suppress Network Scans",
-                subtitle = "Stops background Wi-Fi and Bluetooth beacon scans causing latency spikes.",
-                command = "settings put global wifi_scan_always_enabled 0 && ble_scan_always_enabled 0",
-                icon = Icons.Rounded.Radar,
-                isChecked = suppressScans,
-                onCheckedChange = { repo.setWifiSuppressScans(it) },
-                index = 1,
-                count = 5,
-            )
-            IconToggleItem(
-                title = "Lock Network Sufficiency",
-                subtitle = "Disables aggressive Wi-Fi hopping and adaptive connectivity handovers.",
-                command = "settings put secure adaptive_connectivity_enabled 0 && cmd wifi set-network-selection-config enabled enabled -a 0",
-                icon = Icons.Rounded.NetworkCheck,
-                isChecked = lockSufficiency,
-                onCheckedChange = { repo.setWifiLockSufficiency(it) },
-                index = 2,
-                count = 5,
-            )
-            IconToggleItem(
-                title = "Prevent ARP Disconnects",
-                subtitle = "Blocks dropping Wi-Fi connection on transient router ARP probe misses.",
-                command = "cmd wifi set-ipreach-disconnect disabled",
-                icon = Icons.Rounded.WifiTetheringOff,
-                isChecked = preventArp,
-                onCheckedChange = { repo.setWifiPreventArp(it) },
-                index = 3,
-                count = 5,
-            )
-            IconToggleItem(
-                title = "Private DNS Latency Bypass",
-                subtitle = "Disables Private DNS (DoT) during gaming to avoid DNS query latency spikes.",
-                command = "settings put global private_dns_mode off",
-                icon = Icons.Rounded.Dns,
-                isChecked = disablePrivateDns,
-                onCheckedChange = { repo.setDisablePrivateDns(it) },
-                index = 4,
-                count = 5,
-            )
-        }
-
-        // Section: Background Sync & Power
-        Text(
-            text = "Background Sync & Power",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 8.dp),
+        IconToggleItem(
+            title = stringResource(R.string.net_suppress_scans_title),
+            subtitle = stringResource(R.string.net_suppress_scans_desc),
+            command = stringResource(R.string.net_suppress_scans_cmd),
+            icon = Icons.Rounded.Radar,
+            isChecked = suppressScans,
+            onCheckedChange = { repo.setWifiSuppressScans(it) },
+            index = 1,
+            count = 5,
         )
+        IconToggleItem(
+            title = stringResource(R.string.net_lock_sufficiency_title),
+            subtitle = stringResource(R.string.net_lock_sufficiency_desc),
+            command = stringResource(R.string.net_lock_sufficiency_cmd),
+            icon = Icons.Rounded.NetworkCheck,
+            isChecked = lockSufficiency,
+            onCheckedChange = { repo.setWifiLockSufficiency(it) },
+            index = 2,
+            count = 5,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.net_prevent_arp_title),
+            subtitle = stringResource(R.string.net_prevent_arp_desc),
+            command = stringResource(R.string.net_prevent_arp_cmd),
+            icon = Icons.Rounded.WifiTetheringOff,
+            isChecked = preventArp,
+            onCheckedChange = { repo.setWifiPreventArp(it) },
+            index = 3,
+            count = 5,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.net_disable_private_dns_title),
+            subtitle = stringResource(R.string.net_disable_private_dns_desc),
+            command = stringResource(R.string.net_disable_private_dns_cmd),
+            icon = Icons.Rounded.Dns,
+            isChecked = disablePrivateDns,
+            onCheckedChange = { repo.setDisablePrivateDns(it) },
+            index = 4,
+            count = 5,
+        )
+    }
+}
 
-        RoundedCardContainer {
-            IconToggleItem(
-                title = "Pause Master Auto-Sync",
-                subtitle = "Halts cloud account synchronization to prevent background disk and network I/O.",
-                command = "ContentResolver.setMasterSyncAutomatically(false)",
-                icon = Icons.Rounded.SyncDisabled,
-                isChecked = pauseSync,
-                onCheckedChange = { repo.setPauseAutoSync(it) },
-                index = 0,
-                count = 2,
-            )
-            IconToggleItem(
-                title = "Suppress Battery Saver",
-                subtitle = "Bypasses system CPU throttling and preserves maximum frame stability.",
-                command = "settings put global low_power 0 && cmd power set-mode 0",
-                icon = Icons.Rounded.BatteryAlert,
-                isChecked = blockBatterySaver,
-                onCheckedChange = { repo.setBlockBatterySaver(it) },
-                index = 1,
-                count = 2,
-            )
-        }
+@Composable
+private fun NetworkBackgroundSyncSection(
+    pauseSync: Boolean,
+    blockBatterySaver: Boolean,
+    repo: SettingsRepository,
+) {
+    Text(
+        text = stringResource(R.string.net_section_sync_power),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
+        IconToggleItem(
+            title = stringResource(R.string.net_pause_sync_title),
+            subtitle = stringResource(R.string.net_pause_sync_desc),
+            command = stringResource(R.string.net_pause_sync_cmd),
+            icon = Icons.Rounded.SyncDisabled,
+            isChecked = pauseSync,
+            onCheckedChange = { repo.setPauseAutoSync(it) },
+            index = 0,
+            count = 2,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.net_block_battery_saver_title),
+            subtitle = stringResource(R.string.net_block_battery_saver_desc),
+            command = stringResource(R.string.net_block_battery_saver_cmd),
+            icon = Icons.Rounded.BatteryAlert,
+            isChecked = blockBatterySaver,
+            onCheckedChange = { repo.setBlockBatterySaver(it) },
+            index = 1,
+            count = 2,
+        )
     }
 }

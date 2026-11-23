@@ -38,10 +38,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.HapticUtil
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -81,7 +83,7 @@ fun ConfigSliderItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(itemShape)
-            .background(MaterialTheme.colorScheme.surfaceBright)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .padding(16.dp),
     ) {
         Row(
@@ -175,7 +177,7 @@ fun ConfigSliderItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Remove,
-                    contentDescription = "Decrease",
+                    contentDescription = stringResource(R.string.slider_cd_decrease),
                     tint = if (enabled && value > valueRange.start) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                 )
@@ -216,7 +218,7 @@ fun ConfigSliderItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Add,
-                    contentDescription = "Increase",
+                    contentDescription = stringResource(R.string.slider_cd_increase),
                     tint = if (enabled && value < valueRange.endInclusive) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f),
                 )
@@ -241,7 +243,7 @@ fun ConfigSliderItem(
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "Range: ${valueRange.start} – ${valueRange.endInclusive}",
+                        text = stringResource(R.string.slider_range_format, valueRange.start, valueRange.endInclusive),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -290,12 +292,12 @@ fun ConfigSliderItem(
                         }
                     },
                 ) {
-                    Text("OK")
+                    Text(stringResource(R.string.slider_btn_ok))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showValueEntryDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.slider_btn_cancel))
                 }
             },
             shape = MaterialTheme.shapes.extraLarge,

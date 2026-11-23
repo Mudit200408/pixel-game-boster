@@ -2,6 +2,7 @@ package com.pixel.gamebooster
 
 import android.content.SharedPreferences
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -50,6 +51,29 @@ class SettingsRepositoryTest {
 
         repository.setHasCompletedOnboarding(false)
         assertFalse(repository.hasCompletedOnboarding.value)
+    }
+
+    @Test
+    fun addGamesBatchInsertsMultipleGames() {
+        val games = listOf("com.activision.callofduty.shooter", "com.tencent.ig", "com.miHoYo.GenshinImpact")
+        repository.addGames(games)
+
+        assertEquals(3, repository.gameApps.value.size)
+        assertTrue(repository.gameApps.value.contains("com.activision.callofduty.shooter"))
+        assertTrue(repository.gameApps.value.contains("com.tencent.ig"))
+        assertTrue(repository.gameApps.value.contains("com.miHoYo.GenshinImpact"))
+    }
+
+    @Test
+    fun setTactileHapticsUpdatesStateAndPrefs() {
+        assertTrue(repository.isTactileHaptics.value)
+        repository.setTactileHaptics(false)
+        assertFalse(repository.isTactileHaptics.value)
+        assertFalse(fakePrefs.getBoolean(SettingsRepository.KEY_TACTILE_HAPTICS, true))
+
+        repository.setTactileHaptics(true)
+        assertTrue(repository.isTactileHaptics.value)
+        assertTrue(fakePrefs.getBoolean(SettingsRepository.KEY_TACTILE_HAPTICS, false))
     }
 
     class FakeSharedPreferences : SharedPreferences {

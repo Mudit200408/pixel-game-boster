@@ -48,7 +48,7 @@ fun PixelGamingHeroCard(
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isEnabled) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surfaceBright,
+            else MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
         Column(

@@ -131,4 +131,28 @@ class GameDetectionUtilsTest {
         assertEquals("", GameDetectionUtils.getAppLabel(null, ""))
         assertEquals("com.example.app", GameDetectionUtils.getAppLabel(null, "com.example.app"))
     }
+
+    @Test
+    fun verifyKnownGamePackagesDetected() {
+        val cod = "com.activision.callofduty.shooter"
+        val pubg = "com.tencent.ig"
+        val genshin = "com.miHoYo.GenshinImpact"
+        val wildRift = "com.riotgames.league.wildrift"
+
+        assertTrue(GameDetectionUtils.isKnownGamePackage(cod))
+        assertTrue(GameDetectionUtils.isKnownGamePackage(pubg))
+        assertTrue(GameDetectionUtils.isKnownGamePackage(genshin))
+        assertTrue(GameDetectionUtils.isKnownGamePackage(wildRift))
+
+        // Known games return true from isGame even without context or manual registration
+        assertTrue(GameDetectionUtils.isGame(null, cod))
+        assertTrue(GameDetectionUtils.isGame(null, pubg))
+        assertTrue(GameDetectionUtils.isGame(null, genshin))
+        assertTrue(GameDetectionUtils.isGame(null, wildRift))
+
+        // Unknown package returns false
+        assertFalse(GameDetectionUtils.isKnownGamePackage("com.random.utility.tool"))
+        assertFalse(GameDetectionUtils.isKnownGamePackage(null))
+        assertFalse(GameDetectionUtils.isKnownGamePackage(""))
+    }
 }

@@ -2,6 +2,7 @@ package com.pixel.gamebooster.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,7 @@ class SettingsRepository(
         const val KEY_RESTORE_DELAY = "restore_delay"
         const val KEY_THEME_MODE = "theme_mode" // 0=System, 1=Light, 2=Dark
         const val KEY_PITCH_BLACK = "pitch_black"
+        const val KEY_TACTILE_HAPTICS = "tactile_haptics"
 
         const val KEY_GAMES = "game_packages"
         const val KEY_SUSPENDED_APPS = "suspended_user_packages"
@@ -54,7 +56,7 @@ class SettingsRepository(
 
     // Live StateFlows for UI observation
     val hasCompletedOnboarding = MutableStateFlow(prefs.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false))
-    val isBoosterEnabled = MutableStateFlow(prefs.getBoolean(KEY_BOOSTER_ENABLED, false))
+    val isBoosterEnabled = MutableStateFlow(prefs.getBoolean(KEY_BOOSTER_ENABLED, true))
     val interventionMode = MutableStateFlow(prefs.getInt(KEY_INTERVENTION_MODE, 2))
     val fpsOverride = MutableStateFlow(prefs.getInt(KEY_FPS_OVERRIDE, 0))
     val isLockRefreshRate = MutableStateFlow(prefs.getBoolean(KEY_LOCK_REFRESH_RATE, true))
@@ -73,6 +75,7 @@ class SettingsRepository(
     val restoreDelay = MutableStateFlow(prefs.getInt(KEY_RESTORE_DELAY, 5))
     val themeMode = MutableStateFlow(prefs.getInt(KEY_THEME_MODE, 0))
     val isPitchBlack = MutableStateFlow(prefs.getBoolean(KEY_PITCH_BLACK, false))
+    val isTactileHaptics = MutableStateFlow(prefs.getBoolean(KEY_TACTILE_HAPTICS, true))
 
     val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet()) ?: emptySet())
     val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet()) ?: emptySet())
@@ -101,6 +104,11 @@ class SettingsRepository(
             KEY_RESTORE_DELAY -> restoreDelay.value = prefs.getInt(KEY_RESTORE_DELAY, 5)
             KEY_THEME_MODE -> themeMode.value = prefs.getInt(KEY_THEME_MODE, 0)
             KEY_PITCH_BLACK -> isPitchBlack.value = prefs.getBoolean(KEY_PITCH_BLACK, false)
+            KEY_TACTILE_HAPTICS -> {
+                val enabled = prefs.getBoolean(KEY_TACTILE_HAPTICS, true)
+                isTactileHaptics.value = enabled
+                HapticUtil.isAppHapticsEnabled.value = enabled
+            }
             KEY_GAMES -> gameApps.value = prefs.getStringSet(KEY_GAMES, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_APPS -> suspendedApps.value = prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_SERVICES -> suspendedServices.value = prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES)?.toSet() ?: DEFAULT_SERVICES
@@ -109,6 +117,7 @@ class SettingsRepository(
 
     init {
         prefs.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+        HapticUtil.isAppHapticsEnabled.value = prefs.getBoolean(KEY_TACTILE_HAPTICS, true)
     }
 
     fun setCompletedOnboarding(completed: Boolean) {
@@ -211,6 +220,13 @@ class SettingsRepository(
         gameApps.value = updated
     }
 
+    fun addGames(pkgs: Collection<String>) {
+        if (pkgs.isEmpty()) return
+        val updated = (gameApps.value + pkgs).toSet()
+        prefs.edit().putStringSet(KEY_GAMES, updated).apply()
+        gameApps.value = updated
+    }
+
     fun removeGame(pkg: String) {
         val updated = (gameApps.value - pkg).toSet()
         prefs.edit().putStringSet(KEY_GAMES, updated).apply()
@@ -247,5 +263,11 @@ class SettingsRepository(
     fun setPitchBlack(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PITCH_BLACK, enabled).apply()
         isPitchBlack.value = enabled
+    }
+
+    fun setTactileHaptics(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_TACTILE_HAPTICS, enabled).apply()
+        isTactileHaptics.value = enabled
+        HapticUtil.isAppHapticsEnabled.value = enabled
     }
 }

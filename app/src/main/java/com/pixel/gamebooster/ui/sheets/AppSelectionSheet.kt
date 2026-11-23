@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,10 +44,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -62,7 +67,7 @@ data class InstalledAppItem(
 fun AppSelectionSheet(
     repo: SettingsRepository,
     onDismissRequest: () -> Unit,
-    title: String = "Select Apps to Freeze",
+    title: String = stringResource(R.string.app_select_default_title),
     isGamePicker: Boolean = false,
 ) {
     val context = LocalContext.current
@@ -102,9 +107,19 @@ fun AppSelectionSheet(
         }
     }
 
+    val adaptive = rememberAdaptiveLayoutInfo()
+    val configuration = LocalConfiguration.current
+    val maxListHeight = when {
+        adaptive.isCompactHeight -> 240.dp
+        adaptive.isTablet -> (configuration.screenHeightDp * 0.50f).dp
+        else -> 450.dp
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        sheetMaxWidth = 600.dp,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
     ) {
         Column(
             modifier = Modifier
@@ -122,12 +137,12 @@ fun AppSelectionSheet(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search installed applications...") },
+                placeholder = { Text(stringResource(R.string.app_select_search_hint)) },
                 leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Rounded.Clear, contentDescription = "Clear")
+                            Icon(Icons.Rounded.Clear, contentDescription = stringResource(R.string.app_select_cd_clear))
                         }
                     }
                 },
@@ -141,7 +156,7 @@ fun AppSelectionSheet(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Include system apps",
+                    text = stringResource(R.string.app_select_include_system),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -164,7 +179,7 @@ fun AppSelectionSheet(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(450.dp),
+                        .heightIn(max = maxListHeight),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(filteredApps, key = { it.packageName }) { app ->

@@ -33,10 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.PermissionHelper
 
 @Composable
@@ -65,7 +67,7 @@ fun ShizukuPairingDialog(
         },
         title = {
             Text(
-                text = "Shizuku Wireless Pairing",
+                text = stringResource(R.string.dialog_shizuku_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -78,7 +80,7 @@ fun ShizukuPairingDialog(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = "Shizuku allows Pixel Game Booster to execute privileged system optimizations via Android's native Wireless Debugging without root.",
+                    text = stringResource(R.string.dialog_shizuku_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -87,37 +89,37 @@ fun ShizukuPairingDialog(
                 PairingStepRow(
                     stepNumber = "1",
                     icon = Icons.Rounded.DeveloperMode,
-                    title = "Enable Developer Options",
-                    description = "Go to Settings > About Phone, and tap 'Build number' 7 times until unlocked.",
+                    title = stringResource(R.string.dialog_shizuku_step1_title),
+                    description = stringResource(R.string.dialog_shizuku_step1_desc),
                 )
 
                 // Step 2: Wireless Debugging
                 PairingStepRow(
                     stepNumber = "2",
                     icon = Icons.Rounded.Wifi,
-                    title = "Enable Wireless Debugging",
-                    description = "In Developer Options, turn ON 'Wireless Debugging' while connected to Wi-Fi.",
+                    title = stringResource(R.string.dialog_shizuku_step2_title),
+                    description = stringResource(R.string.dialog_shizuku_step2_desc),
                 )
 
                 // Step 3: Pair Device
                 PairingStepRow(
                     stepNumber = "3",
                     icon = Icons.Rounded.CheckCircle,
-                    title = "Pair with 6-digit Code",
-                    description = "Tap 'Pair device with pairing code' in Developer Options. Note the pairing code and port number.",
+                    title = stringResource(R.string.dialog_shizuku_step3_title),
+                    description = stringResource(R.string.dialog_shizuku_step3_desc),
                 )
 
                 // Step 4: Start Shizuku
                 PairingStepRow(
                     stepNumber = "4",
                     icon = Icons.AutoMirrored.Rounded.OpenInNew,
-                    title = "Start Service in Shizuku",
-                    description = "Open Shizuku app, tap 'Pairing' to enter the code, then tap 'Start' to activate the service.",
+                    title = stringResource(R.string.dialog_shizuku_step4_title),
+                    description = stringResource(R.string.dialog_shizuku_step4_desc),
                 )
 
                 // Static ADB fallback command
                 Text(
-                    text = "Alternative: Computer USB ADB Command",
+                    text = stringResource(R.string.dialog_shizuku_adb_title),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -131,7 +133,7 @@ fun ShizukuPairingDialog(
                         .padding(12.dp),
                 ) {
                     Text(
-                        text = "adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh",
+                        text = stringResource(R.string.dialog_shizuku_adb_command),
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = FontFamily.Monospace,
                             fontSize = 11.sp,
@@ -148,7 +150,7 @@ fun ShizukuPairingDialog(
                     onDismissRequest()
                 },
             ) {
-                Text("Open Shizuku")
+                Text(stringResource(R.string.dialog_shizuku_btn_open))
             }
         },
         dismissButton = {
@@ -160,10 +162,10 @@ fun ShizukuPairingDialog(
                         }
                     },
                 ) {
-                    Text("Dev Options")
+                    Text(stringResource(R.string.dialog_shizuku_btn_dev_options))
                 }
                 TextButton(onClick = onDismissRequest) {
-                    Text("Close")
+                    Text(stringResource(R.string.dialog_shizuku_btn_close))
                 }
             }
         },
