@@ -25,10 +25,10 @@ object DNDManager {
     const val KEY_GAMING_RULE_ID = "gaming_automatic_zen_rule_id"
     const val KEY_SHIZUKU_FALLBACK_ACTIVE = "shizuku_fallback_active"
     const val KEY_RULE_VERSION = "gaming_rule_version"
-    const val CURRENT_RULE_VERSION = 9
+    const val CURRENT_RULE_VERSION = 10
 
     val CONDITION_URI: Uri = Uri.parse("condition://com.pixel.gamebooster/gaming")
-    const val RULE_NAME = "Game Booster DND"
+    const val RULE_NAME = "Game Booster"
 
     @Volatile
     var snapshottedFilter: Int? = null
@@ -97,15 +97,21 @@ object DNDManager {
             }
         }
 
-        cachedRuleId?.let { return it }
-
         var savedId = prefs.getString(KEY_GAMING_RULE_ID, null)
         if (nm == null || !nm.isNotificationPolicyAccessGranted) {
-            return savedId
+            return cachedRuleId ?: savedId
         }
 
         try {
             val rules = nm.automaticZenRules
+            cachedRuleId?.let { id ->
+                if (rules.containsKey(id) && rules[id]?.name == RULE_NAME) {
+                    return id
+                } else {
+                    cachedRuleId = null
+                }
+            }
+
             val zenPolicy = ZenPolicy.Builder()
                 .allowAlarms(true)
                 .allowMedia(true)
@@ -122,7 +128,7 @@ object DNDManager {
                     .setConfigurationActivity(ComponentName(context, MainActivity::class.java))
                     .setZenPolicy(zenPolicy)
                     .setManualInvocationAllowed(true)
-                    .setIconResId(R.drawable.ic_do_not_disturb)
+                    .setIconResId(R.drawable.ic_game_console)
                     .build()
             } else {
                 AutomaticZenRule(
@@ -216,7 +222,7 @@ object DNDManager {
             return
         }
 
-        val ruleId = getOrCreateGamingZenRuleId(context)
+        var ruleId = getOrCreateGamingZenRuleId(context)
         if (!ruleId.isNullOrBlank()) {
             try {
                 val condition = Condition(CONDITION_URI, "Gaming active", Condition.STATE_TRUE)
@@ -225,20 +231,24 @@ object DNDManager {
                 Log.d(TAG, "Activated Gaming Mode via setAutomaticZenRuleState($ruleId, TRUE)")
                 return
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to setAutomaticZenRuleState for $ruleId, falling back", e)
+                Log.w(TAG, "setAutomaticZenRuleState failed for $ruleId; recreating rule and retrying", e)
+                cachedRuleId = null
+                getPrefs(context).edit().remove(KEY_GAMING_RULE_ID).apply()
+                ruleId = getOrCreateGamingZenRuleId(context)
+                if (!ruleId.isNullOrBlank()) {
+                    try {
+                        val condition = Condition(CONDITION_URI, "Gaming active", Condition.STATE_TRUE)
+                        nm.setAutomaticZenRuleState(ruleId, condition)
+                        persistActiveState(context, isShizuku = false)
+                        Log.d(TAG, "Activated Gaming Mode on retry via setAutomaticZenRuleState($ruleId, TRUE)")
+                        return
+                    } catch (retryEx: Exception) {
+                        Log.e(TAG, "Retry setAutomaticZenRuleState failed for $ruleId", retryEx)
+                    }
+                }
             }
-        }
-
-        // Fallback to legacy priority filter if rule activation fails
-        try {
-            if (snapshottedFilter == null && !getPrefs(context).getBoolean(KEY_SNAPSHOT_ACTIVE, false)) {
-                snapshottedFilter = nm.currentInterruptionFilter
-                persistSnapshot(context, nm.currentInterruptionFilter, isShizuku = false)
-            }
-            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
-            Log.d(TAG, "Activated legacy priority interruption filter")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to apply interruption filter", e)
+        } else {
+            Log.e(TAG, "Unable to activate Game Booster mode: ruleId is null")
         }
     }
 
