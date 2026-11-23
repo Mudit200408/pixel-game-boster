@@ -1,17 +1,23 @@
 package com.pixel.gamebooster.overlay
 
+import android.content.ComponentCallbacks
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import android.view.Gravity
+import android.view.View
 import android.view.WindowManager
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
@@ -53,7 +59,9 @@ object GameOverlayManager {
     var savedPillY: Int = 0
         private set
 
+    private var hasUserPositionedPill: Boolean = false
     private var appContext: Context? = null
+    private var configCallbacks: ComponentCallbacks? = null
 
     fun clampY(
         rawY: Int,
@@ -106,8 +114,12 @@ object GameOverlayManager {
 
         val density = context.resources.displayMetrics.density
         val initialY = (100 * density).toInt()
-        isRightSide = false
-        savedPillX = 0
+        hasUserPositionedPill = false
+        val (screenWidth, _) = getScreenSizePx(context, wm)
+        isRightSide = true
+        vm.setDockedOnRight(true)
+        val pillWidth = getExpectedPillWidthPx(context)
+        savedPillX = (screenWidth - pillWidth).coerceAtLeast(0)
         savedPillY = initialY
 
         val params = WindowManager.LayoutParams().apply {
@@ -123,7 +135,7 @@ object GameOverlayManager {
             gravity = Gravity.TOP or Gravity.START
             width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
-            x = 0
+            x = savedPillX
             y = initialY
         }
         currentParams = params
@@ -151,10 +163,60 @@ object GameOverlayManager {
             }
         }
         composeView = view
+        ViewCompat.setOnApplyWindowInsetsListener(view) { v, insets ->
+            val imeVisible = insets.isVisible(WindowInsetsCompat.Type.ime())
+            vm.setImeVisible(imeVisible)
+            val (screenWidth, screenHeight) = getScreenSizePx(v.context, windowManager)
+            if (!hasUserPositionedPill) {
+                val cutoutOnLeft = isCutoutOnLeft(insets.displayCutout, screenWidth, screenHeight)
+                if (cutoutOnLeft != null && isRightSide != cutoutOnLeft) {
+                    isRightSide = cutoutOnLeft
+                    vm.setDockedOnRight(cutoutOnLeft)
+                }
+            }
+            val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val p = currentParams
+            if (p != null && p.width != WindowManager.LayoutParams.MATCH_PARENT) {
+                val pillWidth = getExpectedPillWidthPx(v.context)
+                val minOffset = (16 * v.resources.displayMetrics.density).toInt()
+                val maxOffset = (64 * v.resources.displayMetrics.density).toInt()
+                val clampedX = if (isRightSide) {
+                    (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
+                } else {
+                    cutout.left
+                }
+                val clampedY = clampY(
+                    rawY = savedPillY,
+                    screenHeight = screenHeight,
+                    safeTop = cutout.top,
+                    safeBottom = cutout.bottom,
+                    minOffset = minOffset,
+                    maxOffset = maxOffset,
+                )
+                if (p.x != clampedX || p.y != clampedY) {
+                    p.x = clampedX
+                    p.y = clampedY
+                    savedPillX = clampedX
+                    savedPillY = clampedY
+                    runCatching { windowManager?.updateViewLayout(v, p) }
+                }
+            }
+            insets
+        }
 
         runCatching {
             wm.addView(view, params)
             isOverlayShowing = true
+            val callbacks = object : ComponentCallbacks {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    view.post { realignCollapsedToEdge() }
+                }
+                override fun onLowMemory() {}
+            }
+            appContext?.registerComponentCallbacks(callbacks)
+            configCallbacks = callbacks
+            view.postDelayed({ realignCollapsedToEdge() }, 250L)
+            view.postDelayed({ realignCollapsedToEdge() }, 650L)
             Log.d(TAG, "Overlay shown for $packageName")
         }.onFailure { e ->
             Log.e(TAG, "Failed to add overlay view to WindowManager", e)
@@ -168,21 +230,111 @@ object GameOverlayManager {
         return if (isCircle) (52 * density).toInt() else (28 * density).toInt()
     }
 
+    private fun isCutoutOnLeft(
+        cutout: androidx.core.view.DisplayCutoutCompat?,
+        screenWidth: Int,
+        screenHeight: Int,
+    ): Boolean? {
+        if (cutout == null) return null
+        if (screenWidth > screenHeight) {
+            if (cutout.safeInsetLeft > 0 && cutout.safeInsetRight == 0) return true
+            if (cutout.safeInsetRight > 0 && cutout.safeInsetLeft == 0) return false
+        }
+        val rect = cutout.boundingRects.firstOrNull() ?: return null
+        val centerTolerance = (12 * (appContext?.resources?.displayMetrics?.density ?: 2.5f)).toInt()
+        return when {
+            rect.centerX() < (screenWidth / 2) - centerTolerance -> true
+            rect.centerX() > (screenWidth / 2) + centerTolerance -> false
+            else -> null
+        }
+    }
+
+    private fun getScreenSizePx(context: Context, wm: WindowManager?): Pair<Int, Int> {
+        val manager = wm ?: (context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && manager != null) {
+            val bounds = manager.currentWindowMetrics.bounds
+            return bounds.width() to bounds.height()
+        }
+        val dm = context.resources.displayMetrics
+        return dm.widthPixels to dm.heightPixels
+    }
+
+    private fun realignCollapsedToEdge() {
+        val params = currentParams ?: return
+        val wm = windowManager ?: return
+        val view = composeView ?: return
+        val vm = overlayViewModel ?: return
+        if (params.width == WindowManager.LayoutParams.MATCH_PARENT) return
+
+        val (screenWidth, screenHeight) = getScreenSizePx(view.context, wm)
+        val rootInsets = ViewCompat.getRootWindowInsets(view)
+        val displayCutout = rootInsets?.displayCutout
+        if (!hasUserPositionedPill) {
+            val cutoutOnLeft = isCutoutOnLeft(displayCutout, screenWidth, screenHeight)
+            if (cutoutOnLeft != null && isRightSide != cutoutOnLeft) {
+                isRightSide = cutoutOnLeft
+                vm.setDockedOnRight(cutoutOnLeft)
+            }
+        }
+        val cutout = rootInsets?.getInsets(WindowInsetsCompat.Type.displayCutout()) ?: Insets.NONE
+        val pillWidth = getExpectedPillWidthPx(view.context)
+        val density = view.resources.displayMetrics.density
+        val targetX = if (isRightSide) {
+            (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
+        } else {
+            cutout.left
+        }
+        val targetY = clampY(
+            rawY = savedPillY,
+            screenHeight = screenHeight,
+            safeTop = cutout.top,
+            safeBottom = cutout.bottom,
+            minOffset = (16 * density).toInt(),
+            maxOffset = (64 * density).toInt(),
+        )
+        if (params.x != targetX || params.y != targetY) {
+            params.x = targetX
+            params.y = targetY
+            savedPillX = targetX
+            savedPillY = targetY
+            runCatching { wm.updateViewLayout(view, params) }
+        }
+    }
+
+    private fun getCutoutSafeInsets(view: View): Insets {
+        return ViewCompat.getRootWindowInsets(view)
+            ?.getInsets(WindowInsetsCompat.Type.displayCutout())
+            ?: Insets.NONE
+    }
+
     fun updateLayout(newDisplayState: OverlayDisplayState, blurRadiusPx: Int = 30) {
         val params = currentParams ?: return
         val wm = windowManager ?: return
         val view = composeView ?: return
         val ctx = appContext ?: view.context
+        val cutout = getCutoutSafeInsets(view)
 
         when (newDisplayState) {
             OverlayDisplayState.COLLAPSED_PILL,
             OverlayDisplayState.TOOLBAR -> {
-                val screenWidth = view.resources.displayMetrics.widthPixels
+                val (screenWidth, screenHeight) = getScreenSizePx(ctx, wm)
+                val density = view.resources.displayMetrics.density
                 val pillWidth = getExpectedPillWidthPx(ctx)
                 params.width = WindowManager.LayoutParams.WRAP_CONTENT
                 params.height = WindowManager.LayoutParams.WRAP_CONTENT
-                params.x = if (isRightSide) (screenWidth - pillWidth) else 0
-                params.y = savedPillY
+                params.x = if (isRightSide) {
+                    (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
+                } else {
+                    cutout.left
+                }
+                params.y = clampY(
+                    rawY = savedPillY,
+                    screenHeight = screenHeight,
+                    safeTop = cutout.top,
+                    safeBottom = cutout.bottom,
+                    minOffset = (16 * density).toInt(),
+                    maxOffset = (64 * density).toInt(),
+                )
                 params.flags = (params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     params.flags = params.flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
@@ -190,7 +342,7 @@ object GameOverlayManager {
                 }
             }
             OverlayDisplayState.EXPANDED_PANEL -> {
-                val screenWidth = view.resources.displayMetrics.widthPixels
+                val (screenWidth, _) = getScreenSizePx(ctx, wm)
                 val pillWidth = getExpectedPillWidthPx(ctx)
                 savedPillX = if (isRightSide) (screenWidth - pillWidth) else 0
                 params.x = 0
@@ -216,19 +368,25 @@ object GameOverlayManager {
         val params = currentParams ?: return
         val wm = windowManager ?: return
         val view = composeView ?: return
+        hasUserPositionedPill = true
 
-        val screenWidth = view.resources.displayMetrics.widthPixels
-        val actualScreenHeight = if (screenHeight > 0) screenHeight else view.resources.displayMetrics.heightPixels
+        val (screenWidth, fallbackHeight) = getScreenSizePx(view.context, wm)
+        val actualScreenHeight = if (screenHeight > 0) screenHeight else fallbackHeight
         val density = view.resources.displayMetrics.density
         val minOffset = (16 * density).toInt()
         val maxOffset = (64 * density).toInt()
+        val cutout = getCutoutSafeInsets(view)
+        val resolvedSafeTop = if (safeTop > 0) safeTop else cutout.top
+        val resolvedSafeBottom = if (safeBottom > 0) safeBottom else cutout.bottom
+        val pillWidth = getExpectedPillWidthPx(view.context)
+        val maxX = (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left)
 
-        params.x = (params.x + deltaX.toInt()).coerceIn(0, screenWidth)
+        params.x = (params.x + deltaX.toInt()).coerceIn(cutout.left, maxX)
         params.y = clampY(
             rawY = params.y + deltaY.toInt(),
             screenHeight = actualScreenHeight,
-            safeTop = safeTop,
-            safeBottom = safeBottom,
+            safeTop = resolvedSafeTop,
+            safeBottom = resolvedSafeBottom,
             minOffset = minOffset,
             maxOffset = maxOffset,
         )
@@ -245,8 +403,9 @@ object GameOverlayManager {
     fun snapToNearestEdge() {
         val params = currentParams ?: return
         val view = composeView ?: return
+        hasUserPositionedPill = true
 
-        val screenWidth = view.resources.displayMetrics.widthPixels
+        val (screenWidth, _) = getScreenSizePx(view.context, windowManager)
         val pillWidth = getExpectedPillWidthPx(view.context)
         val centerX = params.x + (pillWidth / 2)
         val toRight = centerX >= screenWidth / 2
@@ -259,11 +418,12 @@ object GameOverlayManager {
         val wm = windowManager ?: return
         val view = composeView ?: return
 
-        val screenWidth = view.resources.displayMetrics.widthPixels
+        val (screenWidth, _) = getScreenSizePx(view.context, wm)
         val pillWidth = getExpectedPillWidthPx(view.context)
+        val cutout = getCutoutSafeInsets(view)
 
         isRightSide = toRight
-        params.x = if (toRight) (screenWidth - pillWidth) else 0
+        params.x = if (toRight) (screenWidth - pillWidth - cutout.right).coerceAtLeast(cutout.left) else cutout.left
         savedPillX = params.x
         if (params.width != WindowManager.LayoutParams.MATCH_PARENT && params.y > 0) {
             savedPillY = params.y
@@ -314,6 +474,11 @@ object GameOverlayManager {
         owner?.onDestroy()
 
         runCatching {
+            configCallbacks?.let { cb -> appContext?.unregisterComponentCallbacks(cb) }
+        }
+        configCallbacks = null
+
+        runCatching {
             wm?.removeView(view)
         }.onFailure { e ->
             Log.e(TAG, "Failed to remove overlay view from WindowManager", e)
@@ -325,6 +490,7 @@ object GameOverlayManager {
         currentParams = null
         overlayViewModel = null
         isOverlayShowing = false
+        hasUserPositionedPill = false
         appContext = null
         Log.d(TAG, "Overlay hidden and destroyed successfully")
     }

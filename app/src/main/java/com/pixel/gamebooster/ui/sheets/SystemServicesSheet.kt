@@ -70,6 +70,12 @@ val SYSTEM_SERVICES_DEFINITIONS = listOf(
         descriptionRes = R.string.services_gearhead_desc,
         command = "cmd package suspend --user 0 com.google.android.projection.gearhead",
     ),
+    SystemServiceDef(
+        id = "com.google.android.as",
+        titleRes = R.string.services_as_title,
+        descriptionRes = R.string.services_as_desc,
+        command = "cmd package suspend --user 0 com.google.android.as",
+    ),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

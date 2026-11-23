@@ -34,7 +34,6 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Clear
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Card
@@ -95,7 +94,7 @@ import com.pixel.gamebooster.utils.HapticUtil
 fun GameLibraryScreen(
     repo: SettingsRepository,
     onGameClick: (String) -> Unit,
-    onOpenSettings: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onFixPermissionsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -176,44 +175,24 @@ fun GameLibraryScreen(
                     )
                 }
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                // Search toggle button
+                IconButton(
+                    onClick = {
+                        HapticUtil.performVirtualKeyHaptic(view)
+                        isSearchActive = !isSearchActive
+                        if (!isSearchActive) searchQuery = ""
+                    },
+                    modifier = Modifier.size(44.dp),
                 ) {
-                    // Search toggle button
-                    IconButton(
-                        onClick = {
-                            HapticUtil.performVirtualKeyHaptic(view)
-                            isSearchActive = !isSearchActive
-                            if (!isSearchActive) searchQuery = ""
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = stringResource(R.string.game_library_cd_search),
+                        tint = if (isSearchActive) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        modifier = Modifier.size(44.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = stringResource(R.string.game_library_cd_search),
-                            tint = if (isSearchActive) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                        )
-                    }
-
-                    // Global Settings button
-                    IconButton(
-                        onClick = {
-                            HapticUtil.performVirtualKeyHaptic(view)
-                            onOpenSettings()
-                        },
-                        modifier = Modifier.size(44.dp),
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Settings,
-                            contentDescription = stringResource(R.string.game_library_cd_settings),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    )
                 }
             }
 

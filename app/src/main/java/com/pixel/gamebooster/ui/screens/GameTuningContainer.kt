@@ -279,7 +279,7 @@ fun GameTuningContainer(
                         scopedPackage = packageName,
                         scopedProfile = profile,
                     )
-                    NavDestination.PERFORMANCE -> PerformanceDisplayScreen(
+                    NavDestination.PERFORMANCE -> DisplayScreen(
                         repo = repository,
                         scopedPackage = packageName,
                         scopedProfile = profile,

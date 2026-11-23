@@ -87,8 +87,10 @@ class OverlayViewModel(
                     dndEnabled = initialProfile.interruptionMode != 0,
                     quickTapLocked = initialProfile.disableQuickTap,
                     autoBrightnessLocked = initialProfile.disableAutoBrightness,
+                    backGestureLocked = GameModeManager.isBackGestureLocked,
                     netBoostEnabled = initialProfile.stabilizeWifi,
                     overlayStyle = repository.overlayStyle.value,
+                    overlayOpacity = repository.overlayOpacity.value,
                     recordDoubleTapStop = repository.recordDoubleTapStop.value,
                 )
             }
@@ -97,6 +99,12 @@ class OverlayViewModel(
         repository.overlayStyle
             .onEach { style ->
                 _uiState.update { it.copy(overlayStyle = style) }
+            }
+            .launchIn(scope)
+
+        repository.overlayOpacity
+            .onEach { opacity ->
+                _uiState.update { it.copy(overlayOpacity = opacity) }
             }
             .launchIn(scope)
 
@@ -205,6 +213,10 @@ class OverlayViewModel(
 
     fun setDockedOnRight(isRight: Boolean) {
         _uiState.update { it.copy(isDockedOnRight = isRight) }
+    }
+
+    fun setImeVisible(visible: Boolean) {
+        _uiState.update { it.copy(isImeVisible = visible) }
     }
 
     fun setInterventionMode(mode: Int) {
@@ -318,6 +330,14 @@ class OverlayViewModel(
             val cmd = if (targetLock) "settings put system screen_brightness_mode 0" else "settings put system screen_brightness_mode 1"
             ShellUtils.runCommand(context, cmd)
             updatePersistedProfile { it.copy(disableAutoBrightness = targetLock) }
+        }
+    }
+
+    fun toggleBackGestureLock() {
+        val targetLock = !_uiState.value.backGestureLocked
+        _uiState.update { it.copy(backGestureLocked = targetLock) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setBackGestureLock(context, targetLock)
         }
     }
 

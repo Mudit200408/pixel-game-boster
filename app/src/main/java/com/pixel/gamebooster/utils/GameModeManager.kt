@@ -54,6 +54,12 @@ object GameModeManager {
     private var snapshottedWifiPowerSave: String? = null
     private var snapshottedLowPowerTriggerLevel: Int? = null
     private var snapshottedLowPower: Int? = null
+    private var snapshottedBackScaleLeft: String? = null
+    private var snapshottedBackScaleRight: String? = null
+
+    @Volatile
+    var isBackGestureLocked: Boolean = false
+        private set
 
     private var didDisableAutoBrightness = false
     private var didDisableColumbus = false
@@ -243,6 +249,9 @@ object GameModeManager {
             }
             if (servicesToSuspend.contains("com.google.android.projection.gearhead")) {
                 sysCmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead")
+            }
+            if (servicesToSuspend.contains("com.google.android.as")) {
+                sysCmds.add("cmd package suspend --user 0 com.google.android.as && am force-stop com.google.android.as")
             }
             if (sysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, sysCmds.joinToString(" && "))
@@ -521,7 +530,9 @@ object GameModeManager {
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, context.getString(R.string.game_mode_toast_activated), Toast.LENGTH_SHORT).show()
+                if (repo.isGameModeToastEnabled.value) {
+                    Toast.makeText(context, context.getString(R.string.game_mode_toast_activated), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -690,6 +701,9 @@ object GameModeManager {
             if (services.contains("com.google.android.projection.gearhead")) {
                 restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead")
             }
+            if (services.contains("com.google.android.as")) {
+                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.as && cmd package unstop --user 0 com.google.android.as")
+            }
             if (restoreSysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, restoreSysCmds.joinToString(" && "))
             }
@@ -745,6 +759,9 @@ object GameModeManager {
                 snapshottedColumbusEnabled = null
                 didDisableColumbus = false
             }
+
+            // 6b. Restore Edge Back-Gesture Lock
+            restoreBackGestureLock(context)
 
             // 7. Restore Wi-Fi Locks & Settings
             wifiHighPerfLock?.let {
@@ -898,8 +915,85 @@ object GameModeManager {
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(context, context.getString(R.string.game_mode_toast_deactivated), Toast.LENGTH_SHORT).show()
+                if (repo.isGameModeToastEnabled.value) {
+                    Toast.makeText(context, context.getString(R.string.game_mode_toast_deactivated), Toast.LENGTH_SHORT).show()
+                }
             }
+        }
+    }
+
+    fun setBackGestureLock(context: Context, locked: Boolean) {
+        if (locked) {
+            try {
+                if (!isBackGestureLocked) {
+                    snapshottedBackScaleLeft = Settings.Secure.getString(
+                        context.contentResolver,
+                        "back_gesture_inset_scale_left",
+                    ) ?: "UNSET"
+                    snapshottedBackScaleRight = Settings.Secure.getString(
+                        context.contentResolver,
+                        "back_gesture_inset_scale_right",
+                    ) ?: "UNSET"
+                }
+                isBackGestureLocked = true
+                runCatching {
+                    Settings.Secure.putString(context.contentResolver, "back_gesture_inset_scale_left", "-1")
+                    Settings.Secure.putString(context.contentResolver, "back_gesture_inset_scale_right", "-1")
+                }
+                ShellUtils.runCommand(
+                    context,
+                    "settings put secure back_gesture_inset_scale_left -1 && settings put secure back_gesture_inset_scale_right -1",
+                )
+                Log.d(
+                    TAG,
+                    "Locked back gestures (-1) (prev left=$snapshottedBackScaleLeft, right=$snapshottedBackScaleRight)",
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to lock back gestures", e)
+            }
+        } else {
+            restoreBackGestureLock(context)
+        }
+    }
+
+    fun restoreBackGestureLock(context: Context) {
+        if (!isBackGestureLocked && snapshottedBackScaleLeft == null && snapshottedBackScaleRight == null) return
+        try {
+            val prevLeft = snapshottedBackScaleLeft
+            val prevRight = snapshottedBackScaleRight
+            val cmds = mutableListOf<String>()
+
+            if (prevLeft != null) {
+                if (prevLeft == "UNSET") {
+                    cmds.add("settings delete secure back_gesture_inset_scale_left")
+                } else {
+                    runCatching {
+                        Settings.Secure.putString(context.contentResolver, "back_gesture_inset_scale_left", prevLeft)
+                    }
+                    cmds.add("settings put secure back_gesture_inset_scale_left $prevLeft")
+                }
+            }
+            if (prevRight != null) {
+                if (prevRight == "UNSET") {
+                    cmds.add("settings delete secure back_gesture_inset_scale_right")
+                } else {
+                    runCatching {
+                        Settings.Secure.putString(context.contentResolver, "back_gesture_inset_scale_right", prevRight)
+                    }
+                    cmds.add("settings put secure back_gesture_inset_scale_right $prevRight")
+                }
+            }
+
+            if (cmds.isNotEmpty()) {
+                ShellUtils.runCommand(context, cmds.joinToString(" && "))
+            }
+            Log.d(TAG, "Restored back gestures (left=$prevLeft, right=$prevRight)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to restore back gestures", e)
+        } finally {
+            snapshottedBackScaleLeft = null
+            snapshottedBackScaleRight = null
+            isBackGestureLocked = false
         }
     }
 

@@ -96,6 +96,7 @@ fun SettingsSheet(
 
     val themeMode by repo.themeMode.collectAsState()
     val isTactileHaptics by repo.isTactileHaptics.collectAsState()
+    val isGameModeToastEnabled by repo.isGameModeToastEnabled.collectAsState()
 
     var isShizukuGranted by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
     var isAccessibilityGranted by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
@@ -278,13 +279,26 @@ fun SettingsSheet(
                 )
             }
             item {
-                IconToggleItem(
-                    title = stringResource(R.string.settings_tactile_haptics_title),
-                    subtitle = stringResource(R.string.settings_tactile_haptics_desc),
-                    icon = Icons.Rounded.Vibration,
-                    checked = isTactileHaptics,
-                    onCheckedChange = { repo.setTactileHaptics(it) },
-                )
+                RoundedCardContainer {
+                    IconToggleItem(
+                        title = stringResource(R.string.settings_tactile_haptics_title),
+                        subtitle = stringResource(R.string.settings_tactile_haptics_desc),
+                        icon = Icons.Rounded.Vibration,
+                        checked = isTactileHaptics,
+                        onCheckedChange = { repo.setTactileHaptics(it) },
+                        index = 0,
+                        count = 2,
+                    )
+                    IconToggleItem(
+                        title = stringResource(R.string.settings_game_mode_toast_title),
+                        subtitle = stringResource(R.string.settings_game_mode_toast_desc),
+                        icon = Icons.Rounded.Notifications,
+                        checked = isGameModeToastEnabled,
+                        onCheckedChange = { repo.setGameModeToastEnabled(it) },
+                        index = 1,
+                        count = 2,
+                    )
+                }
             }
 
             item {

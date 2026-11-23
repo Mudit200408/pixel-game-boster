@@ -52,8 +52,11 @@ class SettingsRepository(
         const val KEY_THEME_MODE = "theme_mode" // 0=System, 1=Light, 2=Dark
         const val KEY_PITCH_BLACK = "pitch_black"
         const val KEY_TACTILE_HAPTICS = "tactile_haptics"
+        const val KEY_GAME_MODE_TOASTS = "game_mode_toasts"
         const val KEY_OVERLAY_ENABLED = "overlay_enabled"
         const val KEY_OVERLAY_STYLE = "overlay_style" // 0 = Bar, 1 = Circle Button
+        const val KEY_OVERLAY_OPACITY = "overlay_opacity" // 0.20f..1.0f
+        const val KEY_OVERLAY_SHOW_LIVE_FPS = "overlay_show_live_fps"
         const val KEY_RECORD_AUDIO_SOURCE = "record_audio_source" // 0=Mute, 1=Mic, 2=Device, 3=Both
         const val KEY_RECORD_RESOLUTION = "record_resolution" // 0=1080p 60fps, 1=1080p 30fps, 2=720p 60fps
         const val KEY_RECORD_SHOW_TOUCHES = "record_show_touches"
@@ -71,6 +74,7 @@ class SettingsRepository(
             "com.google.android.apps.scone",
             "com.google.android.apps.carrier.carrierwifi",
             "com.google.android.projection.gearhead",
+            "com.google.android.as",
         )
     }
 
@@ -97,8 +101,11 @@ class SettingsRepository(
     val themeMode = MutableStateFlow(prefs.getInt(KEY_THEME_MODE, 0))
     val isPitchBlack = MutableStateFlow(prefs.getBoolean(KEY_PITCH_BLACK, false))
     val isTactileHaptics = MutableStateFlow(prefs.getBoolean(KEY_TACTILE_HAPTICS, true))
+    val isGameModeToastEnabled = MutableStateFlow(prefs.getBoolean(KEY_GAME_MODE_TOASTS, true))
     val isOverlayEnabled = MutableStateFlow(prefs.getBoolean(KEY_OVERLAY_ENABLED, true))
     val overlayStyle = MutableStateFlow(prefs.getInt(KEY_OVERLAY_STYLE, 0))
+    val overlayOpacity = MutableStateFlow(prefs.getFloat(KEY_OVERLAY_OPACITY, 0.94f).coerceIn(0.20f, 1.0f))
+    val showLiveFps = MutableStateFlow(prefs.getBoolean(KEY_OVERLAY_SHOW_LIVE_FPS, false))
     val recordAudioSource = MutableStateFlow(prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2))
     val recordResolution = MutableStateFlow(prefs.getInt(KEY_RECORD_RESOLUTION, 0))
     val recordShowTouches = MutableStateFlow(prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false))
@@ -135,8 +142,11 @@ class SettingsRepository(
                 isTactileHaptics.value = enabled
                 HapticUtil.isAppHapticsEnabled.value = enabled
             }
+            KEY_GAME_MODE_TOASTS -> isGameModeToastEnabled.value = prefs.getBoolean(KEY_GAME_MODE_TOASTS, true)
             KEY_OVERLAY_ENABLED -> isOverlayEnabled.value = prefs.getBoolean(KEY_OVERLAY_ENABLED, true)
             KEY_OVERLAY_STYLE -> overlayStyle.value = prefs.getInt(KEY_OVERLAY_STYLE, 0)
+            KEY_OVERLAY_OPACITY -> overlayOpacity.value = prefs.getFloat(KEY_OVERLAY_OPACITY, 0.94f).coerceIn(0.20f, 1.0f)
+            KEY_OVERLAY_SHOW_LIVE_FPS -> showLiveFps.value = prefs.getBoolean(KEY_OVERLAY_SHOW_LIVE_FPS, false)
             KEY_RECORD_AUDIO_SOURCE -> recordAudioSource.value = prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2)
             KEY_RECORD_RESOLUTION -> recordResolution.value = prefs.getInt(KEY_RECORD_RESOLUTION, 0)
             KEY_RECORD_SHOW_TOUCHES -> recordShowTouches.value = prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false)
@@ -318,6 +328,11 @@ class SettingsRepository(
         HapticUtil.isAppHapticsEnabled.value = enabled
     }
 
+    fun setGameModeToastEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_GAME_MODE_TOASTS, enabled).apply()
+        isGameModeToastEnabled.value = enabled
+    }
+
     fun setOverlayEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_OVERLAY_ENABLED, enabled).apply()
         isOverlayEnabled.value = enabled
@@ -326,6 +341,17 @@ class SettingsRepository(
     fun setOverlayStyle(style: Int) {
         prefs.edit().putInt(KEY_OVERLAY_STYLE, style).apply()
         overlayStyle.value = style
+    }
+
+    fun setOverlayOpacity(opacity: Float) {
+        val clamped = opacity.coerceIn(0.20f, 1.0f)
+        prefs.edit().putFloat(KEY_OVERLAY_OPACITY, clamped).apply()
+        overlayOpacity.value = clamped
+    }
+
+    fun setShowLiveFps(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_OVERLAY_SHOW_LIVE_FPS, enabled).apply()
+        showLiveFps.value = enabled
     }
 
     fun setRecordAudioSource(source: Int) {

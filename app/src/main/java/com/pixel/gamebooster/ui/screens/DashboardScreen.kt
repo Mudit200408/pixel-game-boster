@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BatteryChargingFull
+import androidx.compose.material.icons.rounded.CleaningServices
+import androidx.compose.material.icons.rounded.Memory
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Card
@@ -55,6 +57,8 @@ import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.services.AppDetectionService
 import com.pixel.gamebooster.ui.components.GameLauncherGrid
 import com.pixel.gamebooster.ui.components.PixelGamingHeroCard
+import com.pixel.gamebooster.ui.core.cards.IconToggleItem
+import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.util.AdaptiveLayoutInfo
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.GameModeManager
@@ -105,6 +109,11 @@ fun DashboardScreen(
 
     val mode = currentProfile?.interventionMode ?: globalMode
 
+    val globalBoostRam by repo.isBoostRam.collectAsState()
+    val globalCachedFreezer by repo.isCachedFreezer.collectAsState()
+    val boostRam = currentProfile?.boostRam ?: globalBoostRam
+    val cachedFreezer = currentProfile?.cachedFreezer ?: globalCachedFreezer
+
     val onModeChange: (Int) -> Unit = { targetMode ->
         if (isScoped && currentProfile != null) {
             coroutineScope.launch {
@@ -112,6 +121,26 @@ fun DashboardScreen(
             }
         } else {
             repo.setInterventionMode(targetMode)
+        }
+    }
+
+    val onBoostRamChange: (Boolean) -> Unit = { checked ->
+        if (isScoped && currentProfile != null) {
+            coroutineScope.launch {
+                repo.saveProfile(currentProfile.copy(customized = true, boostRam = checked))
+            }
+        } else {
+            repo.setBoostRam(checked)
+        }
+    }
+
+    val onCachedFreezerChange: (Boolean) -> Unit = { checked ->
+        if (isScoped && currentProfile != null) {
+            coroutineScope.launch {
+                repo.saveProfile(currentProfile.copy(customized = true, cachedFreezer = checked))
+            }
+        } else {
+            repo.setCachedFreezer(checked)
         }
     }
 
@@ -208,6 +237,10 @@ fun DashboardScreen(
                             mode = mode,
                             view = view,
                             onModeChange = onModeChange,
+                            boostRam = boostRam,
+                            cachedFreezer = cachedFreezer,
+                            onBoostRamChange = onBoostRamChange,
+                            onCachedFreezerChange = onCachedFreezerChange,
                         )
                     }
 
@@ -229,12 +262,10 @@ fun DashboardScreen(
                     mode = mode,
                     view = view,
                     onModeChange = onModeChange,
-                )
-
-                InterruptionControlScreen(
-                    repo = repo,
-                    scopedPackage = scopedPackage,
-                    scopedProfile = currentProfile ?: scopedProfile,
+                    boostRam = boostRam,
+                    cachedFreezer = cachedFreezer,
+                    onBoostRamChange = onBoostRamChange,
+                    onCachedFreezerChange = onCachedFreezerChange,
                 )
             }
         }
@@ -290,15 +321,11 @@ fun DashboardScreen(
                 mode = mode,
                 view = view,
                 onModeChange = onModeChange,
+                boostRam = boostRam,
+                cachedFreezer = cachedFreezer,
+                onBoostRamChange = onBoostRamChange,
+                onCachedFreezerChange = onCachedFreezerChange,
             )
-
-            if (isScoped) {
-                InterruptionControlScreen(
-                    repo = repo,
-                    scopedPackage = scopedPackage,
-                    scopedProfile = currentProfile ?: scopedProfile,
-                )
-            }
 
             if (!isScoped) {
                 // Section: My Games Launcher Grid (at bottom of homepage)
@@ -317,6 +344,10 @@ private fun DashboardPerformanceProfileCard(
     mode: Int,
     view: View,
     onModeChange: (Int) -> Unit,
+    boostRam: Boolean = false,
+    cachedFreezer: Boolean = false,
+    onBoostRamChange: (Boolean) -> Unit = {},
+    onCachedFreezerChange: (Boolean) -> Unit = {},
 ) {
     Text(
         text = stringResource(R.string.dash_performance_profile),
@@ -403,6 +434,37 @@ private fun DashboardPerformanceProfileCard(
                 }
             }
         }
+    }
+
+    // Memory & Kernel section (moved from Display tab)
+    Text(
+        text = stringResource(R.string.perf_section_memory_kernel),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp),
+    )
+
+    RoundedCardContainer {
+        IconToggleItem(
+            title = stringResource(R.string.perf_purge_ram_title),
+            subtitle = stringResource(R.string.perf_purge_ram_desc),
+            command = stringResource(R.string.perf_purge_ram_cmd),
+            icon = Icons.Rounded.CleaningServices,
+            isChecked = boostRam,
+            onCheckedChange = onBoostRamChange,
+            index = 0,
+            count = 2,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.perf_cached_freezer_title),
+            subtitle = stringResource(R.string.perf_cached_freezer_desc),
+            command = stringResource(R.string.perf_cached_freezer_cmd),
+            icon = Icons.Rounded.Memory,
+            isChecked = cachedFreezer,
+            onCheckedChange = onCachedFreezerChange,
+            index = 1,
+            count = 2,
+        )
     }
 }
 

@@ -57,7 +57,7 @@ import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -76,6 +76,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -296,7 +297,7 @@ fun ExpandedPanel(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     M3EActionTile(
-                        icon = Icons.Rounded.Speed,
+                        icon = ImageVector.vectorResource(R.drawable.ic_120hz),
                         label = "Lock 120Hz",
                         isActive = state.lockRefreshRate,
                         onClick = { viewModel.toggle120Hz() },
@@ -320,7 +321,7 @@ fun ExpandedPanel(
                     )
                 }
 
-                // Row 2: [ Brightness Lock ]  [ Net Boost ]
+                // Row 2: [ Brightness Lock ]  [ Net Boost ]  [ Back Lock ]
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -338,6 +339,14 @@ fun ExpandedPanel(
                         label = stringResource(R.string.overlay_net_boost_title),
                         isActive = state.netBoostEnabled,
                         onClick = { viewModel.toggleNetBoost() },
+                        modifier = Modifier.weight(1f),
+                    )
+
+                    M3EActionTile(
+                        icon = Icons.Rounded.TouchApp,
+                        label = stringResource(R.string.overlay_back_gesture_lock_title),
+                        isActive = state.backGestureLocked,
+                        onClick = { viewModel.toggleBackGestureLock() },
                         modifier = Modifier.weight(1f),
                     )
                 }

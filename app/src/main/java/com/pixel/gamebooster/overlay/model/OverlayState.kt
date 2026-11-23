@@ -12,6 +12,9 @@ data class OverlayUiState(
     val displayState: OverlayDisplayState = OverlayDisplayState.COLLAPSED_PILL,
     val isDockedOnRight: Boolean = false,
     val overlayStyle: Int = 0, // 0=Bar, 1=Circle Button
+    val overlayOpacity: Float = 0.94f, // 0.20f..1.0f
+    val showLiveFps: Boolean = false,
+    val isImeVisible: Boolean = false,
     val interventionMode: Int = 2, // 3=Battery, 1=Balanced, 2=Boost
     val fpsOverride: Int = 0, // 0=Auto, 60, 90, 120
     val lockRefreshRate: Boolean = true,
@@ -19,6 +22,7 @@ data class OverlayUiState(
     val netBoostEnabled: Boolean = true,
     val quickTapLocked: Boolean = true,
     val autoBrightnessLocked: Boolean = true,
+    val backGestureLocked: Boolean = false,
     val brightnessPercent: Float = 0.8f,
     val mediaVolumePercent: Float = 0.5f,
     val batteryPercent: Int = 100,

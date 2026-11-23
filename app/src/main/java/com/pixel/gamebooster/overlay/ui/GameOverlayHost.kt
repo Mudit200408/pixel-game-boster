@@ -26,29 +26,50 @@ fun GameOverlayHost(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     var panelVisible by remember { mutableStateOf(false) }
+    var pillVisible by remember { mutableStateOf(true) }
     var isWindowExpanded by remember { mutableStateOf(false) }
+    var isTransitioning by remember { mutableStateOf(false) }
+
+    val handleExpand: () -> Unit = {
+        if (!isTransitioning && !isWindowExpanded) {
+            scope.launch {
+                isTransitioning = true
+                pillVisible = false
+                delay(150) // Let pill/button play its quick Lottie-matched hide animation
+                viewModel.setDisplayState(OverlayDisplayState.EXPANDED_PANEL)
+                isWindowExpanded = true
+                GameOverlayManager.updateLayout(OverlayDisplayState.EXPANDED_PANEL)
+                delay(24) // Wait for WindowManager MATCH_PARENT commit before revealing panel
+                panelVisible = true
+                isTransitioning = false
+            }
+        }
+    }
 
     val handleDismiss: () -> Unit = {
-        scope.launch {
-            panelVisible = false
-            delay(190) // Wait for exit spring retraction animation to finish
-            viewModel.setDisplayState(OverlayDisplayState.COLLAPSED_PILL)
-            GameOverlayManager.updateLayout(OverlayDisplayState.COLLAPSED_PILL)
-            isWindowExpanded = false
+        if (!isTransitioning && isWindowExpanded) {
+            scope.launch {
+                isTransitioning = true
+                panelVisible = false
+                delay(190) // Wait for panel exit spring retraction
+                pillVisible = false
+                viewModel.setDisplayState(OverlayDisplayState.COLLAPSED_PILL)
+                isWindowExpanded = false
+                GameOverlayManager.updateLayout(OverlayDisplayState.COLLAPSED_PILL)
+                delay(48) // Let WindowManager finish resizing/positioning at savedPillX/Y while pill is invisible
+                pillVisible = true
+                isTransitioning = false
+            }
         }
     }
 
     LaunchedEffect(uiState.displayState) {
-        if (uiState.displayState == OverlayDisplayState.EXPANDED_PANEL) {
+        if (uiState.displayState == OverlayDisplayState.EXPANDED_PANEL && !isWindowExpanded && !isTransitioning) {
+            pillVisible = false
             isWindowExpanded = true
             GameOverlayManager.updateLayout(OverlayDisplayState.EXPANDED_PANEL)
-            // Yield one frame so ExpandedPanel mounts with visible=false first,
-            // ensuring AnimatedVisibility triggers the full reveal spring animation
-            delay(25)
+            delay(24)
             panelVisible = true
-        } else if (uiState.displayState == OverlayDisplayState.COLLAPSED_PILL && !panelVisible) {
-            isWindowExpanded = false
-            GameOverlayManager.updateLayout(OverlayDisplayState.COLLAPSED_PILL)
         }
     }
 
@@ -62,13 +83,13 @@ fun GameOverlayHost(
         )
     } else {
         CollapsedPill(
+            visible = pillVisible && !uiState.isImeVisible,
             isDockedOnRight = uiState.isDockedOnRight,
             overlayStyle = uiState.overlayStyle,
+            pillOpacity = uiState.overlayOpacity,
             isRecording = uiState.isRecording,
             doubleTapToStopEnabled = uiState.recordDoubleTapStop,
-            onExpand = {
-                viewModel.setDisplayState(OverlayDisplayState.EXPANDED_PANEL)
-            },
+            onExpand = handleExpand,
             onStopRecording = {
                 viewModel.stopRecording()
             },

@@ -43,7 +43,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AcUnit
 import androidx.compose.material.icons.rounded.Gamepad
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Monitor
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Wifi
@@ -51,7 +52,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.FloatingToolbarHorizontalFabPosition
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -81,14 +85,15 @@ import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.screens.AppFreezerScreen
+import com.pixel.gamebooster.ui.screens.DisplayScreen
 import com.pixel.gamebooster.ui.screens.GameLibraryScreen
 import com.pixel.gamebooster.ui.screens.GameScanningSetupScreen
 import com.pixel.gamebooster.ui.screens.GameTuningContainer
 import com.pixel.gamebooster.ui.screens.NetworkSyncScreen
 import com.pixel.gamebooster.ui.screens.OnboardingScreen
 import com.pixel.gamebooster.ui.screens.OverlaySettingsScreen
-import com.pixel.gamebooster.ui.screens.PerformanceDisplayScreen
 import com.pixel.gamebooster.ui.screens.PermissionsScreen
+import com.pixel.gamebooster.ui.screens.ScreenRecordingSettingsScreen
 import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
 import com.pixel.gamebooster.ui.sheets.SettingsSheet
 import com.pixel.gamebooster.ui.sheets.SystemServicesSheet
@@ -118,14 +123,14 @@ enum class NavDestination(
     val route: String,
     val label: String = when (labelRes) {
         R.string.nav_tab_dashboard -> "Dashboard"
-        R.string.nav_tab_performance -> "Performance"
+        R.string.nav_tab_display -> "Display"
         R.string.nav_tab_suspension -> "Suspension"
         R.string.nav_tab_network -> "Network"
         else -> ""
     },
 ) {
     DASHBOARD(R.string.nav_tab_dashboard, Icons.Rounded.Gamepad, "dashboard"),
-    PERFORMANCE(R.string.nav_tab_performance, Icons.Rounded.Speed, "performance_display"),
+    PERFORMANCE(R.string.nav_tab_display, Icons.Rounded.Monitor, "display"),
     FREEZER(R.string.nav_tab_suspension, Icons.Rounded.AcUnit, "app_freezer"),
     NETWORK(R.string.nav_tab_network, Icons.Rounded.Wifi, "network_sync");
 
@@ -195,10 +200,22 @@ class AppNavigationState(
         selectedGamePackageForTuning = null
     }
 
+    var isShowingScreenRecording: Boolean = false
+        private set
+
+    fun openScreenRecording() {
+        isShowingScreenRecording = true
+    }
+
+    fun backFromScreenRecording() {
+        isShowingScreenRecording = false
+    }
+
     fun navigateTo(screen: AppScreen) {
         currentScreen = screen
         if (screen != AppScreen.MAIN && screen != AppScreen.LIBRARY) {
             selectedGamePackageForTuning = null
+            isShowingScreenRecording = false
         }
     }
 }
@@ -234,9 +251,17 @@ fun AppNavigation(
         mutableStateOf<String?>(null)
     }
 
-    // Intercept hardware / gesture back button when in Game Tuning mode
-    BackHandler(enabled = selectedGamePackageForTuning != null) {
-        selectedGamePackageForTuning = null
+    var isShowingScreenRecording by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    // Intercept hardware / gesture back button when in Game Tuning or Screen Recording mode
+    BackHandler(enabled = selectedGamePackageForTuning != null || isShowingScreenRecording) {
+        if (selectedGamePackageForTuning != null) {
+            selectedGamePackageForTuning = null
+        } else if (isShowingScreenRecording) {
+            isShowingScreenRecording = false
+        }
     }
 
     AnimatedContent(
@@ -287,6 +312,11 @@ fun AppNavigation(
                         repository = repo,
                         onBack = { selectedGamePackageForTuning = null },
                     )
+                } else if (isShowingScreenRecording) {
+                    ScreenRecordingSettingsScreen(
+                        repo = repo,
+                        onBack = { isShowingScreenRecording = false },
+                    )
                 } else {
                     Box(modifier = Modifier.fillMaxSize()) {
                         when (activeMainTab) {
@@ -294,18 +324,18 @@ fun AppNavigation(
                                 GameLibraryScreen(
                                     repo = repo,
                                     onGameClick = { selectedGamePackageForTuning = it },
-                                    onOpenSettings = { showSettingsSheet = true },
                                     onFixPermissionsClick = { showSettingsSheet = true },
                                 )
                             }
                             MainTab.OVERLAY -> {
                                 OverlaySettingsScreen(
                                     repo = repo,
+                                    onNavigateToScreenRecording = { isShowingScreenRecording = true },
                                 )
                             }
                         }
 
-                        // Floating Bottom Navigation Bar (Matching In-Game Floating Bottom Toolbar with labels intact)
+                        // Floating Bottom Navigation Bar (Matching Essentials Floating Bottom Toolbar and FAB design)
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
@@ -315,6 +345,24 @@ fun AppNavigation(
                         ) {
                             HorizontalFloatingToolbar(
                                 expanded = true,
+                                floatingActionButton = {
+                                    FloatingActionButton(
+                                        onClick = {
+                                            HapticUtil.performVirtualKeyHaptic(view)
+                                            showSettingsSheet = true
+                                        },
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        shape = MaterialTheme.shapes.large,
+                                        elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Settings,
+                                            contentDescription = stringResource(R.string.game_library_cd_settings),
+                                        )
+                                    }
+                                },
+                                floatingActionButtonPosition = FloatingToolbarHorizontalFabPosition.End,
                                 modifier = Modifier.padding(
                                     horizontal = 16.dp,
                                     vertical = if (adaptive.isCompactHeight) 2.dp else 8.dp,
