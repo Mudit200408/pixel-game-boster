@@ -18,10 +18,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
-import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
-import com.pixel.gamebooster.ui.components.LottieHeader
+import com.pixel.gamebooster.ui.components.PullTitleHeader
+import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 
@@ -36,16 +37,25 @@ fun PerformanceDisplayScreen(
     val disableBrightness by repo.isDisableAutoBrightness.collectAsState()
     val disableQuickTap by repo.isDisableQuickTap.collectAsState()
 
+    val headerState = rememberPullTitleHeaderState()
+
     Column(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(headerState.nestedScrollConnection)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Section Header Lottie
-        LottieHeader(resId = R.raw.lottie_section_display)
+        // Gestural Pull Title Header
+        PullTitleHeader(
+            title = "Performance & Display",
+            caption = "120Hz lock, RAM purge & kernel tuning",
+            state = headerState,
+        )
 
+        // Section: Display & Refresh Rate
         Text(
             text = "Display & Refresh Rate",
             style = MaterialTheme.typography.titleMedium,
@@ -55,15 +65,18 @@ fun PerformanceDisplayScreen(
 
         RoundedCardContainer {
             IconToggleItem(
-                title = "Force 120Hz Panel Refresh Rate",
-                description = "Forces physical panel to 120Hz fixed to eliminate 60Hz/30Hz LTPO drops. Note: does not spoof game engine FPS caps.",
+                title = "Force 120Hz Physical Display Mode",
+                subtitle = "Forces physical panel to 120Hz fixed to eliminate 60Hz/30Hz LTPO drops.",
                 command = "cmd display set-user-preferred-display-mode <W> <H> 120 0",
                 icon = Icons.Rounded.Speed,
                 isChecked = lockRefresh,
                 onCheckedChange = { repo.setLockRefreshRate(it) },
+                index = 0,
+                count = 1,
             )
         }
 
+        // Section: Memory & Kernel Tuning
         Text(
             text = "Memory & Kernel Tuning",
             style = MaterialTheme.typography.titleMedium,
@@ -74,22 +87,27 @@ fun PerformanceDisplayScreen(
         RoundedCardContainer {
             IconToggleItem(
                 title = "Purge RAM & ZRAM",
-                description = "Evicts background cached processes to prevent memory pressure.",
+                subtitle = "Evicts background cached processes to prevent memory pressure.",
                 command = "am kill-all",
                 icon = Icons.Rounded.CleaningServices,
                 isChecked = boostRam,
                 onCheckedChange = { repo.setBoostRam(it) },
+                index = 0,
+                count = 2,
             )
             IconToggleItem(
                 title = "Kernel Cached Apps Freezer",
-                description = "Freezes background app cgroups to preserve CPU cycles for game threads.",
+                subtitle = "Freezes background app cgroups to preserve CPU cycles for game threads.",
                 command = "settings put global cached_apps_freezer enabled",
                 icon = Icons.Rounded.Memory,
                 isChecked = cachedFreezer,
                 onCheckedChange = { repo.setCachedFreezer(it) },
+                index = 1,
+                count = 2,
             )
         }
 
+        // Section: Sensors & Input Latency
         Text(
             text = "Sensors & Input Latency",
             style = MaterialTheme.typography.titleMedium,
@@ -100,19 +118,23 @@ fun PerformanceDisplayScreen(
         RoundedCardContainer {
             IconToggleItem(
                 title = "Disable Auto-Brightness",
-                description = "Locks current brightness to prevent sudden light sensor dips mid-game.",
+                subtitle = "Locks current brightness to prevent sudden light sensor dips mid-game.",
                 command = "settings put system screen_brightness_mode 0",
                 icon = Icons.Rounded.BrightnessAuto,
                 isChecked = disableBrightness,
                 onCheckedChange = { repo.setDisableAutoBrightness(it) },
+                index = 0,
+                count = 2,
             )
             IconToggleItem(
                 title = "Disable Quick Tap",
-                description = "Suspends rear-tap sensor monitor to eliminate touch latency and input jank.",
+                subtitle = "Suspends rear-tap sensor monitor to eliminate touch latency and input jank.",
                 command = "settings put secure columbus_enabled 0",
                 icon = Icons.Rounded.TouchApp,
                 isChecked = disableQuickTap,
                 onCheckedChange = { repo.setDisableQuickTap(it) },
+                index = 1,
+                count = 2,
             )
         }
     }

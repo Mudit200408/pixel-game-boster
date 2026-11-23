@@ -2,118 +2,211 @@ package com.pixel.gamebooster.ui.core.cards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.pixel.gamebooster.ui.core.dialogs.FeatureInfoDialog
+import com.pixel.gamebooster.utils.HapticUtil
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun IconToggleItem(
     title: String,
-    description: String,
-    modifier: Modifier = Modifier,
-    command: String? = null,
+    subtitle: String = "",
     icon: ImageVector? = null,
-    isChecked: Boolean = false,
+    checked: Boolean = false,
     onCheckedChange: ((Boolean) -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    index: Int? = null,
+    count: Int? = null,
+    onInfoClick: (() -> Unit)? = null,
+    enabled: Boolean = true,
+    description: String? = null,
+    command: String? = null,
+    isChecked: Boolean? = null,
     onClick: (() -> Unit)? = null,
     showToggle: Boolean = true,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
-    val clickableModifier = when {
-        onCheckedChange != null -> Modifier.clickable { onCheckedChange(!isChecked) }
-        onClick != null -> Modifier.clickable { onClick() }
-        else -> Modifier
+    val view = LocalView.current
+    val effectiveSubtitle = description ?: subtitle
+    val effectiveChecked = isChecked ?: checked
+    var showInfoDialog by remember { mutableStateOf(false) }
+
+    // When checked, morph to 24dp rounded corners like Essentials
+    val itemShape = if (effectiveChecked) {
+        RoundedCornerShape(24.dp)
+    } else {
+        when {
+            index == null || count == null || count == 1 -> RoundedCornerShape(24.dp)
+            index == 0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
+            index == count - 1 -> RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+            else -> RoundedCornerShape(4.dp)
+        }
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .then(clickableModifier)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+    val containerColor = if (effectiveChecked) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceBright
+    }
+
+    val headlineColor = if (effectiveChecked) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    val supportingColor = if (effectiveChecked) {
+        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    val hasInfoAction = onInfoClick != null || !command.isNullOrEmpty()
+
+    ListItem(
         verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (icon != null) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp),
+        supportingContent = if (effectiveSubtitle.isNotBlank()) {
+            {
+                Text(
+                    text = effectiveSubtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = supportingColor,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.width(16.dp))
-        }
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (!command.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(2.dp))
+        } else null,
+        leadingContent = if (icon != null) {
+            {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                ) {
-                    Text(
-                        text = command,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (effectiveChecked) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceContainerHigh,
                         ),
-                        color = MaterialTheme.colorScheme.primary,
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (effectiveChecked) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
-        }
-
-        if (showToggle && onCheckedChange != null) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Switch(
-                checked = isChecked,
-                onCheckedChange = onCheckedChange,
+        } else null,
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (hasInfoAction) {
+                    IconButton(
+                        onClick = {
+                            HapticUtil.performUIHaptic(view)
+                            if (onInfoClick != null) {
+                                onInfoClick()
+                            } else {
+                                showInfoDialog = true
+                            }
+                        },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = "Details",
+                            tint = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    VerticalDivider(
+                        modifier = Modifier
+                            .height(28.dp)
+                            .width(1.dp)
+                            .padding(horizontal = 4.dp),
+                        color = if (effectiveChecked) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f)
+                        else MaterialTheme.colorScheme.outlineVariant,
+                    )
+                }
+                if (showToggle && onCheckedChange != null) {
+                    Switch(
+                        checked = effectiveChecked,
+                        onCheckedChange = {
+                            HapticUtil.performVirtualKeyHaptic(view)
+                            onCheckedChange(it)
+                        },
+                        enabled = enabled,
+                    )
+                } else if (trailingContent != null) {
+                    trailingContent()
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(
+            containerColor = containerColor,
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(itemShape)
+            .clickable(enabled = enabled) {
+                HapticUtil.performVirtualKeyHaptic(view)
+                if (onCheckedChange != null) {
+                    onCheckedChange(!effectiveChecked)
+                } else {
+                    onClick?.invoke()
+                }
+            },
+        content = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (effectiveChecked) FontWeight.SemiBold else FontWeight.Medium,
+                color = headlineColor,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-        } else if (trailingContent != null) {
-            Spacer(modifier = Modifier.width(12.dp))
-            trailingContent()
-        }
+        },
+    )
+
+    if (showInfoDialog && !command.isNullOrEmpty()) {
+        FeatureInfoDialog(
+            title = title,
+            description = effectiveSubtitle,
+            command = command,
+            onDismissRequest = { showInfoDialog = false },
+        )
     }
 }

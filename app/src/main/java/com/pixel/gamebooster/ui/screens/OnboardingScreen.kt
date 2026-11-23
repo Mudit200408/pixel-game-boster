@@ -24,6 +24,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.AcUnit
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,22 +43,29 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.pixel.gamebooster.R
-import com.pixel.gamebooster.ui.components.LottieHeader
+import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.ui.core.cards.IconToggleItem
+import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
+import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
 import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.launch
 
 private data class OnboardingSlide(
-    val lottieRes: Int,
+    val icon: ImageVector,
     val title: String,
     val badge: String,
     val description: String,
@@ -64,29 +76,39 @@ private data class OnboardingSlide(
 fun OnboardingScreen(
     onNavigateToPermissions: () -> Unit,
     modifier: Modifier = Modifier,
+    repo: SettingsRepository? = null,
 ) {
     val view = LocalView.current
     val scope = rememberCoroutineScope()
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 4 })
+
+    var selectedMode by remember { mutableStateOf("Shizuku") }
+    var hapticsEnabled by remember { mutableStateOf(true) }
 
     val slides = listOf(
         OnboardingSlide(
-            lottieRes = R.raw.lottie_section_display,
+            icon = Icons.Rounded.SportsEsports,
+            title = "Pixel Game Booster",
+            badge = "Google Pixel System Tuning",
+            description = "Engineered specifically for Google Pixel devices. Automates physical 120Hz display locking, kernel memory purging, and background app suspension to deliver sustained peak frame rates without thermal throttling.",
+        ),
+        OnboardingSlide(
+            icon = Icons.Rounded.Speed,
             title = "120Hz Display Lock",
             badge = "Hardware Panel Rate",
-            description = "Eliminates stutter and frame rate jitter by locking Pixel's LTPO display panel to a rock-solid 120Hz hardware refresh rate.\n\nClarification: This stabilizes hardware panel refresh timing to prevent aggressive 60Hz/30Hz drops. It does not spoof or bypass in-game engine FPS caps.",
+            description = "Eliminates stutter and frame rate jitter by locking Pixel's LTPO display panel to a rock-solid 120Hz hardware refresh rate.\n\nStabilizes physical display panel timing to prevent aggressive 60Hz/30Hz drops without spoofing in-game engine FPS caps.",
         ),
         OnboardingSlide(
-            lottieRes = R.raw.lottie_mode_performance,
-            title = "Instant Game Detection",
-            badge = "Zero-Latency Automation",
-            description = "Uses an ultra-efficient Accessibility Service paired with UsageStats fallback to immediately detect game launches.\n\nAutomatically applies your chosen performance profile and system tweaks the millisecond a game starts—with zero background polling or battery drain.",
-        ),
-        OnboardingSlide(
-            lottieRes = R.raw.lottie_section_freezer,
+            icon = Icons.Rounded.AcUnit,
             title = "Selective App Freezing",
             badge = "Resource Prioritization",
             description = "Suspends resource-heavy background apps using Android's native package suspension (`cmd package suspend --user 0`) and temporarily pauses background Google sync.\n\nFrees up RAM and CPU cores exclusively for game rendering without altering or uninstalling your apps.",
+        ),
+        OnboardingSlide(
+            icon = Icons.Rounded.Tune,
+            title = "Initial Preferences",
+            badge = "Setup Optimization",
+            description = "Configure your privileged execution backend and tactile feedback preferences before proceeding to permissions setup.",
         ),
     )
 
@@ -219,7 +241,7 @@ fun OnboardingScreen(
                         shape = RoundedCornerShape(26.dp),
                     ) {
                         Text(
-                            text = "Get Started",
+                            text = "Configure Permissions",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                         )
@@ -243,13 +265,30 @@ fun OnboardingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                // Top Lottie Vector Header
-                LottieHeader(
-                    resId = slide.lottieRes,
-                    modifier = Modifier.fillMaxWidth(),
-                    height = 200.dp,
-                    cornerRadius = 24.dp,
-                )
+                // Hero Illustration Surface with Native M3 Expressive Iconography
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = slide.icon,
+                            contentDescription = slide.title,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(44.dp),
+                        )
+                    }
+                }
 
                 // Subtitle Badge
                 Surface(
@@ -271,6 +310,7 @@ fun OnboardingScreen(
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
                 )
 
                 // Description Container
@@ -285,6 +325,42 @@ fun OnboardingScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(20.dp),
                     )
+                }
+
+                // Slide 4 Interactive Preferences: Privileged Mode & Tactile Feedback
+                if (pageIndex == 3) {
+                    RoundedCardContainer {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surfaceBright)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                text = "Privileged Execution Backend",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            SegmentedPicker(
+                                items = listOf("Shizuku", "Root"),
+                                selectedItem = selectedMode,
+                                onItemSelected = { selectedMode = it },
+                                labelProvider = { if (it == "Shizuku") "Shizuku (Wireless ADB)" else "Root (su)" },
+                            )
+                        }
+
+                        IconToggleItem(
+                            title = "Tactile Haptic Feedback",
+                            subtitle = "Interactive vibration ticks on clicks and slider adjustments",
+                            icon = Icons.Rounded.Vibration,
+                            isChecked = hapticsEnabled,
+                            onCheckedChange = { hapticsEnabled = it },
+                            index = 1,
+                            count = 2,
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

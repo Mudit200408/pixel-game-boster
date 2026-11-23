@@ -100,7 +100,7 @@ class AppDetectionService : Service() {
                             } else if (GameModeManager.isGameModeActive && !isGame) {
                                 GameModeManager.onGameBackground(
                                     this@AppDetectionService,
-                                    currentPackage,
+                                    GameModeManager.activeGamePackage ?: currentPackage,
                                     null,
                                     settingsRepository,
                                 )
@@ -125,7 +125,7 @@ class AppDetectionService : Service() {
                             } else if (GameModeManager.isGameModeActive && !isGame) {
                                 GameModeManager.onGameBackground(
                                     this@AppDetectionService,
-                                    currentPackage,
+                                    GameModeManager.activeGamePackage ?: currentPackage,
                                     null,
                                     settingsRepository,
                                 )

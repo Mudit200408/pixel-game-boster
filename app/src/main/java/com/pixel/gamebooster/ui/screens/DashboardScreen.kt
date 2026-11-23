@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BatteryChargingFull
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,12 +19,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.services.AppDetectionService
-import com.pixel.gamebooster.ui.components.LottieHeader
+import com.pixel.gamebooster.ui.components.GameLauncherGrid
 import com.pixel.gamebooster.ui.components.PermissionHealthBanner
-import com.pixel.gamebooster.ui.core.cards.IconToggleItem
+import com.pixel.gamebooster.ui.components.PixelGamingHeroCard
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.pickers.SegmentedPicker
 import com.pixel.gamebooster.ui.core.sliders.ConfigSliderItem
@@ -40,16 +41,8 @@ fun DashboardScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val isEnabled by repo.isBoosterEnabled.collectAsState()
     val mode by repo.interventionMode.collectAsState()
     val delay by repo.restoreDelay.collectAsState()
-
-    val lottieRes = when (mode) {
-        2 -> R.raw.lottie_mode_performance
-        1 -> R.raw.lottie_mode_standard
-        3 -> R.raw.lottie_mode_battery
-        else -> R.raw.lottie_mode_performance
-    }
 
     val activeColor = when (mode) {
         2 -> ModePerformanceColor
@@ -62,45 +55,32 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         // Permission Health Banner (visible if Shizuku or Accessibility is revoked)
         PermissionHealthBanner(onFixPermissionsClick = onFixPermissionsClick)
 
-        // Dynamic Lottie Header
-        LottieHeader(resId = lottieRes)
-
-        // Master Toggle Card
-        RoundedCardContainer {
-            IconToggleItem(
-                title = "Pixel Game Booster",
-                description = "Automates device performance optimizations when games launch",
-                command = "AppDetectionService & GameModeManager",
-                isChecked = isEnabled,
-                onCheckedChange = { enabled ->
-                    repo.setBoosterEnabled(enabled)
-                    if (enabled) {
-                        if (PermissionHelper.hasUsageStatsPermission(context)) {
-                            AppDetectionService.start(context)
-                        }
-                    } else {
-                        AppDetectionService.stop(context)
-                        if (GameModeManager.isGameModeActive) {
-                            GameModeManager.onGameBackground(context, GameModeManager.activeGamePackage, null, repo)
-                        }
-                    }
-                },
-            )
-        }
-
-        // My Games Launcher Grid
-        com.pixel.gamebooster.ui.components.GameLauncherGrid(
+        // Prominent Master Pixel Game Booster Switch Hero Card
+        PixelGamingHeroCard(
             repo = repo,
-            onAddGameClick = onAddGameClick,
+            onToggleMaster = { enabled ->
+                repo.setBoosterEnabled(enabled)
+                if (enabled) {
+                    if (PermissionHelper.hasUsageStatsPermission(context)) {
+                        AppDetectionService.start(context)
+                    }
+                } else {
+                    AppDetectionService.stop(context)
+                    if (GameModeManager.isGameModeActive) {
+                        GameModeManager.onGameBackground(context, GameModeManager.activeGamePackage, null, repo)
+                    }
+                }
+            },
         )
 
-        // Section: Profile
+        // Section: Performance Profile
         Text(
             text = "Performance Profile",
             style = MaterialTheme.typography.titleMedium,
@@ -109,14 +89,17 @@ fun DashboardScreen(
         )
 
         RoundedCardContainer {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 Text(
                     text = "Game Manager Intervention",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    text = "Sets Android Game Manager profile and target parameters",
+                    text = "Sets Android Game Manager profile and target governor parameters",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -132,12 +115,20 @@ fun DashboardScreen(
                             else -> ""
                         }
                     },
+                    iconProvider = {
+                        when (it) {
+                            2 -> Icons.Rounded.Speed
+                            1 -> Icons.Rounded.Tune
+                            3 -> Icons.Rounded.BatteryChargingFull
+                            else -> null
+                        }
+                    },
                     activeColor = activeColor,
                 )
             }
         }
 
-        // Section: Restoration
+        // Section: Restoration Delay
         Text(
             text = "Restoration Delay",
             style = MaterialTheme.typography.titleMedium,
@@ -157,5 +148,11 @@ fun DashboardScreen(
                 valueFormatter = { if (it.toInt() == 0) "Immediate" else "${it.toInt()}s" },
             )
         }
+
+        // Section: My Games Launcher Grid (repositioned to bottom per user feedback)
+        GameLauncherGrid(
+            repo = repo,
+            onAddGameClick = onAddGameClick,
+        )
     }
 }

@@ -516,6 +516,10 @@ object GameModeManager {
             return
         }
 
+        if (pendingRestoreJob?.isActive == true) {
+            return
+        }
+
         pendingRestoreJob?.cancel()
         pendingRestoreJob = scope.launch {
             val delaySeconds = repo.restoreDelay.value.coerceAtLeast(0)
@@ -554,6 +558,7 @@ object GameModeManager {
         Log.d(TAG, "Exiting Game Mode for $gamePackage")
         isGameModeActive = false
         activeGamePackage = null
+        pendingRestoreJob = null
         GameBoosterAccessibilityService.instance?.resetLastPackage()
         AppDetectionService.instance?.resetLastPackage()
 

@@ -26,8 +26,7 @@ object HapticUtil {
     fun gate(context: Context, delegate: HapticFeedback): HapticFeedback =
         object : HapticFeedback {
             override fun performHapticFeedback(hapticFeedbackType: ComposeHapticFeedbackType) {
-                if (!isAppHapticsEnabled.value) return
-                if (!isSystemHapticsEnabled(context)) return
+                if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(context)) return
                 runCatching {
                     delegate.performHapticFeedback(hapticFeedbackType)
                 }
@@ -35,16 +34,14 @@ object HapticUtil {
         }
 
     fun performUIHaptic(view: View) {
-        if (!isAppHapticsEnabled.value) return
-        if (!isSystemHapticsEnabled(view.context)) return
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
         runCatching {
             view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
     }
 
     fun performLightHaptic(view: View) {
-        if (!isAppHapticsEnabled.value) return
-        if (!isSystemHapticsEnabled(view.context)) return
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_TICK)
@@ -54,27 +51,47 @@ object HapticUtil {
         }
     }
 
-    fun performClick(view: View) {
-        if (!isAppHapticsEnabled.value) return
-        if (!isSystemHapticsEnabled(view.context)) return
+    fun performSliderHaptic(view: View) {
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
         runCatching {
-            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                view.performHapticFeedback(HapticFeedbackConstants.SEGMENT_FREQUENT_TICK)
+            } else {
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            }
         }
     }
 
-    fun performToggle(view: View) {
-        if (!isAppHapticsEnabled.value) return
-        if (!isSystemHapticsEnabled(view.context)) return
+    fun performVirtualKeyHaptic(view: View) {
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
         runCatching {
             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
 
-    fun performSegment(view: View) {
-        if (!isAppHapticsEnabled.value) return
-        if (!isSystemHapticsEnabled(view.context)) return
+    fun performConfirmHaptic(view: View) {
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
         runCatching {
-            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            } else {
+                view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+            }
         }
     }
+
+    fun performRejectHaptic(view: View) {
+        if (!isAppHapticsEnabled.value || !isSystemHapticsEnabled(view.context)) return
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                view.performHapticFeedback(HapticFeedbackConstants.REJECT)
+            } else {
+                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+            }
+        }
+    }
+
+    fun performClick(view: View) = performUIHaptic(view)
+    fun performToggle(view: View) = performVirtualKeyHaptic(view)
+    fun performSegment(view: View) = performLightHaptic(view)
 }
