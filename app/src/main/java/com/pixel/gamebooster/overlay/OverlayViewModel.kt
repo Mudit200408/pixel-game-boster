@@ -4,11 +4,18 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.IBinder
 import android.provider.Settings
+import android.util.Log
+import android.view.Display
 import android.view.WindowManager
+import org.lsposed.hiddenapibypass.HiddenApiBypass
+import rikka.shizuku.ShizukuBinderWrapper
+import rikka.shizuku.SystemServiceHelper
 import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.interruption.DNDManager
@@ -97,6 +104,7 @@ class OverlayViewModel(
                 )
             }
             updateMonitoringState()
+            refreshLiveBrightnessAsync()
         }
 
         repository.overlayStyle
@@ -283,14 +291,64 @@ class OverlayViewModel(
             _uiState.update {
                 it.copy(
                     displayState = state,
-                    brightnessPercent = resolveBrightness(context),
+                    brightnessPercent = if (ShellUtils.hasShizukuPermission()) {
+                        it.brightnessPercent
+                    } else {
+                        resolveBrightness(context)
+                    },
                     mediaVolumePercent = resolveVolume(context),
                 )
             }
+            refreshLiveBrightnessAsync()
         } else {
             _uiState.update { it.copy(displayState = state) }
         }
         updateMonitoringState()
+    }
+
+    private fun refreshLiveBrightnessAsync() {
+        scope.launch(Dispatchers.IO) {
+            val hasShizuku = ShellUtils.isShizukuAvailable() && ShellUtils.hasShizukuPermission()
+            if (hasShizuku) {
+                val info = getBrightnessInfoViaShizuku()
+                if (info != null) {
+                    val minB = runCatching { info.javaClass.getField("brightnessMinimum").getFloat(info) }.getOrDefault(0f)
+                    val maxB = runCatching { info.javaClass.getField("brightnessMaximum").getFloat(info) }.getOrDefault(1f)
+                    val liveB = runCatching { info.javaClass.getField("brightness").getFloat(info) }.getOrNull()
+                    if (liveB != null && !liveB.isNaN() && liveB >= 0f) {
+                        if (maxB > minB && !minB.isNaN() && !maxB.isNaN()) {
+                            cachedBrightnessRange = minB to maxB
+                        }
+                        val normalized = if (maxB > minB && !minB.isNaN() && !maxB.isNaN()) {
+                            ((liveB - minB) / (maxB - minB)).coerceIn(0f, 1f)
+                        } else {
+                            liveB.coerceIn(0f, 1f)
+                        }
+                        val gamma = linearToGammaBrightness(normalized)
+                        Log.d(TAG, "Live brightness via Shizuku BrightnessInfo: live=$liveB range=[$minB,$maxB] -> gamma=$gamma")
+                        _uiState.update { it.copy(brightnessPercent = gamma) }
+                        return@launch
+                    }
+                }
+
+                val binderLinear = getBrightnessViaShizuku()
+                if (binderLinear != null && !binderLinear.isNaN() && binderLinear >= 0f) {
+                    val (minB, maxB) = cachedBrightnessRange ?: resolveBrightnessRange(context)
+                    val normalized = if (maxB > minB) {
+                        ((binderLinear - minB) / (maxB - minB)).coerceIn(0f, 1f)
+                    } else {
+                        binderLinear.coerceIn(0f, 1f)
+                    }
+                    val gamma = linearToGammaBrightness(normalized)
+                    Log.d(TAG, "Live brightness via Shizuku getBrightness: live=$binderLinear -> gamma=$gamma")
+                    _uiState.update { it.copy(brightnessPercent = gamma) }
+                    return@launch
+                }
+            }
+
+            val resolved = resolveBrightness(context)
+            _uiState.update { it.copy(brightnessPercent = resolved) }
+        }
     }
 
     fun setDockedOnRight(isRight: Boolean) {
@@ -342,8 +400,10 @@ class OverlayViewModel(
     fun setBrightness(value: Float) {
         val clamped = value.coerceIn(0f, 1f)
         _uiState.update { it.copy(brightnessPercent = clamped, autoBrightnessLocked = true) }
-        val linearFloat = gammaToLinearBrightness(clamped)
-        val brightnessInt = (linearFloat * 255f).roundToInt().coerceIn(1, 255)
+        val (minB, maxB) = resolveBrightnessRange(context)
+        val unitLinear = gammaToLinearBrightness(clamped)
+        val linearFloat = (minB + unitLinear * (maxB - minB)).coerceIn(0.004f, maxB)
+        val brightnessInt = (unitLinear * 255f).roundToInt().coerceIn(1, 255)
         val formattedFloat = String.format(java.util.Locale.US, "%.4f", linearFloat)
         val hasShizuku = ShellUtils.isShizukuAvailable() && ShellUtils.hasShizukuPermission()
         val canWrite = Settings.System.canWrite(context)
@@ -470,6 +530,44 @@ class OverlayViewModel(
     }
 
     companion object {
+        private const val TAG = "PixelGameBooster:OverlayVM"
+
+        @Volatile
+        private var cachedBrightnessRange: Pair<Float, Float>? = null
+
+        private fun getBrightnessInfoViaShizuku(): Any? {
+            return runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    HiddenApiBypass.addHiddenApiExemptions("")
+                }
+                val rawDm = SystemServiceHelper.getSystemService("display") ?: return@runCatching null
+                val dmBinder = ShizukuBinderWrapper(rawDm)
+                val dmStub = Class.forName("android.hardware.display.IDisplayManager\$Stub")
+                val idm = dmStub.getMethod("asInterface", IBinder::class.java).invoke(null, dmBinder)
+                    ?: return@runCatching null
+                idm.javaClass.getMethod("getBrightnessInfo", Int::class.javaPrimitiveType)
+                    .invoke(idm, Display.DEFAULT_DISPLAY)
+            }.onFailure { e ->
+                Log.w(TAG, "getBrightnessInfoViaShizuku failed", e)
+            }.getOrNull()
+        }
+
+        private fun getBrightnessViaShizuku(): Float? {
+            return runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    HiddenApiBypass.addHiddenApiExemptions("")
+                }
+                val rawDm = SystemServiceHelper.getSystemService("display") ?: return@runCatching null
+                val dmBinder = ShizukuBinderWrapper(rawDm)
+                val dmStub = Class.forName("android.hardware.display.IDisplayManager\$Stub")
+                val idm = dmStub.getMethod("asInterface", IBinder::class.java).invoke(null, dmBinder)
+                    ?: return@runCatching null
+                idm.javaClass.getMethod("getBrightness", Int::class.javaPrimitiveType)
+                    .invoke(idm, Display.DEFAULT_DISPLAY) as? Float
+            }.onFailure { e ->
+                Log.w(TAG, "getBrightnessViaShizuku failed", e)
+            }.getOrNull()
+        }
         private fun resolveGameName(context: Context, packageName: String): String {
             return runCatching {
                 val pm = context.packageManager
@@ -522,18 +620,56 @@ class OverlayViewModel(
             return ret.coerceIn(0f, 1f)
         }
 
+        private fun getBrightnessInfo(context: Context): Any? {
+            return runCatching {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    HiddenApiBypass.addHiddenApiExemptions("")
+                }
+                val dm = context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager ?: return@runCatching null
+                val display = dm.getDisplay(Display.DEFAULT_DISPLAY) ?: return@runCatching null
+                Display::class.java.getMethod("getBrightnessInfo").invoke(display)
+            }.getOrNull()
+        }
+
+        private fun resolveBrightnessRange(context: Context): Pair<Float, Float> {
+            cachedBrightnessRange?.let { return it }
+            val info = getBrightnessInfo(context)
+            val min = info?.let { runCatching { it.javaClass.getField("brightnessMinimum").getFloat(it) }.getOrNull() } ?: 0f
+            val max = info?.let { runCatching { it.javaClass.getField("brightnessMaximum").getFloat(it) }.getOrNull() } ?: 1f
+            return if (max > min && !min.isNaN() && !max.isNaN()) min to max else 0f to 1f
+        }
+
         private fun resolveBrightness(context: Context): Float {
             return runCatching {
-                val floatVal = runCatching {
-                    Settings.System.getFloat(context.contentResolver, "screen_brightness_float", -1f)
-                }.getOrDefault(-1f)
-                val linear = if (floatVal in 0f..1f) {
-                    floatVal
-                } else {
-                    val cur = Settings.System.getInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS)
-                    (cur / 255f).coerceIn(0f, 1f)
+                val info = getBrightnessInfo(context)
+                val min = info?.let { runCatching { it.javaClass.getField("brightnessMinimum").getFloat(it) }.getOrNull() } ?: 0f
+                val max = info?.let { runCatching { it.javaClass.getField("brightnessMaximum").getFloat(it) }.getOrNull() } ?: 1f
+                val liveBrightness = info?.let { runCatching { it.javaClass.getField("brightness").getFloat(it) }.getOrNull() }
+
+                val rawLinear = when {
+                    liveBrightness != null && !liveBrightness.isNaN() && liveBrightness >= 0f -> liveBrightness
+                    else -> {
+                        val floatVal = runCatching {
+                            Settings.System.getFloat(context.contentResolver, "screen_brightness_float", -1f)
+                        }.getOrDefault(-1f)
+                        if (floatVal in 0f..1f) {
+                            floatVal
+                        } else {
+                            val cur = Settings.System.getInt(
+                                context.contentResolver,
+                                Settings.System.SCREEN_BRIGHTNESS,
+                                128,
+                            )
+                            (cur / 255f).coerceIn(0f, 1f)
+                        }
+                    }
                 }
-                linearToGammaBrightness(linear)
+                val normalized = if (max > min && !min.isNaN() && !max.isNaN()) {
+                    ((rawLinear - min) / (max - min)).coerceIn(0f, 1f)
+                } else {
+                    rawLinear.coerceIn(0f, 1f)
+                }
+                linearToGammaBrightness(normalized)
             }.getOrDefault(0.8f)
         }
 

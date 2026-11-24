@@ -493,7 +493,10 @@ fun ExpressiveSystemSlider(
             valueRange = 0f..1f,
         )
     }
-    LaunchedEffect(value) { sliderState.value = value }
+    LaunchedEffect(value) {
+        sliderState.value = value
+        lastHapticStep = (value * 20).roundToInt()
+    }
     sliderState.onValueChange = { newValue ->
         val newStep = (newValue * 20).roundToInt()
         if (newStep != lastHapticStep) {
