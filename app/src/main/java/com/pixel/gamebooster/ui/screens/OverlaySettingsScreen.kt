@@ -43,6 +43,7 @@ import androidx.compose.material.icons.rounded.ColorLens
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.DashboardCustomize
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.material.icons.rounded.Videocam
@@ -108,6 +109,7 @@ fun OverlaySettingsScreen(
     repo: SettingsRepository,
     modifier: Modifier = Modifier,
     onNavigateToScreenRecording: () -> Unit = {},
+    onNavigateToOverlayLayout: () -> Unit = {},
 ) {
     val view = LocalView.current
     val isOverlayEnabled by repo.isOverlayEnabled.collectAsState()
@@ -792,7 +794,45 @@ fun OverlaySettingsScreen(
                 }
             }
 
-            // Section 3: Screen Recording (hidden when overlay is disabled)
+            // Section 3: Overlay Layout Customization (hidden when overlay is disabled)
+            AnimatedVisibility(
+                visible = isOverlayEnabled,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.overlay_layout_screen_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+
+                    RoundedCardContainer {
+                        IconToggleItem(
+                            title = stringResource(R.string.overlay_layout_entry_title),
+                            subtitle = stringResource(R.string.overlay_layout_entry_desc),
+                            icon = Icons.Rounded.DashboardCustomize,
+                            showToggle = false,
+                            onClick = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                onNavigateToOverlayLayout()
+                            },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            index = 0,
+                            count = 1,
+                        )
+                    }
+                }
+            }
+
+            // Section 4: Screen Recording (hidden when overlay is disabled)
             AnimatedVisibility(
                 visible = isOverlayEnabled,
                 enter = fadeIn(),

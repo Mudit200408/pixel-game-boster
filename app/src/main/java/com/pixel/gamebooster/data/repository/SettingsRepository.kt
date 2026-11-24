@@ -7,6 +7,7 @@ import com.pixel.gamebooster.data.db.dao.GameProfileDao
 import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.model.toDomain
 import com.pixel.gamebooster.data.model.toEntity
+import com.pixel.gamebooster.overlay.model.OverlayLayoutConfig
 import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -60,6 +61,7 @@ class SettingsRepository(
         const val KEY_OVERLAY_SHOW_LIVE_FPS = "overlay_show_live_fps"
         const val KEY_OVERLAY_COLOR_MODE = "overlay_color_mode" // 0 = Monet/Wallpaper, 1 = Custom
         const val KEY_OVERLAY_CUSTOM_COLOR = "overlay_custom_color"
+        const val KEY_OVERLAY_LAYOUT = "overlay_layout_json"
         const val KEY_RECORD_AUDIO_SOURCE = "record_audio_source" // 0=Mute, 1=Mic, 2=Device, 3=Both
         const val KEY_RECORD_RESOLUTION = "record_resolution" // 0=1080p 60fps, 1=1080p 30fps, 2=720p 60fps
         const val KEY_RECORD_SHOW_TOUCHES = "record_show_touches"
@@ -112,6 +114,7 @@ class SettingsRepository(
     val showLiveFps = MutableStateFlow(prefs.getBoolean(KEY_OVERLAY_SHOW_LIVE_FPS, false))
     val overlayColorMode = MutableStateFlow(prefs.getInt(KEY_OVERLAY_COLOR_MODE, 0))
     val overlayCustomColor = MutableStateFlow(prefs.getInt(KEY_OVERLAY_CUSTOM_COLOR, 0xFF4285F4.toInt()))
+    val overlayLayout = MutableStateFlow(OverlayLayoutConfig.fromJson(prefs.getString(KEY_OVERLAY_LAYOUT, null)))
     val recordAudioSource = MutableStateFlow(prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2))
     val recordResolution = MutableStateFlow(prefs.getInt(KEY_RECORD_RESOLUTION, 0))
     val recordShowTouches = MutableStateFlow(prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false))
@@ -156,6 +159,7 @@ class SettingsRepository(
             KEY_OVERLAY_SHOW_LIVE_FPS -> showLiveFps.value = prefs.getBoolean(KEY_OVERLAY_SHOW_LIVE_FPS, false)
             KEY_OVERLAY_COLOR_MODE -> overlayColorMode.value = prefs.getInt(KEY_OVERLAY_COLOR_MODE, 0)
             KEY_OVERLAY_CUSTOM_COLOR -> overlayCustomColor.value = prefs.getInt(KEY_OVERLAY_CUSTOM_COLOR, 0xFF4285F4.toInt())
+            KEY_OVERLAY_LAYOUT -> overlayLayout.value = OverlayLayoutConfig.fromJson(prefs.getString(KEY_OVERLAY_LAYOUT, null))
             KEY_RECORD_AUDIO_SOURCE -> recordAudioSource.value = prefs.getInt(KEY_RECORD_AUDIO_SOURCE, 2)
             KEY_RECORD_RESOLUTION -> recordResolution.value = prefs.getInt(KEY_RECORD_RESOLUTION, 0)
             KEY_RECORD_SHOW_TOUCHES -> recordShowTouches.value = prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false)
@@ -376,6 +380,16 @@ class SettingsRepository(
     fun setOverlayCustomColor(colorArgb: Int) {
         prefs.edit().putInt(KEY_OVERLAY_CUSTOM_COLOR, colorArgb).apply()
         overlayCustomColor.value = colorArgb
+    }
+
+    fun setOverlayLayout(config: OverlayLayoutConfig) {
+        val sanitized = config.sanitized()
+        prefs.edit().putString(KEY_OVERLAY_LAYOUT, sanitized.toJson()).apply()
+        overlayLayout.value = sanitized
+    }
+
+    fun resetOverlayLayout() {
+        setOverlayLayout(OverlayLayoutConfig.Default)
     }
 
     fun setRecordAudioSource(source: Int) {

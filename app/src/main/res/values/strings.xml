@@ -429,8 +429,8 @@
     <string name="overlay_section_general">General</string>
     <string name="overlay_opacity_button_title">Floating Button Opacity</string>
     <string name="overlay_opacity_bar_title">Edge Bar Opacity</string>
-    <string name="overlay_opacity_button_desc">Keep the floating button subtle during gameplay (20%–100%)</string>
-    <string name="overlay_opacity_bar_desc">Keep the edge bar subtle during gameplay (20%–100%)</string>
+    <string name="overlay_opacity_button_desc" formatted="false">Keep the floating button subtle during gameplay (20%–100%)</string>
+    <string name="overlay_opacity_bar_desc" formatted="false">Keep the edge bar subtle during gameplay (20%–100%)</string>
     <string name="overlay_color_selected">Selected Color</string>
     <string name="overlay_color_change">Change Color</string>
     <string name="overlay_color_picker_title">Color Picker</string>
@@ -457,4 +457,54 @@
     <string name="detection_channel_desc">Monitors foreground games to automate optimizations</string>
     <string name="detection_notif_title">Pixel Game Booster Active</string>
     <string name="detection_notif_text">Monitoring games for automated performance tuning</string>
+
+    <!-- Overlay Layout Customization (overlay_layout_) -->
+    <string name="overlay_layout_entry_title">Customize Overlay Layout</string>
+    <string name="overlay_layout_entry_desc">Rearrange blocks, sliders, telemetry pill &amp; action buttons</string>
+    <string name="overlay_layout_screen_title">Overlay Layout</string>
+    <string name="overlay_layout_preview_title">Live Preview</string>
+    <string name="overlay_layout_preview_empty">All overlay blocks are hidden</string>
+    <string name="overlay_layout_edit">Edit</string>
+    <string name="overlay_layout_done">Done</string>
+    <string name="overlay_layout_remove">Remove</string>
+    <string name="overlay_layout_edit_hint">Tap to select • Drag to reorder</string>
+    <string name="overlay_layout_tab_panel">Panel</string>
+    <string name="overlay_layout_tab_action_buttons">Action Buttons</string>
+    <string name="overlay_layout_section_blocks">Panel Blocks</string>
+    <string name="overlay_layout_section_blocks_desc">Toggle sections on or off; tap Edit above to drag and reorder</string>
+    <string name="overlay_layout_block_telemetry">Telemetry Pill</string>
+    <string name="overlay_layout_block_telemetry_desc">Live FPS, temperature, wattage &amp; battery %</string>
+    <string name="overlay_layout_block_mode">Performance Mode</string>
+    <string name="overlay_layout_block_mode_desc">Battery, Balanced &amp; Performance switcher</string>
+    <string name="overlay_layout_block_tiles">Action Buttons</string>
+    <string name="overlay_layout_block_tiles_desc">%1$d buttons configured</string>
+    <string name="overlay_layout_block_brightness">Brightness Slider</string>
+    <string name="overlay_layout_block_brightness_desc">Hardware-calibrated display brightness control</string>
+    <string name="overlay_layout_block_volume">Volume Slider</string>
+    <string name="overlay_layout_block_volume_desc">In-game media volume control</string>
+    <string name="overlay_layout_metric_fps">FPS</string>
+    <string name="overlay_layout_metric_temp">Temp (°C)</string>
+    <string name="overlay_layout_metric_watt">Power (W)</string>
+    <string name="overlay_layout_metric_battery">Battery (%)</string>
+    <string name="overlay_layout_section_tiles">Action Buttons</string>
+    <string name="overlay_layout_section_tiles_desc">Toggle which action buttons appear in the overlay</string>
+    <string name="overlay_layout_reset">Reset to Default</string>
+    <string name="overlay_layout_cat_overlay">Overlay &amp; Core</string>
+    <string name="overlay_layout_cat_display">Display &amp; Input</string>
+    <string name="overlay_layout_cat_performance">Performance &amp; Memory</string>
+    <string name="overlay_layout_cat_network">Network &amp; Power</string>
+    <string name="overlay_layout_cat_suspension">App Suspension</string>
+
+    <!-- Extra Overlay Tile Labels -->
+    <string name="overlay_tile_boost_ram">Purge RAM</string>
+    <string name="overlay_tile_boost_ram_toast">Background RAM purged</string>
+    <string name="overlay_tile_cached_freezer">App Freezer</string>
+    <string name="overlay_tile_wifi_low_latency">Wi-Fi Boost</string>
+    <string name="overlay_tile_wifi_suppress_scans">Stop Scans</string>
+    <string name="overlay_tile_wifi_lock_sufficiency">Lock Wi-Fi</string>
+    <string name="overlay_tile_wifi_prevent_arp">ARP Guard</string>
+    <string name="overlay_tile_private_dns">DNS Bypass</string>
+    <string name="overlay_tile_pause_sync">Pause Sync</string>
+    <string name="overlay_tile_block_battery_saver">No Batt Saver</string>
+    <string name="overlay_tile_suspend_apps">Freeze Apps</string>
 </resources>

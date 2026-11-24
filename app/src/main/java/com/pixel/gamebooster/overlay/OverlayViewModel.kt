@@ -20,7 +20,9 @@ import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.overlay.model.OverlayDisplayState
+import com.pixel.gamebooster.overlay.model.OverlayTileType
 import com.pixel.gamebooster.overlay.model.OverlayUiState
+import com.pixel.gamebooster.overlay.model.TelemetryMetric
 import com.pixel.gamebooster.utils.GameModeManager
 import com.pixel.gamebooster.utils.RefreshRateUtils
 import com.pixel.gamebooster.utils.ShellUtils
@@ -95,11 +97,21 @@ class OverlayViewModel(
                     quickTapLocked = initialProfile.disableQuickTap,
                     autoBrightnessLocked = initialProfile.disableAutoBrightness,
                     backGestureLocked = initialProfile.lockBackGesture || GameModeManager.isBackGestureSystemLocked(context),
+                    cachedFreezerEnabled = initialProfile.cachedFreezer,
+                    wifiLowLatencyEnabled = initialProfile.stabilizeWifi && initialProfile.wifiLowLatency,
+                    wifiSuppressScansEnabled = initialProfile.stabilizeWifi && initialProfile.wifiSuppressScans,
+                    wifiLockSufficiencyEnabled = initialProfile.stabilizeWifi && initialProfile.wifiLockSufficiency,
+                    wifiPreventArpEnabled = initialProfile.stabilizeWifi && initialProfile.wifiPreventArp,
+                    privateDnsBypassed = initialProfile.disablePrivateDns,
+                    autoSyncPaused = initialProfile.pauseAutoSync,
+                    batterySaverBlocked = initialProfile.blockBatterySaver,
+                    appsSuspended = initialProfile.suspendedApps.isNotEmpty() || repository.suspendedServices.value.isNotEmpty(),
                     overlayStyle = repository.overlayStyle.value,
                     overlayOpacity = repository.overlayOpacity.value,
                     showLiveFps = repository.showLiveFps.value,
                     overlayColorMode = repository.overlayColorMode.value,
                     overlayCustomColor = repository.overlayCustomColor.value,
+                    layoutConfig = repository.overlayLayout.value,
                     recordDoubleTapStop = repository.recordDoubleTapStop.value,
                 )
             }
@@ -138,6 +150,13 @@ class OverlayViewModel(
             }
             .launchIn(scope)
 
+        repository.overlayLayout
+            .onEach { layout ->
+                _uiState.update { it.copy(layoutConfig = layout) }
+                updateMonitoringState()
+            }
+            .launchIn(scope)
+
         repository.recordDoubleTapStop
             .onEach { enabled ->
                 _uiState.update { it.copy(recordDoubleTapStop = enabled) }
@@ -169,8 +188,9 @@ class OverlayViewModel(
 
     private fun updateMonitoringState() {
         val state = _uiState.value
-        val needFps = state.displayState == OverlayDisplayState.EXPANDED_PANEL || state.showLiveFps
-        val needTelemetry = state.displayState == OverlayDisplayState.EXPANDED_PANEL
+        val isExpanded = state.displayState == OverlayDisplayState.EXPANDED_PANEL
+        val needFps = (isExpanded && state.layoutConfig.isMetricVisible(TelemetryMetric.FPS)) || state.showLiveFps
+        val needTelemetry = isExpanded && state.layoutConfig.isAnyBatteryTelemetryVisible
 
         if (needFps) {
             if (fpsMonitorJob?.isActive != true) {
@@ -512,6 +532,129 @@ class OverlayViewModel(
             com.pixel.gamebooster.recording.ScreenRecordService.stopRecording(context)
         } else {
             ScreenRecordTrampolineActivity.launch(context)
+        }
+    }
+
+    fun onTileClick(tile: OverlayTileType) {
+        when (tile) {
+            OverlayTileType.LOCK_120HZ -> toggle120Hz()
+            OverlayTileType.GAME_DND -> toggleDnd()
+            OverlayTileType.SCREEN_RECORD -> toggleRecording()
+            OverlayTileType.LIVE_FPS -> toggleLiveFps()
+            OverlayTileType.AUTO_BRIGHTNESS_LOCK -> toggleAutoBrightness()
+            OverlayTileType.BACK_GESTURE_LOCK -> toggleBackGestureLock()
+            OverlayTileType.QUICK_TAP_LOCK -> toggleQuickTap()
+            OverlayTileType.BOOST_RAM -> purgeRamNow()
+            OverlayTileType.CACHED_FREEZER -> toggleCachedFreezer()
+            OverlayTileType.WIFI_LOW_LATENCY -> toggleWifiLowLatency()
+            OverlayTileType.WIFI_SUPPRESS_SCANS -> toggleWifiSuppressScans()
+            OverlayTileType.WIFI_LOCK_SUFFICIENCY -> toggleWifiLockSufficiency()
+            OverlayTileType.WIFI_PREVENT_ARP -> toggleWifiPreventArp()
+            OverlayTileType.PRIVATE_DNS_BYPASS -> togglePrivateDnsBypass()
+            OverlayTileType.PAUSE_AUTO_SYNC -> togglePauseAutoSync()
+            OverlayTileType.BLOCK_BATTERY_SAVER -> toggleBlockBatterySaver()
+            OverlayTileType.SUSPEND_APPS -> toggleAppSuspension()
+        }
+    }
+
+    private var ramBoostResetJob: Job? = null
+
+    fun purgeRamNow() {
+        _uiState.update { it.copy(ramBoostActive = true) }
+        ramBoostResetJob?.cancel()
+        ramBoostResetJob = scope.launch {
+            delay(900L)
+            _uiState.update { it.copy(ramBoostActive = false) }
+        }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.purgeRamNow(context)
+        }
+    }
+
+    fun toggleCachedFreezer() {
+        val target = !_uiState.value.cachedFreezerEnabled
+        _uiState.update { it.copy(cachedFreezerEnabled = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setCachedFreezerLive(context, target)
+            updatePersistedProfile { it.copy(cachedFreezer = target) }
+        }
+    }
+
+    fun toggleWifiLowLatency() {
+        val target = !_uiState.value.wifiLowLatencyEnabled
+        _uiState.update { it.copy(wifiLowLatencyEnabled = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setWifiLowLatencyLive(context, target)
+            updatePersistedProfile { it.copy(stabilizeWifi = true, wifiLowLatency = target) }
+        }
+    }
+
+    fun toggleWifiSuppressScans() {
+        val target = !_uiState.value.wifiSuppressScansEnabled
+        _uiState.update { it.copy(wifiSuppressScansEnabled = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setWifiSuppressScansLive(context, target)
+            updatePersistedProfile { it.copy(stabilizeWifi = true, wifiSuppressScans = target) }
+        }
+    }
+
+    fun toggleWifiLockSufficiency() {
+        val target = !_uiState.value.wifiLockSufficiencyEnabled
+        _uiState.update { it.copy(wifiLockSufficiencyEnabled = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setWifiLockSufficiencyLive(context, target)
+            updatePersistedProfile { it.copy(stabilizeWifi = true, wifiLockSufficiency = target) }
+        }
+    }
+
+    fun toggleWifiPreventArp() {
+        val target = !_uiState.value.wifiPreventArpEnabled
+        _uiState.update { it.copy(wifiPreventArpEnabled = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setWifiPreventArpLive(context, target)
+            updatePersistedProfile { it.copy(stabilizeWifi = true, wifiPreventArp = target) }
+        }
+    }
+
+    fun togglePrivateDnsBypass() {
+        val target = !_uiState.value.privateDnsBypassed
+        _uiState.update { it.copy(privateDnsBypassed = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setPrivateDnsBypassLive(context, target)
+            updatePersistedProfile { it.copy(disablePrivateDns = target) }
+        }
+    }
+
+    fun togglePauseAutoSync() {
+        val target = !_uiState.value.autoSyncPaused
+        _uiState.update { it.copy(autoSyncPaused = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setPauseAutoSyncLive(context, target)
+            updatePersistedProfile { it.copy(pauseAutoSync = target) }
+        }
+    }
+
+    fun toggleBlockBatterySaver() {
+        val target = !_uiState.value.batterySaverBlocked
+        _uiState.update { it.copy(batterySaverBlocked = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setBlockBatterySaverLive(context, target)
+            updatePersistedProfile { it.copy(blockBatterySaver = target) }
+        }
+    }
+
+    fun toggleAppSuspension() {
+        val target = !_uiState.value.appsSuspended
+        _uiState.update { it.copy(appsSuspended = target) }
+        scope.launch(Dispatchers.IO) {
+            val profile = runCatching { repository.getEffectiveProfile(packageName) }.getOrDefault(repository.createDefaultEffectiveProfile(packageName))
+            GameModeManager.setAppSuspensionLive(
+                context = context,
+                gamePackage = packageName,
+                apps = profile.suspendedApps,
+                services = repository.suspendedServices.value,
+                suspended = target,
+            )
         }
     }
 

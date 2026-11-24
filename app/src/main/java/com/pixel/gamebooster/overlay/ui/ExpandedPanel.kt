@@ -184,218 +184,83 @@ fun ExpandedPanel(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // 1. Unified Real-time Telemetry Pill Header: [60 FPS • 38°C • 4.2W • 85%]
-                val metricTextStyle = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = GoogleSansFlexRounded,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 17.sp,
-                )
+                val layout = state.layoutConfig
+                layout.blocks.filter { it.enabled }.forEach { block ->
+                    when (block.type) {
+                        com.pixel.gamebooster.overlay.model.OverlayBlockType.TELEMETRY_PILL -> {
+                            ExpandedPanelTelemetryPill(
+                                metrics = layout.telemetryMetrics,
+                                currentFps = state.currentFps,
+                                temperatureC = state.temperatureC,
+                                wattageW = state.wattageW,
+                                batteryPercent = state.batteryPercent,
+                            )
+                        }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(74.dp)
-                        .clip(RoundedCornerShape(37.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                    ) {
-                        // FPS
-                        Text(
-                            text = stringResource(R.string.overlay_fps_badge, state.currentFps),
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
+                        com.pixel.gamebooster.overlay.model.OverlayBlockType.MODE_SWITCHER -> {
+                            ExpandedPanelModeSwitcher(
+                                selectedMode = state.interventionMode,
+                                onModeSelected = { mode ->
+                                    HapticUtil.performToggle(view)
+                                    viewModel.setInterventionMode(mode)
+                                },
+                            )
+                        }
 
-                        Text(
-                            text = "•",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                        )
+                        com.pixel.gamebooster.overlay.model.OverlayBlockType.ACTION_TILES -> {
+                            val tiles = layout.tiles
+                            if (tiles.isNotEmpty()) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    tiles.chunked(3).forEach { rowTiles ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            rowTiles.forEach { tile ->
+                                                M3EActionTile(
+                                                    icon = tile.iconVector(),
+                                                    label = stringResource(tile.labelRes()),
+                                                    isActive = tile.isActiveIn(state),
+                                                    onClick = { viewModel.onTileClick(tile) },
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                            }
+                                            repeat(3 - rowTiles.size) {
+                                                androidx.compose.foundation.layout.Spacer(
+                                                    modifier = Modifier.weight(1f),
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
 
-                        // Temperature (no icon, emphasized)
-                        Text(
-                            text = "${state.temperatureC}°C",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
+                        com.pixel.gamebooster.overlay.model.OverlayBlockType.BRIGHTNESS_SLIDER -> {
+                            ExpressiveSystemSlider(
+                                value = state.brightnessPercent,
+                                onValueChange = { viewModel.setBrightness(it) },
+                                icon = Icons.Rounded.LightMode,
+                                contentDescription = stringResource(R.string.overlay_brightness_title),
+                            )
+                        }
 
-                        Text(
-                            text = "•",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                        )
-
-                        // Wattage (no icon, emphasized)
-                        Text(
-                            text = "${state.wattageW}W",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-
-                        Text(
-                            text = "•",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
-                        )
-
-                        // Battery Percentage
-                        Text(
-                            text = "${state.batteryPercent}%",
-                            style = metricTextStyle,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            softWrap = false,
-                        )
-                    }
-                }
-
-                // 2. Connected Toggle Buttons: [ Battery | Balanced | Performance Mode ]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    val modes = listOf(
-                        3 to stringResource(R.string.overlay_mode_battery),
-                        1 to stringResource(R.string.overlay_mode_balanced),
-                        2 to stringResource(R.string.overlay_mode_boost),
-                    )
-                    modes.forEachIndexed { index, (mode, label) ->
-                        val isSelected = state.interventionMode == mode
-                        ToggleButton(
-                            checked = isSelected,
-                            onCheckedChange = {
-                                HapticUtil.performToggle(view)
-                                viewModel.setInterventionMode(mode)
-                            },
-                            shapes = when (index) {
-                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                            },
-                            colors = ToggleButtonDefaults.toggleButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                checkedContainerColor = MaterialTheme.colorScheme.primary,
-                                checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                            ),
-                            modifier = Modifier
-                                .weight(1f)
-                                .semantics { role = Role.RadioButton },
-                            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
-                        ) {
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontFamily = GoogleSansFlexRounded,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    fontSize = if (label.length > 12) 11.sp else if (label.length > 10) 12.sp else 13.sp,
-                                ),
-                                maxLines = 1,
-                                textAlign = TextAlign.Center,
-                                overflow = TextOverflow.Ellipsis,
+                        com.pixel.gamebooster.overlay.model.OverlayBlockType.VOLUME_SLIDER -> {
+                            ExpressiveSystemSlider(
+                                value = state.mediaVolumePercent,
+                                onValueChange = { viewModel.setMediaVolume(it) },
+                                icon = if (state.mediaVolumePercent <= 0.02f) {
+                                    Icons.AutoMirrored.Rounded.VolumeOff
+                                } else {
+                                    Icons.AutoMirrored.Rounded.VolumeUp
+                                },
+                                contentDescription = stringResource(R.string.overlay_volume_title),
                             )
                         }
                     }
-                }
-
-                // 3. Action Tiles Grid (3x2)
-                // Row 1: [ Lock 120Hz ]  [ Game DND ]  [ Record ]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    M3EActionTile(
-                        icon = ImageVector.vectorResource(R.drawable.ic_120hz),
-                        label = stringResource(R.string.overlay_lock_120hz),
-                        isActive = state.lockRefreshRate,
-                        onClick = { viewModel.toggle120Hz() },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    M3EActionTile(
-                        icon = Icons.Rounded.DoNotDisturbOn,
-                        label = stringResource(R.string.overlay_dnd_title),
-                        isActive = state.dndEnabled,
-                        onClick = { viewModel.toggleDnd() },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    M3EActionTile(
-                        icon = Icons.Rounded.Videocam,
-                        label = stringResource(R.string.overlay_record),
-                        isActive = state.isRecording,
-                        onClick = { viewModel.toggleRecording() },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                // Row 2: [ Brightness Lock ]  [ Live FPS ]  [ Back Lock ]
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    M3EActionTile(
-                        icon = Icons.Rounded.LightMode,
-                        label = stringResource(R.string.overlay_brightness_lock_title),
-                        isActive = state.autoBrightnessLocked,
-                        onClick = { viewModel.toggleAutoBrightness() },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    M3EActionTile(
-                        icon = Icons.Rounded.Speed,
-                        label = stringResource(R.string.overlay_live_fps_title),
-                        isActive = state.showLiveFps,
-                        onClick = { viewModel.toggleLiveFps() },
-                        modifier = Modifier.weight(1f),
-                    )
-
-                    M3EActionTile(
-                        icon = Icons.Rounded.TouchApp,
-                        label = stringResource(R.string.overlay_back_gesture_lock_title),
-                        isActive = state.backGestureLocked,
-                        onClick = { viewModel.toggleBackGestureLock() },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-
-                // 4. Expressive System Sliders: Brightness & Volume (Official Material 3 Expressive Design)
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    // Brightness Slider
-                    ExpressiveSystemSlider(
-                        value = state.brightnessPercent,
-                        onValueChange = { viewModel.setBrightness(it) },
-                        icon = Icons.Rounded.LightMode,
-                        contentDescription = stringResource(R.string.overlay_brightness_title),
-                    )
-
-                    // Media Volume Slider
-                    ExpressiveSystemSlider(
-                        value = state.mediaVolumePercent,
-                        onValueChange = { viewModel.setMediaVolume(it) },
-                        icon = if (state.mediaVolumePercent <= 0.02f) {
-                            Icons.AutoMirrored.Rounded.VolumeOff
-                        } else {
-                            Icons.AutoMirrored.Rounded.VolumeUp
-                        },
-                        contentDescription = stringResource(R.string.overlay_volume_title),
-                    )
                 }
             }
         }
@@ -403,14 +268,141 @@ fun ExpandedPanel(
 }
 }
 
+@Composable
+fun ExpandedPanelTelemetryPill(
+    metrics: List<com.pixel.gamebooster.overlay.model.TelemetryMetric>,
+    currentFps: Int,
+    temperatureC: Int,
+    wattageW: Float,
+    batteryPercent: Int,
+    modifier: Modifier = Modifier,
+) {
+    if (metrics.isEmpty()) return
+    val metricTextStyle = MaterialTheme.typography.titleLarge.copy(
+        fontFamily = GoogleSansFlexRounded,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+    )
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(74.dp)
+            .clip(RoundedCornerShape(37.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            metrics.forEachIndexed { idx, metric ->
+                if (idx > 0) {
+                    Text(
+                        text = "•",
+                        style = metricTextStyle,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                    )
+                }
+                when (metric) {
+                    com.pixel.gamebooster.overlay.model.TelemetryMetric.FPS -> Text(
+                        text = stringResource(R.string.overlay_fps_badge, currentFps),
+                        style = metricTextStyle,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                    com.pixel.gamebooster.overlay.model.TelemetryMetric.TEMPERATURE -> Text(
+                        text = "${temperatureC}°C",
+                        style = metricTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                    com.pixel.gamebooster.overlay.model.TelemetryMetric.WATTAGE -> Text(
+                        text = "${wattageW}W",
+                        style = metricTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                    com.pixel.gamebooster.overlay.model.TelemetryMetric.BATTERY -> Text(
+                        text = "${batteryPercent}%",
+                        style = metricTextStyle,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun M3EActionTile(
+fun ExpandedPanelModeSwitcher(
+    selectedMode: Int,
+    onModeSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val modes = listOf(
+            3 to stringResource(R.string.overlay_mode_battery),
+            1 to stringResource(R.string.overlay_mode_balanced),
+            2 to stringResource(R.string.overlay_mode_boost),
+        )
+        modes.forEachIndexed { index, (mode, label) ->
+            val isSelected = selectedMode == mode
+            ToggleButton(
+                checked = isSelected,
+                onCheckedChange = { onModeSelected(mode) },
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                colors = ToggleButtonDefaults.toggleButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    checkedContainerColor = MaterialTheme.colorScheme.primary,
+                    checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { role = Role.RadioButton },
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = GoogleSansFlexRounded,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        fontSize = if (label.length > 12) 11.sp else if (label.length > 10) 12.sp else 13.sp,
+                    ),
+                    maxLines = 1,
+                    textAlign = TextAlign.Center,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun M3EActionTile(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    interactive: Boolean = true,
 ) {
     val view = LocalView.current
 
@@ -422,8 +414,10 @@ private fun M3EActionTile(
         FilledIconToggleButton(
             checked = isActive,
             onCheckedChange = {
-                HapticUtil.performToggle(view)
-                onClick()
+                if (interactive) {
+                    HapticUtil.performToggle(view)
+                    onClick()
+                }
             },
             modifier = Modifier.size(52.dp),
             shapes = IconButtonDefaults.toggleableShapes(
@@ -458,13 +452,19 @@ private fun M3EActionTile(
                 .fillMaxWidth()
                 .padding(horizontal = 2.dp)
                 .basicMarquee()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                ) {
-                    HapticUtil.performToggle(view)
-                    onClick()
-                },
+                .then(
+                    if (interactive) {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            HapticUtil.performToggle(view)
+                            onClick()
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
         )
     }
 }
@@ -484,6 +484,7 @@ fun ExpressiveSystemSlider(
     icon: ImageVector,
     contentDescription: String,
     modifier: Modifier = Modifier,
+    interactive: Boolean = true,
 ) {
     val view = LocalView.current
     var lastHapticStep by remember { mutableIntStateOf((value * 20).roundToInt()) }
@@ -498,12 +499,16 @@ fun ExpressiveSystemSlider(
         lastHapticStep = (value * 20).roundToInt()
     }
     sliderState.onValueChange = { newValue ->
-        val newStep = (newValue * 20).roundToInt()
-        if (newStep != lastHapticStep) {
-            lastHapticStep = newStep
-            HapticUtil.performSliderHaptic(view)
+        if (!interactive) {
+            sliderState.value = value
+        } else {
+            val newStep = (newValue * 20).roundToInt()
+            if (newStep != lastHapticStep) {
+                lastHapticStep = newStep
+                HapticUtil.performSliderHaptic(view)
+            }
+            onValueChange(newValue)
         }
-        onValueChange(newValue)
     }
 
     val interactionSource = remember { MutableInteractionSource() }

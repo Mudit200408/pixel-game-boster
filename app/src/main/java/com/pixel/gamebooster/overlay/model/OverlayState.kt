@@ -16,6 +16,7 @@ data class OverlayUiState(
     val showLiveFps: Boolean = false,
     val overlayColorMode: Int = 0, // 0=Monet/Wallpaper, 1=Custom
     val overlayCustomColor: Int = 0xFF4285F4.toInt(),
+    val layoutConfig: OverlayLayoutConfig = OverlayLayoutConfig.Default,
     val isImeVisible: Boolean = false,
     val interventionMode: Int = 2, // 3=Battery, 1=Balanced, 2=Boost
     val fpsOverride: Int = 0, // 0=Auto, 60, 90, 120
@@ -24,6 +25,16 @@ data class OverlayUiState(
     val quickTapLocked: Boolean = true,
     val autoBrightnessLocked: Boolean = true,
     val backGestureLocked: Boolean = false,
+    val cachedFreezerEnabled: Boolean = true,
+    val wifiLowLatencyEnabled: Boolean = true,
+    val wifiSuppressScansEnabled: Boolean = true,
+    val wifiLockSufficiencyEnabled: Boolean = true,
+    val wifiPreventArpEnabled: Boolean = true,
+    val privateDnsBypassed: Boolean = true,
+    val autoSyncPaused: Boolean = true,
+    val batterySaverBlocked: Boolean = true,
+    val appsSuspended: Boolean = false,
+    val ramBoostActive: Boolean = false,
     val brightnessPercent: Float = 0.8f,
     val mediaVolumePercent: Float = 0.5f,
     val batteryPercent: Int = 100,

@@ -1621,4 +1621,256 @@ object GameModeManager {
             snapshottedAutoSync = null
         }
     }
+
+    // --- Live Mid-Game Overlay Tile Helpers ---
+
+    fun purgeRamNow(context: Context) {
+        ShellUtils.runCommand(context, "am kill-all")
+        showToast(context, context.getString(R.string.overlay_tile_boost_ram_toast))
+    }
+
+    fun setCachedFreezerLive(context: Context, enabled: Boolean) {
+        val value = if (enabled) "enabled" else "default"
+        ShellUtils.runCommand(context, "settings put global cached_apps_freezer $value")
+    }
+
+    fun setWifiLowLatencyLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            runCatching {
+                val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                if (wifiHighPerfLock == null) {
+                    @Suppress("DEPRECATION")
+                    val highPerf = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PixelGameBooster:HighPerf")
+                    highPerf?.setReferenceCounted(false)
+                    highPerf?.acquire()
+                    wifiHighPerfLock = highPerf
+                }
+                if (wifiLowLatencyLock == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val lowLatency = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "PixelGameBooster:LowLatency")
+                    lowLatency?.setReferenceCounted(false)
+                    lowLatency?.acquire()
+                    wifiLowLatencyLock = lowLatency
+                }
+                if (snapshottedWifiPowerSave == null) {
+                    snapshottedWifiPowerSave = Settings.Global.getString(
+                        context.contentResolver,
+                        "wifi_power_save",
+                    ) ?: "UNSET"
+                }
+                ShellUtils.runCommand(context, "settings put global wifi_power_save 0")
+            }
+        } else {
+            wifiHighPerfLock?.let { runCatching { if (it.isHeld) it.release() } }
+            wifiHighPerfLock = null
+            wifiLowLatencyLock?.let { runCatching { if (it.isHeld) it.release() } }
+            wifiLowLatencyLock = null
+            val prev = snapshottedWifiPowerSave
+            val cmd = if (prev == null || prev == "UNSET") {
+                "settings delete global wifi_power_save"
+            } else {
+                "settings put global wifi_power_save $prev"
+            }
+            ShellUtils.runCommand(context, cmd)
+            snapshottedWifiPowerSave = null
+        }
+    }
+
+    fun setWifiSuppressScansLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            runCatching {
+                if (snapshottedWifiScanAlwaysEnabled == null) {
+                    snapshottedWifiScanAlwaysEnabled = Settings.Global.getInt(context.contentResolver, "wifi_scan_always_enabled", 0)
+                }
+                if (snapshottedBleScanAlwaysEnabled == null) {
+                    snapshottedBleScanAlwaysEnabled = Settings.Global.getInt(context.contentResolver, "ble_scan_always_enabled", 0)
+                }
+                if (snapshottedWifiWakeup == null) {
+                    snapshottedWifiWakeup = runCatching { Settings.Global.getInt(context.contentResolver, "wifi_wakeup_enabled", 1) }.getOrDefault(1)
+                }
+                if (snapshottedWifiNotification == null) {
+                    snapshottedWifiNotification = runCatching { Settings.Global.getInt(context.contentResolver, "wifi_networks_available_notification_on", 1) }.getOrDefault(1)
+                }
+                val cmd = listOf(
+                    "settings put global wifi_scan_always_enabled 0",
+                    "settings put global ble_scan_always_enabled 0",
+                    "settings put global wifi_scan_throttle_enabled 1",
+                    "settings put global wifi_wakeup_enabled 0",
+                    "settings put global wifi_networks_available_notification_on 0",
+                    "cmd wifi set-scan-always-available disabled",
+                ).joinToString(" && ")
+                ShellUtils.runCommand(context, cmd)
+            }
+        } else {
+            val prevScan = snapshottedWifiScanAlwaysEnabled ?: 1
+            val prevBle = snapshottedBleScanAlwaysEnabled ?: 1
+            val prevWakeup = snapshottedWifiWakeup ?: 1
+            val prevNotif = snapshottedWifiNotification ?: 1
+            val cmd = listOf(
+                "settings put global wifi_scan_always_enabled $prevScan",
+                "cmd wifi set-scan-always-available enabled",
+                "settings put global ble_scan_always_enabled $prevBle",
+                "settings put global wifi_wakeup_enabled $prevWakeup",
+                "settings put global wifi_networks_available_notification_on $prevNotif",
+            ).joinToString(" && ")
+            ShellUtils.runCommand(context, cmd)
+            snapshottedWifiScanAlwaysEnabled = null
+            snapshottedBleScanAlwaysEnabled = null
+            snapshottedWifiWakeup = null
+            snapshottedWifiNotification = null
+        }
+    }
+
+    fun setWifiLockSufficiencyLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            runCatching {
+                if (snapshottedAdaptiveConnectivity == null) {
+                    snapshottedAdaptiveConnectivity = runCatching {
+                        Settings.Secure.getInt(context.contentResolver, "adaptive_connectivity_enabled", 1)
+                    }.getOrDefault(1)
+                }
+                if (snapshottedNetworkRecommendations == null) {
+                    snapshottedNetworkRecommendations = Settings.Global.getString(context.contentResolver, "network_recommendations_enabled") ?: "UNSET"
+                }
+                if (snapshottedNetworkAvoidBadWifi == null) {
+                    snapshottedNetworkAvoidBadWifi = Settings.Global.getString(context.contentResolver, "network_avoid_bad_wifi") ?: "UNSET"
+                }
+                val cmd = listOf(
+                    "settings put secure adaptive_connectivity_enabled 0",
+                    "settings put global network_recommendations_enabled 0",
+                    "settings put global network_avoid_bad_wifi 0",
+                    "cmd wifi set-network-selection-config enabled enabled -a 0",
+                ).joinToString(" && ")
+                ShellUtils.runCommand(context, cmd)
+                didLockWifiNetworkSelection = true
+            }
+        } else {
+            val cmds = mutableListOf<String>()
+            val prevAdaptive = snapshottedAdaptiveConnectivity ?: 1
+            cmds.add("settings put secure adaptive_connectivity_enabled $prevAdaptive")
+            val prevRec = snapshottedNetworkRecommendations
+            cmds.add(
+                if (prevRec == null || prevRec == "UNSET") "settings delete global network_recommendations_enabled"
+                else "settings put global network_recommendations_enabled $prevRec",
+            )
+            val prevBad = snapshottedNetworkAvoidBadWifi
+            cmds.add(
+                if (prevBad == null || prevBad == "UNSET") "settings delete global network_avoid_bad_wifi"
+                else "settings put global network_avoid_bad_wifi $prevBad",
+            )
+            ShellUtils.runCommand(context, cmds.joinToString(" && "))
+            snapshottedAdaptiveConnectivity = null
+            snapshottedNetworkRecommendations = null
+            snapshottedNetworkAvoidBadWifi = null
+            didLockWifiNetworkSelection = false
+        }
+    }
+
+    fun setWifiPreventArpLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            ShellUtils.runCommand(context, "cmd wifi set-ipreach-disconnect disabled")
+            didDisableIpReachDisconnect = true
+        } else {
+            ShellUtils.runCommand(context, "cmd wifi set-ipreach-disconnect enabled")
+            didDisableIpReachDisconnect = false
+        }
+    }
+
+    fun setPrivateDnsBypassLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            runCatching {
+                val currentMode = Settings.Global.getString(context.contentResolver, "private_dns_mode")
+                val currentSpecifier = Settings.Global.getString(context.contentResolver, "private_dns_specifier")
+                if (!currentMode.isNullOrEmpty() && currentMode != "off") {
+                    snapshottedPrivateDnsMode = currentMode
+                    snapshottedPrivateDnsSpecifier = currentSpecifier
+                } else if (!currentSpecifier.isNullOrEmpty() && snapshottedPrivateDnsMode == null) {
+                    snapshottedPrivateDnsMode = "hostname"
+                    snapshottedPrivateDnsSpecifier = currentSpecifier
+                }
+                didDisablePrivateDns = true
+                runCatching { Settings.Global.putString(context.contentResolver, "private_dns_mode", "off") }
+                ShellUtils.runCommand(context, "settings put global private_dns_mode off")
+            }
+        } else {
+            restorePrivateDnsIfDisabled(context)
+        }
+    }
+
+    fun setPauseAutoSyncLive(context: Context, enabled: Boolean) {
+        runCatching {
+            if (enabled) {
+                val sync = ContentResolver.getMasterSyncAutomatically()
+                if (snapshottedAutoSync == null) snapshottedAutoSync = sync
+                if (sync) ContentResolver.setMasterSyncAutomatically(false)
+            } else {
+                val restoreTarget = snapshottedAutoSync ?: true
+                ContentResolver.setMasterSyncAutomatically(restoreTarget)
+                snapshottedAutoSync = null
+            }
+        }
+    }
+
+    fun setBlockBatterySaverLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            runCatching {
+                if (snapshottedLowPowerTriggerLevel == null) {
+                    snapshottedLowPowerTriggerLevel = Settings.Global.getInt(context.contentResolver, "low_power_trigger_level", 0)
+                }
+                if (snapshottedLowPower == null) {
+                    snapshottedLowPower = Settings.Global.getInt(context.contentResolver, "low_power", 0)
+                }
+                persistBatterySaverSnapshot(context, snapshottedLowPower ?: 0, snapshottedLowPowerTriggerLevel ?: 0)
+                ShellUtils.runCommand(context, "settings put global low_power_trigger_level 0 && settings put global low_power 0 && cmd power set-mode 0")
+            }
+        } else {
+            val prevTrigger = snapshottedLowPowerTriggerLevel ?: 0
+            ShellUtils.runCommand(context, "settings put global low_power_trigger_level $prevTrigger")
+            if (snapshottedLowPower == 1) {
+                ShellUtils.runCommand(context, "settings put global low_power 1 && cmd power set-mode 1")
+            }
+            snapshottedLowPowerTriggerLevel = null
+            snapshottedLowPower = null
+            clearBatterySaverSnapshot(context)
+        }
+    }
+
+    fun setAppSuspensionLive(
+        context: Context,
+        gamePackage: String,
+        apps: Set<String>,
+        services: Set<String>,
+        suspended: Boolean,
+    ) {
+        val safeApps = apps.filterTo(mutableSetOf()) { it != gamePackage }
+        val cmds = mutableListOf<String>()
+        if (suspended) {
+            activeGameSuspendedApps = safeApps
+            safeApps.forEach { pkg ->
+                cmds.add("cmd package suspend --user 0 $pkg && am force-stop $pkg")
+            }
+            if (services.contains("com.google.android.aicore")) cmds.add("pm disable-user --user 0 com.google.android.aicore")
+            if (services.contains("com.google.android.apps.turbo")) cmds.add("pm disable-user --user 0 com.google.android.apps.turbo && pm disable-user --user 0 com.google.android.turboadapter")
+            if (services.contains("com.google.android.settings.intelligence")) cmds.add("pm disable-user --user 0 com.google.android.settings.intelligence")
+            if (services.contains("com.google.android.apps.scone")) cmds.add("pm disable-user --user 0 com.google.android.apps.scone")
+            if (services.contains("com.google.android.apps.carrier.carrierwifi")) cmds.add("cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi && am force-stop com.google.android.apps.carrier.carrierwifi")
+            if (services.contains("com.google.android.projection.gearhead")) cmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead")
+            if (services.contains("com.google.android.as")) cmds.add("cmd package suspend --user 0 com.google.android.as && am force-stop com.google.android.as")
+        } else {
+            val toUnsuspend = activeGameSuspendedApps.ifEmpty { safeApps }
+            toUnsuspend.forEach { pkg ->
+                cmds.add("cmd package unsuspend --user 0 $pkg && cmd package unstop --user 0 $pkg")
+            }
+            activeGameSuspendedApps = emptySet()
+            if (services.contains("com.google.android.aicore")) cmds.add("pm enable com.google.android.aicore")
+            if (services.contains("com.google.android.apps.turbo")) cmds.add("pm enable com.google.android.apps.turbo && pm enable com.google.android.turboadapter")
+            if (services.contains("com.google.android.settings.intelligence")) cmds.add("pm enable com.google.android.settings.intelligence")
+            if (services.contains("com.google.android.apps.scone")) cmds.add("pm enable com.google.android.apps.scone")
+            if (services.contains("com.google.android.apps.carrier.carrierwifi")) cmds.add("cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi && cmd package unstop --user 0 com.google.android.apps.carrier.carrierwifi")
+            if (services.contains("com.google.android.projection.gearhead")) cmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead")
+            if (services.contains("com.google.android.as")) cmds.add("cmd package unsuspend --user 0 com.google.android.as && cmd package unstop --user 0 com.google.android.as")
+        }
+        if (cmds.isNotEmpty()) {
+            ShellUtils.runCommand(context, cmds.joinToString(" && "))
+        }
+    }
 }

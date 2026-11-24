@@ -100,6 +100,7 @@ import com.pixel.gamebooster.ui.screens.GameScanningSetupScreen
 import com.pixel.gamebooster.ui.screens.GameTuningContainer
 import com.pixel.gamebooster.ui.screens.NetworkSyncScreen
 import com.pixel.gamebooster.ui.screens.OnboardingScreen
+import com.pixel.gamebooster.ui.screens.OverlayLayoutEditorScreen
 import com.pixel.gamebooster.ui.screens.OverlaySettingsScreen
 import com.pixel.gamebooster.ui.screens.PermissionsScreen
 import com.pixel.gamebooster.ui.screens.ScreenRecordingSettingsScreen
@@ -212,6 +213,9 @@ class AppNavigationState(
     var isShowingScreenRecording: Boolean = false
         private set
 
+    var isShowingOverlayLayout: Boolean = false
+        private set
+
     fun openScreenRecording() {
         isShowingScreenRecording = true
     }
@@ -220,11 +224,20 @@ class AppNavigationState(
         isShowingScreenRecording = false
     }
 
+    fun openOverlayLayout() {
+        isShowingOverlayLayout = true
+    }
+
+    fun backFromOverlayLayout() {
+        isShowingOverlayLayout = false
+    }
+
     fun navigateTo(screen: AppScreen) {
         currentScreen = screen
         if (screen != AppScreen.MAIN && screen != AppScreen.LIBRARY) {
             selectedGamePackageForTuning = null
             isShowingScreenRecording = false
+            isShowingOverlayLayout = false
         }
     }
 }
@@ -264,13 +277,17 @@ fun AppNavigation(
         mutableStateOf(false)
     }
 
+    var isShowingOverlayLayout by rememberSaveable {
+        mutableStateOf(false)
+    }
+
     var isPredictingBack by remember { mutableStateOf(false) }
     var backProgress by remember { mutableFloatStateOf(0f) }
     var backSwipeEdge by remember { mutableIntStateOf(BackEventCompat.EDGE_LEFT) }
 
-    // Predictive back gesture for Game Tuning and Screen Recording sub-screens;
+    // Predictive back gesture for Game Tuning, Screen Recording, and Overlay Layout sub-screens;
     // disabled on root tabs so Android's native predictive back-to-home works.
-    PredictiveBackHandler(enabled = selectedGamePackageForTuning != null || isShowingScreenRecording) { progressFlow ->
+    PredictiveBackHandler(enabled = selectedGamePackageForTuning != null || isShowingScreenRecording || isShowingOverlayLayout) { progressFlow ->
         isPredictingBack = true
         try {
             progressFlow.collect { backEvent ->
@@ -281,6 +298,8 @@ fun AppNavigation(
             backProgress = 0f
             if (selectedGamePackageForTuning != null) {
                 selectedGamePackageForTuning = null
+            } else if (isShowingOverlayLayout) {
+                isShowingOverlayLayout = false
             } else if (isShowingScreenRecording) {
                 isShowingScreenRecording = false
             }
@@ -340,7 +359,7 @@ fun AppNavigation(
                     )
                 }
 
-                val hasSubScreen = selectedGamePackageForTuning != null || isShowingScreenRecording
+                val hasSubScreen = selectedGamePackageForTuning != null || isShowingScreenRecording || isShowingOverlayLayout
                 val subScreenModifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -369,6 +388,7 @@ fun AppNavigation(
                                 OverlaySettingsScreen(
                                     repo = repo,
                                     onNavigateToScreenRecording = { isShowingScreenRecording = true },
+                                    onNavigateToOverlayLayout = { isShowingOverlayLayout = true },
                                 )
                             }
                         }
@@ -511,13 +531,25 @@ fun AppNavigation(
                     }
 
                     AnimatedVisibility(
-                        visible = isShowingScreenRecording && selectedGamePackageForTuning == null,
+                        visible = isShowingScreenRecording && selectedGamePackageForTuning == null && !isShowingOverlayLayout,
                         enter = fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 6 },
                         exit = fadeOut(tween(180)) + slideOutHorizontally(tween(220)) { it / 6 },
                     ) {
                         ScreenRecordingSettingsScreen(
                             repo = repo,
                             onBack = { isShowingScreenRecording = false },
+                            modifier = subScreenModifier,
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isShowingOverlayLayout && selectedGamePackageForTuning == null,
+                        enter = fadeIn(tween(220)) + slideInHorizontally(tween(260)) { it / 6 },
+                        exit = fadeOut(tween(180)) + slideOutHorizontally(tween(220)) { it / 6 },
+                    ) {
+                        OverlayLayoutEditorScreen(
+                            repo = repo,
+                            onBack = { isShowingOverlayLayout = false },
                             modifier = subScreenModifier,
                         )
                     }
