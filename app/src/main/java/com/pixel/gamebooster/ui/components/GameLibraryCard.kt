@@ -109,7 +109,7 @@ fun GameLibraryCard(
             ),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        tonalElevation = 2.dp,
+        tonalElevation = 0.dp,
     ) {
         Column(
             modifier = Modifier
@@ -181,7 +181,7 @@ fun GameLibraryCard(
                 modifier = Modifier
                     .size(56.dp)
                     .shadow(
-                        elevation = if (isPressed) 2.dp else 6.dp,
+                        elevation = 0.dp,
                         shape = RoundedCornerShape(16.dp),
                         clip = false,
                     ),

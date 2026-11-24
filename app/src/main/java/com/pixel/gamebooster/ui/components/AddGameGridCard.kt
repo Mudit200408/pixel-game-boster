@@ -84,7 +84,7 @@ fun AddGameGridCard(
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.45f),
         border = BorderStroke(
-            width = 1.5.dp,
+            width = 0.8.dp,
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
         ),
         tonalElevation = 0.dp,
