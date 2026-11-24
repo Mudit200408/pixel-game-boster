@@ -485,8 +485,13 @@ fun SettingsSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
+                    val appVersion = remember(context) {
+                        runCatching {
+                            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+                        }.getOrNull().orEmpty().ifBlank { "1.0.0-beta.1" }
+                    }
                     Text(
-                        text = stringResource(R.string.settings_version),
+                        text = stringResource(R.string.settings_version, appVersion),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.outline,
                         textAlign = TextAlign.Center,
