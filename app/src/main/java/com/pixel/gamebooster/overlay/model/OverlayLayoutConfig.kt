@@ -36,6 +36,7 @@ enum class OverlayTileType(val category: OverlayTileCategory) {
     LOCK_120HZ(OverlayTileCategory.OVERLAY),
     GAME_DND(OverlayTileCategory.OVERLAY),
     SCREEN_RECORD(OverlayTileCategory.OVERLAY),
+    SCREENSHOT(OverlayTileCategory.OVERLAY),
     LIVE_FPS(OverlayTileCategory.OVERLAY),
 
     // Display & Input

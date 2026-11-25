@@ -104,6 +104,11 @@ class OverlayLayoutConfigTest {
         val restored = OverlayLayoutConfig.fromJson(custom.toJson())
         assertEquals(custom, restored)
 
+        val withScreenshot = OverlayLayoutConfig.Default
+            .addTile(OverlayTileType.SCREENSHOT)
+        assertTrue(withScreenshot.tiles.contains(OverlayTileType.SCREENSHOT))
+        assertEquals(withScreenshot, OverlayLayoutConfig.fromJson(withScreenshot.toJson()))
+
         assertEquals(OverlayLayoutConfig.Default, OverlayLayoutConfig.fromJson(null))
         assertEquals(OverlayLayoutConfig.Default, OverlayLayoutConfig.fromJson("{broken json"))
     }

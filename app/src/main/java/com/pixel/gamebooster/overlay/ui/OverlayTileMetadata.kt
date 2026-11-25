@@ -10,6 +10,7 @@ import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Radar
+import androidx.compose.material.icons.rounded.Screenshot
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SyncDisabled
@@ -32,6 +33,7 @@ fun OverlayTileType.labelRes(): Int = when (this) {
     OverlayTileType.LOCK_120HZ -> R.string.perf_force_120hz_title
     OverlayTileType.GAME_DND -> R.string.interruption_dnd_toggle_title
     OverlayTileType.SCREEN_RECORD -> R.string.overlay_record
+    OverlayTileType.SCREENSHOT -> R.string.overlay_screenshot
     OverlayTileType.LIVE_FPS -> R.string.overlay_show_live_fps_title
     OverlayTileType.AUTO_BRIGHTNESS_LOCK -> R.string.perf_disable_auto_brightness_title
     OverlayTileType.BACK_GESTURE_LOCK -> R.string.perf_lock_back_gesture_title
@@ -53,6 +55,7 @@ fun OverlayTileType.iconVector(): ImageVector = when (this) {
     OverlayTileType.LOCK_120HZ -> ImageVector.vectorResource(R.drawable.ic_120hz)
     OverlayTileType.GAME_DND -> Icons.Rounded.DoNotDisturbOn
     OverlayTileType.SCREEN_RECORD -> Icons.Rounded.Videocam
+    OverlayTileType.SCREENSHOT -> Icons.Rounded.Screenshot
     OverlayTileType.LIVE_FPS -> Icons.Rounded.Speed
     OverlayTileType.AUTO_BRIGHTNESS_LOCK -> Icons.Rounded.LightMode
     OverlayTileType.BACK_GESTURE_LOCK -> Icons.Rounded.TouchApp
@@ -73,6 +76,7 @@ fun OverlayTileType.isActiveIn(state: OverlayUiState): Boolean = when (this) {
     OverlayTileType.LOCK_120HZ -> state.lockRefreshRate
     OverlayTileType.GAME_DND -> state.dndEnabled
     OverlayTileType.SCREEN_RECORD -> state.isRecording
+    OverlayTileType.SCREENSHOT -> false
     OverlayTileType.LIVE_FPS -> state.showLiveFps
     OverlayTileType.AUTO_BRIGHTNESS_LOCK -> state.autoBrightnessLocked
     OverlayTileType.BACK_GESTURE_LOCK -> state.backGestureLocked

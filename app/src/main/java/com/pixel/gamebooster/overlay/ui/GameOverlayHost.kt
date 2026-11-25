@@ -70,6 +70,8 @@ fun GameOverlayHost(
             GameOverlayManager.updateLayout(OverlayDisplayState.EXPANDED_PANEL)
             delay(24)
             panelVisible = true
+        } else if (uiState.displayState == OverlayDisplayState.COLLAPSED_PILL && isWindowExpanded && !isTransitioning) {
+            handleDismiss()
         }
     }
 

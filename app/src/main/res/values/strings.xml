@@ -369,6 +369,7 @@
     <string name="overlay_dnd_short">DND</string>
     <string name="overlay_touch_lock">Touch Lock</string>
     <string name="overlay_record">Record</string>
+    <string name="overlay_screenshot">Screenshot</string>
     <string name="overlay_bypass">Bypass</string>
     <string name="overlay_mode_battery">Battery</string>
     <string name="overlay_mode_balanced">Balanced</string>

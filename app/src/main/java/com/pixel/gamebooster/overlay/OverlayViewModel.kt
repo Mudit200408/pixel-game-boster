@@ -535,11 +535,28 @@ class OverlayViewModel(
         }
     }
 
+    fun takeScreenshot() {
+        setDisplayState(OverlayDisplayState.COLLAPSED_PILL)
+        scope.launch {
+            // Wait for the expanded panel exit animation and window collapse before capturing
+            delay(320L)
+            val capturedViaA11y = com.pixel.gamebooster.services.GameBoosterAccessibilityService.instance
+                ?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)
+                ?: false
+            if (!capturedViaA11y) {
+                kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    ShellUtils.runCommand(context, "input keyevent 120")
+                }
+            }
+        }
+    }
+
     fun onTileClick(tile: OverlayTileType) {
         when (tile) {
             OverlayTileType.LOCK_120HZ -> toggle120Hz()
             OverlayTileType.GAME_DND -> toggleDnd()
             OverlayTileType.SCREEN_RECORD -> toggleRecording()
+            OverlayTileType.SCREENSHOT -> takeScreenshot()
             OverlayTileType.LIVE_FPS -> toggleLiveFps()
             OverlayTileType.AUTO_BRIGHTNESS_LOCK -> toggleAutoBrightness()
             OverlayTileType.BACK_GESTURE_LOCK -> toggleBackGestureLock()
