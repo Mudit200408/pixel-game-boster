@@ -2,8 +2,8 @@
     <!-- Core Application -->
     <string name="app_name">Pixel Game Booster</string>
     <string name="game_booster_master_title">Pixel Game Booster</string>
-    <string name="game_booster_master_desc">Automates system optimizations when supported games are launched</string>
-    <string name="accessibility_service_desc">Enables real-time detection of game launches for Pixel Game Booster</string>
+    <string name="game_booster_master_desc">Automatically boosts your phone when you launch a game</string>
+    <string name="accessibility_service_desc">Detects when you open a game</string>
 
     <!-- Navigation & Tabs -->
     <string name="nav_dashboard">Dashboard</string>
@@ -27,22 +27,22 @@
     <!-- DashboardScreen (dash_) -->
     <string name="dash_performance_profile">Performance Profile</string>
     <string name="dash_game_manager_intervention">Game Manager Intervention</string>
-    <string name="dash_game_manager_intervention_desc">Sets Android Game Manager profile and target governor parameters</string>
+    <string name="dash_game_manager_intervention_desc">Adjusts system performance and power limits for games</string>
     <string name="dash_mode_performance">Performance</string>
     <string name="dash_mode_standard">Standard</string>
     <string name="dash_mode_battery">Battery</string>
     <string name="dash_restoration_delay">Restoration Delay</string>
-    <string name="dash_restoration_delay_desc">Buffer time before reverting optimizations on exit</string>
+    <string name="dash_restoration_delay_desc">Wait time before restoring normal settings after exiting a game</string>
     <string name="dash_delay_immediate">Immediate</string>
     <string name="dash_delay_seconds">%1$ds</string>
 
     <!-- OnboardingScreen (onboarding_) -->
     <string name="onboarding_slide1_title">Pixel Game Booster</string>
-    <string name="onboarding_slide1_desc">Engineered specifically for Google Pixel devices. Automates physical 120Hz display locking, kernel memory purging, and background app suspension to deliver sustained peak frame rates without thermal throttling.</string>
+    <string name="onboarding_slide1_desc">Built for Pixel phones. Locks 120Hz, clears memory, and pauses background apps for smoother gaming.</string>
     <string name="onboarding_slide2_title">120Hz Display Lock</string>
-    <string name="onboarding_slide2_desc">Eliminates stutter and frame rate jitter by locking Pixel\'s LTPO display panel to a rock-solid 120Hz hardware refresh rate.\n\nStabilizes physical display panel timing to prevent aggressive 60Hz/30Hz drops without spoofing in-game engine FPS caps.</string>
+    <string name="onboarding_slide2_desc">Locks your screen to a steady 120Hz to prevent sudden drops to 60Hz or 30Hz while playing.</string>
     <string name="onboarding_slide3_title">Selective App Freezing</string>
-    <string name="onboarding_slide3_desc">Suspends resource-heavy background apps using Android\'s native package suspension (`cmd package suspend --user 0`) and temporarily pauses background Google sync.\n\nFrees up RAM and CPU cores exclusively for game rendering without altering or uninstalling your apps.</string>
+    <string name="onboarding_slide3_desc">Pauses heavy background apps and sync while you play, freeing up RAM and CPU without uninstalling anything.</string>
     <string name="onboarding_btn_skip">Skip</string>
     <string name="onboarding_cd_back">Back</string>
     <string name="onboarding_btn_next">Next</string>
@@ -55,26 +55,26 @@
     <string name="perm_status_optimizations_ready">Optimizations Ready</string>
     <string name="perm_status_shizuku_required">Shizuku Required</string>
     <string name="perm_shizuku_title">Shizuku / Root ADB</string>
-    <string name="perm_shizuku_desc">Required to execute privileged system commands for refresh rate locking, app freezing, and RAM optimization.</string>
+    <string name="perm_shizuku_desc">Needed to lock 120Hz, freeze apps, and clear RAM.</string>
     <string name="perm_action_grant">Grant Permission</string>
     <string name="perm_action_launch_shizuku">Launch Shizuku</string>
     <string name="perm_action_pairing_guide">Pairing Guide</string>
-    <string name="perm_shizuku_not_running">Shizuku service is not running. Launch Shizuku to start it via Wireless Debugging, or open Pairing Guide.</string>
+    <string name="perm_shizuku_not_running">Shizuku isn\'t running. Open Shizuku to start it, or view the Pairing Guide.</string>
     <string name="perm_feature_120hz">120Hz Hardware Panel Lock</string>
     <string name="perm_feature_app_suspension">Background App Suspension</string>
     <string name="perm_feature_ram_cache">RAM &amp; Cache Optimization</string>
     <string name="perm_feature_wifi_mode">Low-Latency Wi-Fi Mode</string>
     <string name="perm_accessibility_title">Accessibility Service</string>
-    <string name="perm_accessibility_desc">Enables instant foreground game detection with zero background polling or battery drain.</string>
+    <string name="perm_accessibility_desc">Detects when a game opens without draining battery.</string>
     <string name="perm_action_open_settings">Open Settings</string>
     <string name="perm_feature_instant_detection">Instant Game Launch Detection</string>
     <string name="perm_feature_zero_battery">Zero Battery Background Monitoring</string>
     <string name="perm_usage_title">Usage Access</string>
-    <string name="perm_usage_desc">Secondary fallback detection to verify running game sessions and optimize system background processes.</string>
+    <string name="perm_usage_desc">Backup check to confirm which game is currently running.</string>
     <string name="perm_feature_secondary_tracking">Secondary Session Tracking</string>
     <string name="perm_feature_usage_auditing">Background App Usage Auditing</string>
     <string name="perm_notifications_title">Notifications</string>
-    <string name="perm_notifications_desc">Allows the Game Booster foreground service to display active optimization status and quick controls.</string>
+    <string name="perm_notifications_desc">Shows active game boost status and quick controls in your notifications.</string>
     <string name="perm_action_allow_notifications">Allow Notifications</string>
     <string name="perm_feature_foreground_service">Foreground Service Indicator</string>
     <string name="perm_feature_quick_controls">Quick Optimization Tile Controls</string>
@@ -88,8 +88,8 @@
     <string name="scan_headline_found_games">Found %1$d Games</string>
     <string name="scan_headline_ready">System Ready</string>
     <string name="scan_subtitle_scanning">Auto-detecting and configuring game profiles</string>
-    <string name="scan_subtitle_optimizing">Calibrating 120Hz display lock and RAM prioritization</string>
-    <string name="scan_subtitle_ready_found">Game profiles configured and ready for peak performance</string>
+    <string name="scan_subtitle_optimizing">Setting up 120Hz display and memory boost</string>
+    <string name="scan_subtitle_ready_found">Your games are set up and ready to play</string>
     <string name="scan_subtitle_ready_empty">No games detected · You can add custom games anytime</string>
     <string name="scan_section_auto_configured">Auto-Configured Games</string>
 
@@ -98,68 +98,68 @@
     <string name="perf_header_title">Display &amp; Memory</string>
     <string name="perf_section_display_refresh">Display</string>
     <string name="perf_force_120hz_title">Force 120Hz Physical Display Mode</string>
-    <string name="perf_force_120hz_desc">Forces physical panel to 120Hz fixed to eliminate 60Hz/30Hz LTPO drops.</string>
+    <string name="perf_force_120hz_desc">Locks your screen to 120Hz to stop sudden frame drops.</string>
     <string name="perf_force_120hz_cmd" translatable="false">cmd display set-user-preferred-display-mode &lt;W&gt; &lt;H&gt; 120 0</string>
     <string name="perf_section_memory_kernel">Memory</string>
     <string name="perf_purge_ram_title">Purge RAM &amp; ZRAM</string>
-    <string name="perf_purge_ram_desc">Evicts background cached processes to prevent memory pressure.</string>
+    <string name="perf_purge_ram_desc">Clears background apps from RAM to free up memory.</string>
     <string name="perf_purge_ram_cmd" translatable="false">am kill-all</string>
     <string name="perf_cached_freezer_title">Kernel Cached Apps Freezer</string>
-    <string name="perf_cached_freezer_desc">Freezes background app cgroups to preserve CPU cycles for game threads.</string>
+    <string name="perf_cached_freezer_desc">Freezes background apps so your game gets more CPU power.</string>
     <string name="perf_cached_freezer_cmd" translatable="false">settings put global cached_apps_freezer enabled</string>
     <string name="perf_section_display_navigation">Navigation Gesture</string>
     <string name="perf_disable_auto_brightness_title">Disable Auto-Brightness</string>
-    <string name="perf_disable_auto_brightness_desc">Locks current brightness to prevent sudden light sensor dips mid-game.</string>
+    <string name="perf_disable_auto_brightness_desc">Locks screen brightness so it won\'t dim mid-game.</string>
     <string name="perf_disable_auto_brightness_cmd" translatable="false">settings put system screen_brightness_mode 0</string>
     <string name="perf_lock_back_gesture_title">Lock Back Navigation</string>
-    <string name="perf_lock_back_gesture_desc">Temporarily disables edge back gestures during gameplay to prevent accidental exits.</string>
+    <string name="perf_lock_back_gesture_desc">Disables edge back gestures while playing so you don\'t exit by mistake.</string>
     <string name="perf_lock_back_gesture_cmd" translatable="false">settings put secure back_gesture_inset_scale_left -1</string>
 
     <!-- AppFreezerScreen (freezer_) -->
     <string name="freezer_header_title">App Suspension</string>
     <string name="freezer_section_configured_apps">Configured Applications (%1$d)</string>
     <string name="freezer_empty_title">No Applications Suspended</string>
-    <string name="freezer_empty_desc">Select installed apps from the App Selection Sheet below to freeze them during gameplay.</string>
+    <string name="freezer_empty_desc">Pick apps below to pause them while you play.</string>
     <string name="freezer_cd_unfreeze">Unfreeze %1$s</string>
     <string name="freezer_section_process_management">Process Management</string>
     <string name="freezer_user_apps_title">User App Freezer</string>
-    <string name="freezer_user_apps_desc">Select user applications to suspend while gaming (%1$d apps configured)</string>
+    <string name="freezer_user_apps_desc">Pick apps to pause while gaming (%1$d selected)</string>
     <string name="freezer_user_apps_cmd" translatable="false">cmd package suspend --user 0 &lt;package&gt;</string>
     <string name="freezer_google_services_title">Google Background Services</string>
-    <string name="freezer_google_services_desc">Suspends background telemetry, AI Core, and daemons (%1$d services active)</string>
+    <string name="freezer_google_services_desc">Pauses background Google services while gaming (%1$d active)</string>
     <string name="freezer_google_services_cmd" translatable="false">pm disable-user --user 0 / cmd package suspend</string>
     <string name="freezer_disable_quick_tap_title">Disable Quick Tap</string>
-    <string name="freezer_disable_quick_tap_desc">Suspends rear-tap sensor monitor to eliminate touch latency and input jank.</string>
+    <string name="freezer_disable_quick_tap_desc">Disables Quick Tap on the back of your phone to reduce input lag.</string>
     <string name="freezer_disable_quick_tap_cmd" translatable="false">settings put secure columbus_enabled 0</string>
     <string name="freezer_warning_prefix">"WARNING: "</string>
-    <string name="freezer_warning_desc">Selected apps and Google services will be automatically suspended during gameplay (e.g. Call of Duty: Mobile) and restored on game exit.</string>
-    <string name="freezer_warning_full">WARNING: Selected apps and Google services will be automatically suspended during gameplay (e.g. Call of Duty: Mobile) and restored on game exit.</string>
+    <string name="freezer_warning_desc">Selected apps and services pause while you play and resume when you exit.</string>
+    <string name="freezer_warning_full">WARNING: Selected apps and services pause while you play and resume when you exit.</string>
 
     <!-- NetworkSyncScreen (net_) -->
     <string name="net_header_title">Network &amp; Sync</string>
     <string name="net_section_wifi_latency">Wi-Fi &amp; Latency Optimization</string>
     <string name="net_low_latency_title">Wi-Fi Low Latency Lock</string>
-    <string name="net_low_latency_desc">Acquires high-perf Wi-Fi lock and disables Wi-Fi power save throttling.</string>
+    <string name="net_low_latency_desc">Keeps Wi-Fi at full speed and disables Wi-Fi power saving.</string>
     <string name="net_low_latency_cmd" translatable="false">WifiLock(LOW_LATENCY) &amp;&amp; settings put global wifi_power_save 0</string>
     <string name="net_suppress_scans_title">Suppress Network Scans</string>
-    <string name="net_suppress_scans_desc">Stops background Wi-Fi and Bluetooth beacon scans causing latency spikes.</string>
+    <string name="net_suppress_scans_desc">Stops background Wi-Fi and Bluetooth scans to prevent ping spikes.</string>
     <string name="net_suppress_scans_cmd" translatable="false">settings put global wifi_scan_always_enabled 0 &amp;&amp; ble_scan_always_enabled 0</string>
     <string name="net_lock_sufficiency_title">Lock Network Sufficiency</string>
-    <string name="net_lock_sufficiency_desc">Disables aggressive Wi-Fi hopping and adaptive connectivity handovers.</string>
+    <string name="net_lock_sufficiency_desc">Stops your phone from switching networks mid-game.</string>
     <string name="net_lock_sufficiency_cmd" translatable="false">settings put secure adaptive_connectivity_enabled 0 &amp;&amp; cmd wifi set-network-selection-config enabled enabled -a 0</string>
     <string name="net_prevent_arp_title">Prevent ARP Disconnects</string>
-    <string name="net_prevent_arp_desc">Blocks dropping Wi-Fi connection on transient router ARP probe misses.</string>
+    <string name="net_prevent_arp_desc">Prevents random Wi-Fi disconnects on minor router hiccups.</string>
     <string name="net_prevent_arp_cmd" translatable="false">cmd wifi set-ipreach-disconnect disabled</string>
     <string name="net_disable_private_dns_title">Private DNS Latency Bypass</string>
-    <string name="net_disable_private_dns_desc">Disables Private DNS during gaming to avoid DNS query latency spikes.</string>
+    <string name="net_disable_private_dns_desc">Turns off Private DNS while gaming to reduce network lag.</string>
     <string name="net_disable_private_dns_cmd" translatable="false">settings put global private_dns_mode off</string>
     <string name="net_section_sync">Background Sync</string>
     <string name="net_section_power">Power</string>
     <string name="net_pause_sync_title">Pause Master Auto-Sync</string>
-    <string name="net_pause_sync_desc">Halts cloud account synchronization to prevent background disk and network I/O.</string>
+    <string name="net_pause_sync_desc">Pauses background account sync to save bandwidth and CPU.</string>
     <string name="net_pause_sync_cmd" translatable="false">ContentResolver.setMasterSyncAutomatically(false)</string>
     <string name="net_block_battery_saver_title">Suppress Battery Saver</string>
-    <string name="net_block_battery_saver_desc">Bypasses system CPU throttling and preserves maximum frame stability.</string>
+    <string name="net_block_battery_saver_desc">Prevents Battery Saver from slowing down your CPU while gaming.</string>
     <string name="net_block_battery_saver_cmd" translatable="false">settings put global low_power 0 &amp;&amp; cmd power set-mode 0</string>
 
     <!-- SettingsSheet (settings_) -->
@@ -172,44 +172,44 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_section_preferences">Preferences</string>
     <string name="settings_tactile_haptics_title">Tactile Haptics</string>
-    <string name="settings_tactile_haptics_desc">Provide subtle haptic feedback for UI touches and toggles</string>
+    <string name="settings_tactile_haptics_desc">Vibrate gently when tapping buttons and toggles</string>
     <string name="settings_game_mode_toast_title">Game Mode Toasts</string>
-    <string name="settings_game_mode_toast_desc">Show toast message when Game Booster activates or deactivates</string>
+    <string name="settings_game_mode_toast_desc">Show a brief popup when Game Booster turns on or off</string>
     <string name="settings_section_permissions">Permissions</string>
     <string name="settings_cd_all_perms_granted">All permissions granted</string>
     <string name="settings_all_perms_granted">All permissions are granted</string>
-    <string name="settings_all_perms_granted_desc">System privileges are active and ready for gaming</string>
+    <string name="settings_all_perms_granted_desc">All permissions are active and ready</string>
     <string name="settings_action_required">Action Required (%1$d)</string>
     <string name="settings_grant_permission">Grant Permission</string>
     <string name="settings_cd_granted">Granted</string>
     <string name="settings_app_name">Pixel Game Booster</string>
     <string name="settings_version">Version %1$s</string>
     <string name="settings_perm_shizuku_title">Privileged Shell (Shizuku / Root)</string>
-    <string name="settings_perm_shizuku_desc">Enables 120Hz display locking, kernel freezer, and system tuning.</string>
+    <string name="settings_perm_shizuku_desc">Allows 120Hz locking, app freezing, and system boosts.</string>
     <string name="settings_perm_accessibility_title">Accessibility Window Trigger</string>
-    <string name="settings_perm_accessibility_desc">Detects foreground game switches with zero battery drain.</string>
+    <string name="settings_perm_accessibility_desc">Detects when games open without draining battery.</string>
     <string name="settings_perm_usage_title">Usage Statistics Access</string>
-    <string name="settings_perm_usage_desc">Monitors game lifecycle to automate booster activation and restore delay.</string>
+    <string name="settings_perm_usage_desc">Tracks running games to start and stop boosts automatically.</string>
     <string name="settings_perm_notification_title">Notifications Access</string>
-    <string name="settings_perm_notification_desc">Displays active game session notifications and quick toggles.</string>
+    <string name="settings_perm_notification_desc">Shows active game boost status and quick toggles.</string>
 
     <!-- SystemServicesSheet (services_) -->
     <string name="services_sheet_title">System Services Suspension</string>
-    <string name="services_sheet_desc">Select which background Google services are suspended during gameplay.</string>
+    <string name="services_sheet_desc">Pick which Google background services to pause while gaming.</string>
     <string name="services_aicore_title">Google AICore</string>
-    <string name="services_aicore_desc">Suspends on-device Gemini Nano inference worker to free up RAM &amp; NPU.</string>
+    <string name="services_aicore_desc">Pauses on-device AI processing to free up RAM.</string>
     <string name="services_turbo_title">Device Health Services (Turbo)</string>
-    <string name="services_turbo_desc">Suspends background battery prediction and usage telemetry worker.</string>
+    <string name="services_turbo_desc">Pauses background battery tracking and usage stats.</string>
     <string name="services_intelligence_title">Settings Intelligence</string>
-    <string name="services_intelligence_desc">Suspends background settings suggestions and search index indexing.</string>
+    <string name="services_intelligence_desc">Pauses background settings suggestions and search indexing.</string>
     <string name="services_scone_title">Adaptive Connectivity (Scone)</string>
-    <string name="services_scone_desc">Suspends adaptive network state evaluator to eliminate Wi-Fi ping spikes.</string>
+    <string name="services_scone_desc">Pauses adaptive network checks to prevent Wi-Fi ping spikes.</string>
     <string name="services_carrier_wifi_title">Carrier Wi-Fi</string>
-    <string name="services_carrier_wifi_desc">Suspends background carrier network auto-discovery.</string>
+    <string name="services_carrier_wifi_desc">Pauses background carrier Wi-Fi scanning.</string>
     <string name="services_gearhead_title">Android Auto (Gearhead)</string>
-    <string name="services_gearhead_desc">Suspends projection services and car connectivity daemon.</string>
+    <string name="services_gearhead_desc">Pauses Android Auto background connection services.</string>
     <string name="services_as_title">Android System Intelligence</string>
-    <string name="services_as_desc">Suspends Now Playing, Live Caption, and ambient audio ML pipeline during gameplay.</string>
+    <string name="services_as_desc">Pauses Now Playing and Live Caption while gaming.</string>
 
     <!-- AppSelectionSheet (app_select_) -->
     <string name="app_select_default_title">Select Apps to Freeze</string>
@@ -225,7 +225,7 @@
 
     <!-- ShizukuPairingDialog (dialog_shizuku_) -->
     <string name="dialog_shizuku_title">Shizuku Wireless Pairing</string>
-    <string name="dialog_shizuku_desc">Shizuku allows Pixel Game Booster to execute privileged system optimizations via Android\'s native Wireless Debugging without root.</string>
+    <string name="dialog_shizuku_desc">Shizuku lets Game Booster apply system tweaks via Wireless Debugging without root.</string>
     <string name="dialog_shizuku_step1_title">Enable Developer Options</string>
     <string name="dialog_shizuku_step1_desc">Go to Settings &gt; About Phone, and tap \'Build number\' 7 times until unlocked.</string>
     <string name="dialog_shizuku_step2_title">Enable Wireless Debugging</string>
@@ -265,13 +265,13 @@
 
     <!-- GameLibrary (game_library_) -->
     <string name="game_library_title">Game Library</string>
-    <string name="game_library_subtitle">Configure per-game performance and interruption profiles</string>
+    <string name="game_library_subtitle">Set custom performance and notification rules per game</string>
     <string name="game_library_add_game">Add Game</string>
     <string name="game_library_customized_badge">Custom</string>
     <string name="game_library_default_badge">Default</string>
     <string name="game_library_launch_game">Launch</string>
     <string name="game_library_empty_title">No Games Added Yet</string>
-    <string name="game_library_empty_desc">Add installed games to configure tailored refresh rates, thermal profiles, and distraction-free gaming rules.</string>
+    <string name="game_library_empty_desc">Add games to customize their refresh rate, performance, and DND rules.</string>
     <string name="game_library_global_settings">Global Settings</string>
     <string name="game_library_search_games">Search games</string>
     <string name="game_library_cannot_launch">Cannot launch %1$s</string>
@@ -284,13 +284,13 @@
 
     <!-- GameTuning Placeholder (tuning_) -->
     <string name="tuning_placeholder_title">%1$s Tuning</string>
-    <string name="tuning_placeholder_desc">Configuring per-game profile overrides and interruption controls.</string>
+    <string name="tuning_placeholder_desc">Customizing settings for this game.</string>
     <string name="tuning_placeholder_back">Back to Library</string>
 
     <!-- GameTuningContainer (game_tuning_) -->
     <string name="game_tuning_title">Game Tuning</string>
     <string name="game_tuning_customize_switch">Customize for this game</string>
-    <string name="game_tuning_customize_desc">Configure custom display, suspension, and network settings for this game</string>
+    <string name="game_tuning_customize_desc">Use custom display, app freeze, and network settings for this game</string>
     <string name="game_tuning_reset_defaults">Reset to Global Defaults</string>
     <string name="game_tuning_reset_confirm_title">Reset to Global Defaults?</string>
     <string name="game_tuning_reset_confirm_desc">Revert %1$s to global defaults? All custom settings for this game will be cleared.</string>
@@ -303,7 +303,7 @@
     <string name="game_tuning_tab_network">Network</string>
     <string name="game_tuning_banner_inherited">Using Global Defaults</string>
     <string name="game_tuning_banner_customized">Custom Profile</string>
-    <string name="game_tuning_inherited_desc">Settings are inherited from global booster defaults. Turn on \"Customize for this game\" to set specific refresh rates, DND rules, and background app freezer policies.</string>
+    <string name="game_tuning_inherited_desc">Using global defaults. Turn on \"Customize for this game\" to override settings for this game.</string>
     <string name="game_tuning_status_customized">Customized</string>
     <string name="game_tuning_status_inherited">Inherited</string>
     <string name="game_tuning_cd_icon">Game icon</string>
@@ -311,52 +311,52 @@
     <!-- Interruption & Do Not Disturb (dnd_) -->
     <string name="interruption_screen_title">Notifications</string>
     <string name="interruption_dnd_toggle_title">Game Booster DND</string>
-    <string name="interruption_dnd_toggle_desc">Activates Android\'s Game Booster DND to silence notifications and distractions while playing</string>
+    <string name="interruption_dnd_toggle_desc">Silences notifications while playing</string>
     <string name="interruption_game_dashboard_btn">Configure Game Booster Priorities</string>
     <string name="interruption_game_dashboard_desc">Customize allowed contacts, apps, and alarms in Android Settings</string>
     <string name="interruption_audio_note">Game sound and media audio will never be muted</string>
     <string name="dnd_permission_title">Do Not Disturb Access</string>
-    <string name="dnd_permission_desc">Allows Pixel Game Booster to suppress heads-up notification banners and alerts during gameplay.</string>
+    <string name="dnd_permission_desc">Hides notification popups and alerts while you play.</string>
     <string name="dnd_mode_full">Full DND</string>
     <string name="dnd_mode_priority">Priority Only</string>
     <string name="dnd_mode_off">Off / Inherit</string>
-    <string name="dnd_mode_off_desc">Standard notification sounds, vibrations, and banners will appear</string>
-    <string name="dnd_mode_priority_desc">Allows starred contacts and critical alarms through while suppressing third-party notifications</string>
-    <string name="dnd_mode_full_desc">Completely silences all heads-up banners, alerts, and vibrations during gameplay (game sound is preserved)</string>
+    <string name="dnd_mode_off_desc">Notifications work normally</string>
+    <string name="dnd_mode_priority_desc">Only allows alarms and starred contacts; hides other notifications</string>
+    <string name="dnd_mode_full_desc">Hides all notification popups and vibrations (keeps game audio)</string>
     <string name="dnd_config_system_priorities_btn">Configure System Priorities</string>
     <string name="dnd_config_system_priorities_desc">Customize allowed contacts, apps, and priority interruptions in Android settings</string>
     <string name="dnd_media_preservation_note">Media and game volume will never be muted by Do Not Disturb</string>
     <string name="perm_dnd_title">Do Not Disturb Access</string>
-    <string name="perm_dnd_desc">Suppresses heads-up notification banners and distraction chimes while gaming.</string>
+    <string name="perm_dnd_desc">Hides notification popups and sounds while gaming.</string>
     <string name="perm_feature_dnd_peeking">Suppress Heads-Up Banners</string>
     <string name="perm_feature_dnd_audio">Distraction-Free Audio</string>
     <string name="perm_action_grant_dnd">Grant DND Access</string>
     <string name="banner_dnd_title">Do Not Disturb Access Required</string>
-    <string name="banner_dnd_desc">Notification policy access is required to suppress heads-up alerts during gameplay.</string>
+    <string name="banner_dnd_desc">Needed to hide notification popups while gaming.</string>
     <string name="banner_fix_permissions">Fix Permissions</string>
     <string name="banner_shizuku_revoked_title">Shizuku Permission Revoked</string>
-    <string name="banner_shizuku_revoked_desc">Pixel Game Booster lost Shizuku privilege. Game-mode settings cannot be applied or restored. Open Shizuku and grant permission to Pixel Game Booster.</string>
+    <string name="banner_shizuku_revoked_desc">Shizuku permission was lost. Open Shizuku and grant access again.</string>
     <string name="banner_accessibility_disabled_title">Detection Service Disabled</string>
-    <string name="banner_accessibility_disabled_desc">Accessibility Service is not enabled. Automated instant game launch detection is inactive.</string>
+    <string name="banner_accessibility_disabled_desc">Accessibility Service is off. Automatic game detection is paused.</string>
     <string name="banner_permissions_incomplete_title">Permissions Incomplete</string>
-    <string name="banner_permissions_incomplete_desc">One or more recommended permissions are missing. Some automated optimizations may be limited.</string>
+    <string name="banner_permissions_incomplete_desc">Some permissions are missing. A few optimizations may not work.</string>
 
     <!-- Interruption & Call Handling (call_ & interruption_) -->
     <string name="interruption_dnd_policy_title">Do Not Disturb Policy</string>
-    <string name="interruption_dnd_policy_desc">Configure notification suppression and audio muting while in game</string>
+    <string name="interruption_dnd_policy_desc">Choose how notifications behave while gaming</string>
     <string name="call_handling_title">In-Game Call Handling</string>
     <string name="call_handling_desc">Choose how incoming voice calls are handled while gaming</string>
     <string name="call_handling_headsup_title">Floating Banner</string>
-    <string name="call_handling_headsup_desc">Incoming calls appear as a floating heads-up banner without full-screen dialer interruption</string>
+    <string name="call_handling_headsup_desc">Shows incoming calls as a small banner instead of full screen</string>
     <string name="call_handling_silent_title">Silent Ringing</string>
     <string name="call_handling_silent_desc">Rings silently in the background without sound or vibration</string>
     <string name="call_handling_reject_title">Auto-Reject</string>
     <string name="call_handling_reject_desc">Instantly declines incoming calls during gameplay</string>
     <string name="call_screening_role_title">Call Screening Access Required</string>
-    <string name="call_screening_role_desc">Android requires the Call Screening role to enable automated call rejection and silent background ringing</string>
+    <string name="call_screening_role_desc">Needed to silence or auto-reject incoming calls while gaming</string>
     <string name="call_screening_role_grant_btn">Set as Call Screening App</string>
     <string name="call_screening_role_active">Call Screening Active</string>
-    <string name="call_screening_role_active_desc">Pixel Game Booster is configured to screen and manage incoming calls during gameplay</string>
+    <string name="call_screening_role_active_desc">Manages incoming calls automatically while you play</string>
 
     <!-- Floating HUD & Overlay (overlay_) -->
     <string name="overlay_expand_cd">Expand Game Dashboard</string>
@@ -373,40 +373,36 @@
     <string name="overlay_mode_battery">Battery</string>
     <string name="overlay_mode_balanced">Balanced</string>
     <string name="overlay_mode_boost">Performance</string>
-    <string name="overlay_live_fps_title">Live FPS</string>
-    <string name="overlay_quick_tap_title">Quick Tap Lock</string>
-    <string name="overlay_brightness_lock_title">Brightness Lock</string>
-    <string name="overlay_back_gesture_lock_title">Lock Back Button</string>
     <string name="overlay_settings_title">In-Game Overlay</string>
     <string name="overlay_settings_enable">Enable In-Game Overlay</string>
     <string name="overlay_settings_enable_desc">Show quick dashboard while playing configured games</string>
     <string name="overlay_style_title">Overlay Trigger Style</string>
     <string name="overlay_style_bar">Edge Bar</string>
-    <string name="overlay_style_bar_desc">Slim translucent capsule docked along the screen edge</string>
+    <string name="overlay_style_bar_desc">Thin bar docked on the side of the screen</string>
     <string name="overlay_style_circle">Floating Button</string>
     <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
     <string name="overlay_show_live_fps_title">Show Live FPS</string>
-    <string name="overlay_show_live_fps_desc">Display real-time FPS pill on the edge bar or inside the floating button</string>
+    <string name="overlay_show_live_fps_desc">Show live FPS on the overlay button or edge bar</string>
     <string name="overlay_color_title">Trigger Color</string>
     <string name="overlay_color_monet">Monet (Wallpaper)</string>
-    <string name="overlay_color_monet_desc">Matches your dynamic Material You wallpaper accent color</string>
+    <string name="overlay_color_monet_desc">Matches your wallpaper color</string>
     <string name="overlay_color_custom">Custom Color</string>
     <string name="overlay_color_custom_desc">Pick a custom accent color for the edge bar or floating button</string>
     <string name="overlay_navbar_label">Overlay</string>
 
     <!-- Overlay Permissions (perm_) -->
     <string name="perm_overlay_title">Display Over Other Apps</string>
-    <string name="perm_overlay_desc">Allows the floating game HUD and quick settings overlay to render directly over active games.</string>
+    <string name="perm_overlay_desc">Lets the quick settings overlay appear on top of your games.</string>
     <string name="perm_feature_floating_hud">In-Game Floating HUD</string>
     <string name="perm_feature_quick_settings_panel">Quick Settings Frosted Panel</string>
     <string name="perm_write_settings_title">Modify System Settings</string>
-    <string name="perm_write_settings_desc">Enables direct adjustment of display brightness and system settings from within the in-game overlay.</string>
+    <string name="perm_write_settings_desc">Lets you adjust screen brightness directly from the in-game overlay.</string>
     <string name="perm_feature_direct_brightness">Direct Brightness Control</string>
     <string name="perm_action_auto_grant">Auto-Grant via Shizuku</string>
 
     <!-- Screen Recording Settings -->
     <string name="screen_recording_title">Screen Recording</string>
-    <string name="screen_recording_subtitle">Configure audio capture, video quality presets, and in-game recording controls</string>
+    <string name="screen_recording_subtitle">Set audio, video quality, and recording controls</string>
     <string name="screen_recording_tile_desc">Resolution, framerate, audio source &amp; options</string>
     <string name="screen_recording_section_audio">Audio Capture</string>
     <string name="screen_recording_audio_title">Audio Capture Source</string>
@@ -425,7 +421,7 @@
     <string name="hero_cd_active_game">Active Game</string>
     <string name="nav_tab_games">Games</string>
     <string name="nav_tab_overlay">Overlay</string>
-    <string name="overlay_settings_subtitle">Floating system dashboard accessible directly during gameplay</string>
+    <string name="overlay_settings_subtitle">Quick settings panel accessible while playing</string>
     <string name="overlay_section_general">General</string>
     <string name="overlay_opacity_button_title">Floating Button Opacity</string>
     <string name="overlay_opacity_bar_title">Edge Bar Opacity</string>
@@ -436,7 +432,6 @@
     <string name="overlay_color_picker_title">Color Picker</string>
     <string name="overlay_color_cancel">Cancel</string>
     <string name="overlay_color_confirm">Confirm</string>
-    <string name="overlay_lock_120hz">Lock 120Hz</string>
     <string name="overlay_cd_trigger">Game Booster Overlay</string>
     <string name="screen_record_started">Screen recording started</string>
     <string name="screen_record_start_failed">Failed to start recording: %1$s</string>
@@ -454,13 +449,13 @@
     <string name="screen_record_unsupported">Screen recording not supported on this device</string>
     <string name="screen_record_cancelled">Screen recording cancelled</string>
     <string name="detection_channel_name">Game Detection Service</string>
-    <string name="detection_channel_desc">Monitors foreground games to automate optimizations</string>
+    <string name="detection_channel_desc">Detects running games to apply boosts</string>
     <string name="detection_notif_title">Pixel Game Booster Active</string>
-    <string name="detection_notif_text">Monitoring games for automated performance tuning</string>
+    <string name="detection_notif_text">Boosting games automatically</string>
 
     <!-- Overlay Layout Customization (overlay_layout_) -->
     <string name="overlay_layout_entry_title">Customize Overlay Layout</string>
-    <string name="overlay_layout_entry_desc">Rearrange blocks, sliders, telemetry pill &amp; action buttons</string>
+    <string name="overlay_layout_entry_desc">Reorder panels, sliders, stats, and buttons</string>
     <string name="overlay_layout_screen_title">Overlay Layout</string>
     <string name="overlay_layout_preview_title">Live Preview</string>
     <string name="overlay_layout_preview_empty">All overlay blocks are hidden</string>
@@ -479,9 +474,9 @@
     <string name="overlay_layout_block_tiles">Action Buttons</string>
     <string name="overlay_layout_block_tiles_desc">%1$d buttons configured</string>
     <string name="overlay_layout_block_brightness">Brightness Slider</string>
-    <string name="overlay_layout_block_brightness_desc">Hardware-calibrated display brightness control</string>
+    <string name="overlay_layout_block_brightness_desc">Adjust screen brightness</string>
     <string name="overlay_layout_block_volume">Volume Slider</string>
-    <string name="overlay_layout_block_volume_desc">In-game media volume control</string>
+    <string name="overlay_layout_block_volume_desc">Adjust media volume</string>
     <string name="overlay_layout_metric_fps">FPS</string>
     <string name="overlay_layout_metric_temp">Temp (°C)</string>
     <string name="overlay_layout_metric_watt">Power (W)</string>
@@ -496,15 +491,5 @@
     <string name="overlay_layout_cat_suspension">App Suspension</string>
 
     <!-- Extra Overlay Tile Labels -->
-    <string name="overlay_tile_boost_ram">Purge RAM</string>
     <string name="overlay_tile_boost_ram_toast">Background RAM purged</string>
-    <string name="overlay_tile_cached_freezer">App Freezer</string>
-    <string name="overlay_tile_wifi_low_latency">Wi-Fi Boost</string>
-    <string name="overlay_tile_wifi_suppress_scans">Stop Scans</string>
-    <string name="overlay_tile_wifi_lock_sufficiency">Lock Wi-Fi</string>
-    <string name="overlay_tile_wifi_prevent_arp">ARP Guard</string>
-    <string name="overlay_tile_private_dns">DNS Bypass</string>
-    <string name="overlay_tile_pause_sync">Pause Sync</string>
-    <string name="overlay_tile_block_battery_saver">No Batt Saver</string>
-    <string name="overlay_tile_suspend_apps">Freeze Apps</string>
 </resources>

@@ -29,23 +29,23 @@ import com.pixel.gamebooster.overlay.model.TelemetryMetric
 
 @StringRes
 fun OverlayTileType.labelRes(): Int = when (this) {
-    OverlayTileType.LOCK_120HZ -> R.string.overlay_lock_120hz
-    OverlayTileType.GAME_DND -> R.string.overlay_dnd_title
+    OverlayTileType.LOCK_120HZ -> R.string.perf_force_120hz_title
+    OverlayTileType.GAME_DND -> R.string.interruption_dnd_toggle_title
     OverlayTileType.SCREEN_RECORD -> R.string.overlay_record
-    OverlayTileType.LIVE_FPS -> R.string.overlay_live_fps_title
-    OverlayTileType.AUTO_BRIGHTNESS_LOCK -> R.string.overlay_brightness_lock_title
-    OverlayTileType.BACK_GESTURE_LOCK -> R.string.overlay_back_gesture_lock_title
-    OverlayTileType.QUICK_TAP_LOCK -> R.string.overlay_quick_tap_title
-    OverlayTileType.BOOST_RAM -> R.string.overlay_tile_boost_ram
-    OverlayTileType.CACHED_FREEZER -> R.string.overlay_tile_cached_freezer
-    OverlayTileType.WIFI_LOW_LATENCY -> R.string.overlay_tile_wifi_low_latency
-    OverlayTileType.WIFI_SUPPRESS_SCANS -> R.string.overlay_tile_wifi_suppress_scans
-    OverlayTileType.WIFI_LOCK_SUFFICIENCY -> R.string.overlay_tile_wifi_lock_sufficiency
-    OverlayTileType.WIFI_PREVENT_ARP -> R.string.overlay_tile_wifi_prevent_arp
-    OverlayTileType.PRIVATE_DNS_BYPASS -> R.string.overlay_tile_private_dns
-    OverlayTileType.PAUSE_AUTO_SYNC -> R.string.overlay_tile_pause_sync
-    OverlayTileType.BLOCK_BATTERY_SAVER -> R.string.overlay_tile_block_battery_saver
-    OverlayTileType.SUSPEND_APPS -> R.string.overlay_tile_suspend_apps
+    OverlayTileType.LIVE_FPS -> R.string.overlay_show_live_fps_title
+    OverlayTileType.AUTO_BRIGHTNESS_LOCK -> R.string.perf_disable_auto_brightness_title
+    OverlayTileType.BACK_GESTURE_LOCK -> R.string.perf_lock_back_gesture_title
+    OverlayTileType.QUICK_TAP_LOCK -> R.string.freezer_disable_quick_tap_title
+    OverlayTileType.BOOST_RAM -> R.string.perf_purge_ram_title
+    OverlayTileType.CACHED_FREEZER -> R.string.perf_cached_freezer_title
+    OverlayTileType.WIFI_LOW_LATENCY -> R.string.net_low_latency_title
+    OverlayTileType.WIFI_SUPPRESS_SCANS -> R.string.net_suppress_scans_title
+    OverlayTileType.WIFI_LOCK_SUFFICIENCY -> R.string.net_lock_sufficiency_title
+    OverlayTileType.WIFI_PREVENT_ARP -> R.string.net_prevent_arp_title
+    OverlayTileType.PRIVATE_DNS_BYPASS -> R.string.net_disable_private_dns_title
+    OverlayTileType.PAUSE_AUTO_SYNC -> R.string.net_pause_sync_title
+    OverlayTileType.BLOCK_BATTERY_SAVER -> R.string.net_block_battery_saver_title
+    OverlayTileType.SUSPEND_APPS -> R.string.freezer_header_title
 }
 
 @Composable
