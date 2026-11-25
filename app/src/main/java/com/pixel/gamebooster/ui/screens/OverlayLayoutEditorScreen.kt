@@ -93,6 +93,7 @@ import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.overlay.model.OverlayBlockConfig
 import com.pixel.gamebooster.overlay.model.OverlayBlockType
 import com.pixel.gamebooster.overlay.model.OverlayLayoutConfig
+import com.pixel.gamebooster.overlay.model.OverlayTileCategory
 import com.pixel.gamebooster.overlay.model.OverlayTileType
 import com.pixel.gamebooster.overlay.model.TelemetryMetric
 import com.pixel.gamebooster.overlay.ui.ExpandedPanelModeSwitcher
@@ -448,39 +449,44 @@ private fun ActionButtonsSwitchesSection(
     layout: OverlayLayoutConfig,
     onToggleTile: (OverlayTileType, Boolean) -> Unit,
 ) {
-    val allTiles = OverlayTileType.entries
+    val tilesByCategory = OverlayTileType.entries.groupBy { it.category }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = stringResource(R.string.overlay_layout_section_tiles),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 8.dp),
-            )
-            Text(
-                text = stringResource(R.string.overlay_layout_section_tiles_desc),
-                style = TextStyle(
-                    fontFamily = GoogleSansFlexRounded,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 13.sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 8.dp),
-            )
-        }
+        Text(
+            text = stringResource(R.string.overlay_layout_section_tiles_desc),
+            style = TextStyle(
+                fontFamily = GoogleSansFlexRounded,
+                fontWeight = FontWeight.Normal,
+                fontSize = 13.sp,
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
 
-        RoundedCardContainer {
-            allTiles.forEachIndexed { index, tile ->
-                val isEnabled = layout.tiles.contains(tile)
-                IconToggleItem(
-                    title = stringResource(tile.labelRes()),
-                    subtitle = stringResource(tile.category.labelRes()),
-                    icon = tile.iconVector(),
-                    checked = isEnabled,
-                    onCheckedChange = { enabled -> onToggleTile(tile, enabled) },
-                    index = index,
-                    count = allTiles.size,
-                )
+        OverlayTileCategory.entries.forEach { category ->
+            val categoryTiles = tilesByCategory[category].orEmpty()
+            if (categoryTiles.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(category.labelRes()),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                    )
+
+                    RoundedCardContainer {
+                        categoryTiles.forEachIndexed { index, tile ->
+                            val isEnabled = layout.tiles.contains(tile)
+                            IconToggleItem(
+                                title = stringResource(tile.labelRes()),
+                                icon = tile.iconVector(),
+                                checked = isEnabled,
+                                onCheckedChange = { enabled -> onToggleTile(tile, enabled) },
+                                index = index,
+                                count = categoryTiles.size,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
