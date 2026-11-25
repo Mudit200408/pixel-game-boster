@@ -10,12 +10,9 @@ import androidx.compose.material.icons.rounded.DoNotDisturbOn
 import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Radar
-import androidx.compose.material.icons.rounded.Screenshot
 import androidx.compose.material.icons.rounded.Security
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SyncDisabled
 import androidx.compose.material.icons.rounded.TouchApp
-import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.WifiLock
 import androidx.compose.runtime.Composable
@@ -54,9 +51,9 @@ fun OverlayTileType.labelRes(): Int = when (this) {
 fun OverlayTileType.iconVector(): ImageVector = when (this) {
     OverlayTileType.LOCK_120HZ -> ImageVector.vectorResource(R.drawable.ic_120hz)
     OverlayTileType.GAME_DND -> Icons.Rounded.DoNotDisturbOn
-    OverlayTileType.SCREEN_RECORD -> Icons.Rounded.Videocam
-    OverlayTileType.SCREENSHOT -> Icons.Rounded.Screenshot
-    OverlayTileType.LIVE_FPS -> Icons.Rounded.Speed
+    OverlayTileType.SCREEN_RECORD -> ImageVector.vectorResource(R.drawable.ic_screen_record)
+    OverlayTileType.SCREENSHOT -> ImageVector.vectorResource(R.drawable.ic_screenshot)
+    OverlayTileType.LIVE_FPS -> ImageVector.vectorResource(R.drawable.ic_fps)
     OverlayTileType.AUTO_BRIGHTNESS_LOCK -> Icons.Rounded.LightMode
     OverlayTileType.BACK_GESTURE_LOCK -> Icons.Rounded.TouchApp
     OverlayTileType.QUICK_TAP_LOCK -> Icons.Rounded.TouchApp

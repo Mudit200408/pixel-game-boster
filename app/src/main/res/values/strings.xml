@@ -383,7 +383,6 @@
     <string name="overlay_style_circle">Floating Button</string>
     <string name="overlay_style_circle_desc">Floating circular button with game console icon</string>
     <string name="overlay_show_live_fps_title">Show Live FPS</string>
-    <string name="overlay_show_live_fps_desc">Show live FPS on the overlay button or edge bar</string>
     <string name="overlay_color_title">Trigger Color</string>
     <string name="overlay_color_monet">Monet (Wallpaper)</string>
     <string name="overlay_color_monet_desc">Matches your wallpaper color</string>

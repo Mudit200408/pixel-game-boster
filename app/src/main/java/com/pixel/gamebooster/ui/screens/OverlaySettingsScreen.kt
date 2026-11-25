@@ -44,9 +44,7 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.DashboardCustomize
-import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SportsEsports
-import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -74,10 +72,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,7 +115,6 @@ fun OverlaySettingsScreen(
     val isOverlayEnabled by repo.isOverlayEnabled.collectAsState()
     val overlayStyle by repo.overlayStyle.collectAsState()
     val overlayOpacity by repo.overlayOpacity.collectAsState()
-    val showLiveFps by repo.showLiveFps.collectAsState()
     val overlayColorMode by repo.overlayColorMode.collectAsState()
     val overlayCustomColor by repo.overlayCustomColor.collectAsState()
     val recordAudioSource by repo.recordAudioSource.collectAsState()
@@ -375,21 +374,6 @@ fun OverlaySettingsScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                    }
-
-                    RoundedCardContainer {
-                        IconToggleItem(
-                            title = stringResource(R.string.overlay_show_live_fps_title),
-                            subtitle = stringResource(R.string.overlay_show_live_fps_desc),
-                            icon = Icons.Rounded.Speed,
-                            checked = showLiveFps,
-                            onCheckedChange = {
-                                HapticUtil.performVirtualKeyHaptic(view)
-                                repo.setShowLiveFps(it)
-                            },
-                            index = 0,
-                            count = 1,
-                        )
                     }
 
                     Text(
@@ -850,7 +834,7 @@ fun OverlaySettingsScreen(
                         IconToggleItem(
                             title = stringResource(R.string.screen_recording_title),
                             subtitle = "${currentResolution.label} • ${currentAudio.label}",
-                            icon = Icons.Rounded.Videocam,
+                            icon = ImageVector.vectorResource(R.drawable.ic_screen_record),
                             showToggle = false,
                             onClick = {
                                 HapticUtil.performVirtualKeyHaptic(view)
