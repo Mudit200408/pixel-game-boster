@@ -45,4 +45,7 @@ data class OverlayUiState(
     val wattageW: Float = 4.2f,
     val isRecording: Boolean = false,
     val recordDoubleTapStop: Boolean = true,
+    val doubleTapAction: com.pixel.gamebooster.data.model.OverlayGestureAction = com.pixel.gamebooster.data.model.OverlayGestureAction.NONE,
+    val longTapAction: com.pixel.gamebooster.data.model.OverlayGestureAction = com.pixel.gamebooster.data.model.OverlayGestureAction.NONE,
+    val doubleTapDelayMs: Int = 200,
 )

@@ -113,6 +113,9 @@ class OverlayViewModel(
                     overlayCustomColor = repository.overlayCustomColor.value,
                     layoutConfig = repository.overlayLayout.value,
                     recordDoubleTapStop = repository.recordDoubleTapStop.value,
+                    doubleTapAction = repository.overlayDoubleTapAction.value,
+                    longTapAction = repository.overlayLongTapAction.value,
+                    doubleTapDelayMs = repository.overlayDoubleTapDelayMs.value,
                 )
             }
             updateMonitoringState()
@@ -160,6 +163,42 @@ class OverlayViewModel(
         repository.recordDoubleTapStop
             .onEach { enabled ->
                 _uiState.update { it.copy(recordDoubleTapStop = enabled) }
+            }
+            .launchIn(scope)
+
+        repository.overlayDoubleTapAction
+            .onEach { action ->
+                _uiState.update { it.copy(doubleTapAction = action) }
+            }
+            .launchIn(scope)
+
+        repository.overlayLongTapAction
+            .onEach { action ->
+                _uiState.update { it.copy(longTapAction = action) }
+            }
+            .launchIn(scope)
+
+        repository.overlayDoubleTapDelayMs
+            .onEach { delayMs ->
+                _uiState.update { it.copy(doubleTapDelayMs = delayMs) }
+            }
+            .launchIn(scope)
+
+        repository.overlayDoubleTapAction
+            .onEach { action ->
+                _uiState.update { it.copy(doubleTapAction = action) }
+            }
+            .launchIn(scope)
+
+        repository.overlayLongTapAction
+            .onEach { action ->
+                _uiState.update { it.copy(longTapAction = action) }
+            }
+            .launchIn(scope)
+
+        repository.overlayDoubleTapDelayMs
+            .onEach { delayMs ->
+                _uiState.update { it.copy(doubleTapDelayMs = delayMs) }
             }
             .launchIn(scope)
 
@@ -385,6 +424,46 @@ class OverlayViewModel(
         scope.launch(Dispatchers.IO) {
             GameModeManager.applyGameIntervention(context, packageName, mode, fps)
             updatePersistedProfile { it.copy(interventionMode = mode) }
+        }
+    }
+
+    fun cycleInterventionMode() {
+        val nextMode = when (_uiState.value.interventionMode) {
+            3 -> 1 // Battery -> Balanced
+            1 -> 2 // Balanced -> Boost
+            else -> 3 // Boost -> Battery
+        }
+        setInterventionMode(nextMode)
+        val labelRes = when (nextMode) {
+            3 -> com.pixel.gamebooster.R.string.overlay_mode_battery
+            1 -> com.pixel.gamebooster.R.string.overlay_mode_balanced
+            else -> com.pixel.gamebooster.R.string.overlay_mode_boost
+        }
+        scope.launch(Dispatchers.Main) {
+            android.widget.Toast.makeText(context, context.getString(labelRes), android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun executeGestureAction(action: com.pixel.gamebooster.data.model.OverlayGestureAction) {
+        when (action) {
+            com.pixel.gamebooster.data.model.OverlayGestureAction.NONE -> Unit
+            com.pixel.gamebooster.data.model.OverlayGestureAction.REVEAL_OVERLAY -> {
+                setDisplayState(OverlayDisplayState.EXPANDED_PANEL)
+            }
+            com.pixel.gamebooster.data.model.OverlayGestureAction.TOGGLE_RECORDING -> toggleRecording()
+            com.pixel.gamebooster.data.model.OverlayGestureAction.TAKE_SCREENSHOT -> takeScreenshot()
+            com.pixel.gamebooster.data.model.OverlayGestureAction.TOGGLE_FPS -> toggleLiveFps()
+            com.pixel.gamebooster.data.model.OverlayGestureAction.PURGE_RAM -> {
+                purgeRamNow()
+                scope.launch(Dispatchers.Main) {
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(com.pixel.gamebooster.R.string.overlay_tile_boost_ram_toast),
+                        android.widget.Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
+            com.pixel.gamebooster.data.model.OverlayGestureAction.CYCLE_PERFORMANCE_MODE -> cycleInterventionMode()
         }
     }
 

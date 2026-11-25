@@ -69,8 +69,12 @@ fun CollapsedPill(
     overlayCustomColor: Int = 0xFF4285F4.toInt(),
     isRecording: Boolean = false,
     doubleTapToStopEnabled: Boolean = true,
+    doubleTapAction: com.pixel.gamebooster.data.model.OverlayGestureAction = com.pixel.gamebooster.data.model.OverlayGestureAction.NONE,
+    longTapAction: com.pixel.gamebooster.data.model.OverlayGestureAction = com.pixel.gamebooster.data.model.OverlayGestureAction.NONE,
+    doubleTapDelayMs: Int = 200,
     onExpand: () -> Unit,
     onStopRecording: () -> Unit = {},
+    onGestureAction: (com.pixel.gamebooster.data.model.OverlayGestureAction) -> Unit = {},
     onDragStart: () -> Pair<Int, Int> = { 0 to 0 },
     onDrag: (Int, Int) -> Unit,
     onDragEnd: (Int, Int) -> Unit,
@@ -93,12 +97,14 @@ fun CollapsedPill(
             var lastTargetX = 0
             var lastTargetY = 0
             var isDragging = false
+            var longPressTriggered = false
             var lastTapUpTime = 0L
             var pendingTapJob: Job? = null
+            var longPressJob: Job? = null
         }
     }
     val dragThresholdPx = with(density) { 8.dp.toPx() }
-    val doubleTapTimeoutMs = remember { ViewConfiguration.getDoubleTapTimeout().toLong() }
+    val longPressTimeoutMs = remember { ViewConfiguration.getLongPressTimeout().toLong() }
 
     LaunchedEffect(lastInteractionTime, isInteracting) {
         if (!isInteracting) {
@@ -135,13 +141,39 @@ fun CollapsedPill(
                         dragState.downRawX = event.rawX
                         dragState.downRawY = event.rawY
                         dragState.isDragging = false
+                        dragState.longPressTriggered = false
+                        dragState.longPressJob?.cancel()
+                        dragState.longPressJob = if (longTapAction != com.pixel.gamebooster.data.model.OverlayGestureAction.NONE) {
+                            scope.launch {
+                                delay(longPressTimeoutMs)
+                                if (!dragState.isDragging) {
+                                    dragState.longPressTriggered = true
+                                    dragState.pendingTapJob?.cancel()
+                                    dragState.pendingTapJob = null
+                                    dragState.lastTapUpTime = 0L
+                                    HapticUtil.performToggle(view)
+                                    if (longTapAction == com.pixel.gamebooster.data.model.OverlayGestureAction.REVEAL_OVERLAY) {
+                                        onExpand()
+                                    } else {
+                                        onGestureAction(longTapAction)
+                                    }
+                                }
+                            }
+                        } else {
+                            null
+                        }
                         lastInteractionTime = System.currentTimeMillis()
                         true
                     }
                     MotionEvent.ACTION_MOVE -> {
+                        if (dragState.longPressTriggered) {
+                            return@pointerInteropFilter true
+                        }
                         val dx = event.rawX - dragState.downRawX
                         val dy = event.rawY - dragState.downRawY
                         if (!dragState.isDragging && (abs(dx) > dragThresholdPx || abs(dy) > dragThresholdPx)) {
+                            dragState.longPressJob?.cancel()
+                            dragState.longPressJob = null
                             dragState.isDragging = true
                             dragState.pendingTapJob?.cancel()
                             dragState.pendingTapJob = null
@@ -163,27 +195,46 @@ fun CollapsedPill(
                         true
                     }
                     MotionEvent.ACTION_UP -> {
+                        dragState.longPressJob?.cancel()
+                        dragState.longPressJob = null
                         lastInteractionTime = System.currentTimeMillis()
-                        if (dragState.isDragging) {
+                        if (dragState.longPressTriggered) {
+                            dragState.longPressTriggered = false
+                        } else if (dragState.isDragging) {
                             dragState.isDragging = false
                             isInteracting = false
                             onDragEnd(dragState.lastTargetX, dragState.lastTargetY)
                         } else {
-                            if (isRecording && doubleTapToStopEnabled) {
+                            val isStopRecordingDoubleTap = isRecording && doubleTapToStopEnabled
+                            val hasDoubleTap = isStopRecordingDoubleTap ||
+                                doubleTapAction != com.pixel.gamebooster.data.model.OverlayGestureAction.NONE
+                            if (hasDoubleTap) {
                                 val now = System.currentTimeMillis()
-                                if (now - dragState.lastTapUpTime <= doubleTapTimeoutMs) {
+                                val timeoutMs = doubleTapDelayMs.toLong()
+                                if (now - dragState.lastTapUpTime <= timeoutMs) {
                                     dragState.pendingTapJob?.cancel()
                                     dragState.pendingTapJob = null
                                     dragState.lastTapUpTime = 0L
                                     HapticUtil.performToggle(view)
-                                    onStopRecording()
+                                    when {
+                                        isStopRecordingDoubleTap -> onStopRecording()
+                                        doubleTapAction == com.pixel.gamebooster.data.model.OverlayGestureAction.REVEAL_OVERLAY -> onExpand()
+                                        else -> onGestureAction(doubleTapAction)
+                                    }
                                 } else {
                                     dragState.lastTapUpTime = now
                                     dragState.pendingTapJob?.cancel()
-                                    dragState.pendingTapJob = scope.launch {
-                                        delay(doubleTapTimeoutMs)
-                                        HapticUtil.performUIHaptic(view)
-                                        onExpand()
+                                    if (!isStopRecordingDoubleTap &&
+                                        doubleTapAction == com.pixel.gamebooster.data.model.OverlayGestureAction.REVEAL_OVERLAY
+                                    ) {
+                                        // Single tap intentionally ignored when Reveal Overlay is bound to double tap
+                                        dragState.pendingTapJob = null
+                                    } else {
+                                        dragState.pendingTapJob = scope.launch {
+                                            delay(timeoutMs)
+                                            HapticUtil.performUIHaptic(view)
+                                            onExpand()
+                                        }
                                     }
                                 }
                             } else {
@@ -194,6 +245,9 @@ fun CollapsedPill(
                         true
                     }
                     MotionEvent.ACTION_CANCEL -> {
+                        dragState.longPressJob?.cancel()
+                        dragState.longPressJob = null
+                        dragState.longPressTriggered = false
                         if (dragState.isDragging) {
                             dragState.isDragging = false
                             isInteracting = false

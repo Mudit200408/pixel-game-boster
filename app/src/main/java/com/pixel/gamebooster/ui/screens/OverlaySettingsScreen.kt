@@ -45,6 +45,9 @@ import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.DashboardCustomize
 import androidx.compose.material.icons.rounded.SportsEsports
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,6 +62,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -110,6 +114,8 @@ fun OverlaySettingsScreen(
     modifier: Modifier = Modifier,
     onNavigateToScreenRecording: () -> Unit = {},
     onNavigateToOverlayLayout: () -> Unit = {},
+    onNavigateToOverlayGestures: () -> Unit = {},
+    isAnimationPlaying: Boolean = true,
 ) {
     val view = LocalView.current
     val isOverlayEnabled by repo.isOverlayEnabled.collectAsState()
@@ -133,22 +139,20 @@ fun OverlaySettingsScreen(
     } else {
         R.raw.lottie_overlay_edge
     }
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(lottieRes))
-    val progress by animateLottieCompositionAsState(
-        composition = composition,
-        iterations = LottieConstants.IterateForever,
-    )
     val accentColor = if (isOverlayEnabled) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val accentFilter = remember(accentColor) {
+        PorterDuffColorFilter(accentColor.toArgb(), PorterDuff.Mode.SRC_ATOP)
+    }
     val dynamicProperties = rememberLottieDynamicProperties(
-        rememberLottieDynamicProperty(
-            property = LottieProperty.COLOR_FILTER,
-            value = PorterDuffColorFilter(accentColor.toArgb(), PorterDuff.Mode.SRC_ATOP),
-            keyPath = arrayOf("**"),
-        ),
+        rememberLottieDynamicProperty(LottieProperty.COLOR_FILTER, accentFilter, "edgeBar", "**"),
+        rememberLottieDynamicProperty(LottieProperty.COLOR_FILTER, accentFilter, "controllerButton", "FAB Group", "**"),
+        rememberLottieDynamicProperty(LottieProperty.COLOR_FILTER, accentFilter, "controllerButton", "Buttons Group", "**"),
+        rememberLottieDynamicProperty(LottieProperty.COLOR_FILTER, accentFilter, "controllerButton", "Dpad Group", "**"),
+        rememberLottieDynamicProperty(LottieProperty.COLOR_FILTER, accentFilter, "hudElements", "**"),
     )
 
     Scaffold(
@@ -191,14 +195,22 @@ fun OverlaySettingsScreen(
                     .height(lottieHeight),
                 contentAlignment = Alignment.Center,
             ) {
-                LottieAnimation(
-                    composition = composition,
-                    progress = { progress },
-                    dynamicProperties = dynamicProperties,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(lottieHeight),
-                )
+                key(lottieRes) {
+                    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(lottieRes))
+                    val progress by animateLottieCompositionAsState(
+                        composition = composition,
+                        isPlaying = isAnimationPlaying,
+                        iterations = LottieConstants.IterateForever,
+                    )
+                    LottieAnimation(
+                        composition = composition,
+                        progress = { progress },
+                        dynamicProperties = dynamicProperties,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(lottieHeight),
+                    )
+                }
             }
 
             // Section 1: General Activation
@@ -801,6 +813,44 @@ fun OverlaySettingsScreen(
                             onClick = {
                                 HapticUtil.performVirtualKeyHaptic(view)
                                 onNavigateToOverlayLayout()
+                            },
+                            trailingContent = {
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            index = 0,
+                            count = 1,
+                        )
+                    }
+                }
+            }
+
+            // Section 3.5: Gestures (hidden when overlay is disabled)
+            AnimatedVisibility(
+                visible = isOverlayEnabled,
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = stringResource(R.string.overlay_gestures_section_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+
+                    RoundedCardContainer {
+                        IconToggleItem(
+                            title = stringResource(R.string.overlay_gestures_entry_title),
+                            subtitle = stringResource(R.string.overlay_gestures_entry_desc),
+                            icon = Icons.Rounded.TouchApp,
+                            showToggle = false,
+                            onClick = {
+                                HapticUtil.performVirtualKeyHaptic(view)
+                                onNavigateToOverlayGestures()
                             },
                             trailingContent = {
                                 Icon(

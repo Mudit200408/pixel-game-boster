@@ -95,9 +95,15 @@ fun GameOverlayHost(
             overlayCustomColor = uiState.overlayCustomColor,
             isRecording = uiState.isRecording,
             doubleTapToStopEnabled = uiState.recordDoubleTapStop,
+            doubleTapAction = uiState.doubleTapAction,
+            longTapAction = uiState.longTapAction,
+            doubleTapDelayMs = uiState.doubleTapDelayMs,
             onExpand = handleExpand,
             onStopRecording = {
                 viewModel.stopRecording()
+            },
+            onGestureAction = { action ->
+                viewModel.executeGestureAction(action)
             },
             onDragStart = { GameOverlayManager.startPillDrag() },
             onDrag = { targetX, targetY -> GameOverlayManager.dragPillTo(targetX, targetY) },

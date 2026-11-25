@@ -251,6 +251,7 @@ fun OnboardingScreen(
             val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(lottieRes))
             val progress by animateLottieCompositionAsState(
                 composition = composition,
+                isPlaying = pagerState.currentPage == pageIndex || pagerState.isScrollInProgress,
                 iterations = LottieConstants.IterateForever,
             )
             val monetColor = MaterialTheme.colorScheme.primary

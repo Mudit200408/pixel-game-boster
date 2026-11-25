@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.pixel.gamebooster.data.db.AppDatabase
 import com.pixel.gamebooster.data.db.dao.GameProfileDao
 import com.pixel.gamebooster.data.model.GameProfile
+import com.pixel.gamebooster.data.model.OverlayGestureAction
 import com.pixel.gamebooster.data.model.toDomain
 import com.pixel.gamebooster.data.model.toEntity
 import com.pixel.gamebooster.overlay.model.OverlayLayoutConfig
@@ -66,6 +67,10 @@ class SettingsRepository(
         const val KEY_RECORD_RESOLUTION = "record_resolution" // 0=1080p 60fps, 1=1080p 30fps, 2=720p 60fps
         const val KEY_RECORD_SHOW_TOUCHES = "record_show_touches"
         const val KEY_RECORD_DOUBLE_TAP_STOP = "record_double_tap_stop"
+        const val KEY_OVERLAY_DOUBLE_TAP_ACTION = "overlay_double_tap_action"
+        const val KEY_OVERLAY_LONG_TAP_ACTION = "overlay_long_tap_action"
+        const val KEY_OVERLAY_DOUBLE_TAP_DELAY_MS = "overlay_double_tap_delay_ms"
+        const val DEFAULT_DOUBLE_TAP_DELAY_MS = 200
 
         const val KEY_GAMES = "game_packages"
         const val KEY_SUSPENDED_APPS = "suspended_user_packages"
@@ -119,6 +124,15 @@ class SettingsRepository(
     val recordResolution = MutableStateFlow(prefs.getInt(KEY_RECORD_RESOLUTION, 0))
     val recordShowTouches = MutableStateFlow(prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false))
     val recordDoubleTapStop = MutableStateFlow(prefs.getBoolean(KEY_RECORD_DOUBLE_TAP_STOP, true))
+    val overlayDoubleTapAction = MutableStateFlow(
+        OverlayGestureAction.fromPrefValue(prefs.getString(KEY_OVERLAY_DOUBLE_TAP_ACTION, null)),
+    )
+    val overlayLongTapAction = MutableStateFlow(
+        OverlayGestureAction.fromPrefValue(prefs.getString(KEY_OVERLAY_LONG_TAP_ACTION, null)),
+    )
+    val overlayDoubleTapDelayMs = MutableStateFlow(
+        prefs.getInt(KEY_OVERLAY_DOUBLE_TAP_DELAY_MS, DEFAULT_DOUBLE_TAP_DELAY_MS).coerceIn(100, 500),
+    )
 
     val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet()) ?: emptySet())
     val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet()) ?: emptySet())
@@ -164,6 +178,12 @@ class SettingsRepository(
             KEY_RECORD_RESOLUTION -> recordResolution.value = prefs.getInt(KEY_RECORD_RESOLUTION, 0)
             KEY_RECORD_SHOW_TOUCHES -> recordShowTouches.value = prefs.getBoolean(KEY_RECORD_SHOW_TOUCHES, false)
             KEY_RECORD_DOUBLE_TAP_STOP -> recordDoubleTapStop.value = prefs.getBoolean(KEY_RECORD_DOUBLE_TAP_STOP, true)
+            KEY_OVERLAY_DOUBLE_TAP_ACTION -> overlayDoubleTapAction.value =
+                OverlayGestureAction.fromPrefValue(prefs.getString(KEY_OVERLAY_DOUBLE_TAP_ACTION, null))
+            KEY_OVERLAY_LONG_TAP_ACTION -> overlayLongTapAction.value =
+                OverlayGestureAction.fromPrefValue(prefs.getString(KEY_OVERLAY_LONG_TAP_ACTION, null))
+            KEY_OVERLAY_DOUBLE_TAP_DELAY_MS -> overlayDoubleTapDelayMs.value =
+                prefs.getInt(KEY_OVERLAY_DOUBLE_TAP_DELAY_MS, DEFAULT_DOUBLE_TAP_DELAY_MS).coerceIn(100, 500)
             KEY_GAMES -> gameApps.value = prefs.getStringSet(KEY_GAMES, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_APPS -> suspendedApps.value = prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet() ?: emptySet()
             KEY_SUSPENDED_SERVICES -> suspendedServices.value = prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES)?.toSet() ?: DEFAULT_SERVICES
@@ -410,6 +430,22 @@ class SettingsRepository(
     fun setRecordDoubleTapStop(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_RECORD_DOUBLE_TAP_STOP, enabled).apply()
         recordDoubleTapStop.value = enabled
+    }
+
+    fun setOverlayDoubleTapAction(action: OverlayGestureAction) {
+        prefs.edit().putString(KEY_OVERLAY_DOUBLE_TAP_ACTION, action.prefValue).apply()
+        overlayDoubleTapAction.value = action
+    }
+
+    fun setOverlayLongTapAction(action: OverlayGestureAction) {
+        prefs.edit().putString(KEY_OVERLAY_LONG_TAP_ACTION, action.prefValue).apply()
+        overlayLongTapAction.value = action
+    }
+
+    fun setOverlayDoubleTapDelayMs(delayMs: Int) {
+        val clamped = delayMs.coerceIn(100, 500)
+        prefs.edit().putInt(KEY_OVERLAY_DOUBLE_TAP_DELAY_MS, clamped).apply()
+        overlayDoubleTapDelayMs.value = clamped
     }
 
     // --- Per-Game Fallback Engine & Persistence ---

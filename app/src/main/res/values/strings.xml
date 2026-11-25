@@ -492,4 +492,26 @@
 
     <!-- Extra Overlay Tile Labels -->
     <string name="overlay_tile_boost_ram_toast">Background RAM purged</string>
+
+    <!-- Overlay Gestures Screen -->
+    <string name="overlay_gestures_section_title">Gestures</string>
+    <string name="overlay_gestures_entry_title">Edge Bar &amp; Button Gestures</string>
+    <string name="overlay_gestures_entry_desc">Configure double tap, long tap, and tap timing</string>
+    <string name="overlay_gestures_screen_title">Overlay Gestures</string>
+    <string name="overlay_gestures_double_tap_section">Double Tap</string>
+    <string name="overlay_gestures_double_tap_action_title">Double Tap Action</string>
+    <string name="overlay_gestures_double_tap_delay_title">Double Tap Delay</string>
+    <string name="overlay_gestures_double_tap_delay_desc">Lower values open the overlay faster on single tap; higher values make double-tapping easier</string>
+    <string name="overlay_gestures_double_tap_delay_ms">%1$d ms</string>
+    <string name="overlay_gestures_double_tap_stop_hint">Double-tap to stop recording is enabled in Screen Recording settings and will take priority while recording is active.</string>
+    <string name="overlay_gestures_long_tap_section">Long Tap</string>
+    <string name="overlay_gestures_long_tap_action_title">Long Tap Action</string>
+    <string name="overlay_gestures_long_tap_desc">Hold the Edge Bar or Floating Button without dragging to trigger this action</string>
+    <string name="overlay_gesture_action_none">None</string>
+    <string name="overlay_gesture_action_reveal_overlay">Reveal Overlay (disables single tap)</string>
+    <string name="overlay_gesture_action_toggle_recording">Start / Stop Screen Recording</string>
+    <string name="overlay_gesture_action_take_screenshot">Take Screenshot</string>
+    <string name="overlay_gesture_action_toggle_fps">Show / Hide Live FPS</string>
+    <string name="overlay_gesture_action_purge_ram">Purge RAM &amp; zRAM</string>
+    <string name="overlay_gesture_action_cycle_mode">Cycle Performance Mode</string>
 </resources>
