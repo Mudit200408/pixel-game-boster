@@ -23,6 +23,7 @@ data class GameProfileEntity(
     val wifiPreventArp: Boolean = true,
     val blockBatterySaver: Boolean = true,
     val pauseAutoSync: Boolean = true,
+    val pauseAirSync: Boolean = true,
     val disablePrivateDns: Boolean = true,
     val interruptionMode: Int = 1,
     val callHandlingMode: Int = 0,

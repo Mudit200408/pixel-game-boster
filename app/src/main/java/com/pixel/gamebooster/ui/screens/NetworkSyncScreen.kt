@@ -24,8 +24,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.model.GameProfile
@@ -59,6 +61,7 @@ fun NetworkSyncScreen(
     val globalPreventArp by repo.isWifiPreventArp.collectAsState()
     val globalDisablePrivateDns by repo.isDisablePrivateDns.collectAsState()
     val globalPauseSync by repo.isPauseAutoSync.collectAsState()
+    val globalPauseAirSync by repo.isPauseAirSync.collectAsState()
     val globalBlockBatterySaver by repo.isBlockBatterySaver.collectAsState()
 
     val lowLatency = currentProfile?.wifiLowLatency ?: globalLowLatency
@@ -67,6 +70,7 @@ fun NetworkSyncScreen(
     val preventArp = currentProfile?.wifiPreventArp ?: globalPreventArp
     val disablePrivateDns = currentProfile?.disablePrivateDns ?: globalDisablePrivateDns
     val pauseSync = currentProfile?.pauseAutoSync ?: globalPauseSync
+    val pauseAirSync = currentProfile?.pauseAirSync ?: globalPauseAirSync
     val blockBatterySaver = currentProfile?.blockBatterySaver ?: globalBlockBatterySaver
 
     fun updateScoped(transform: (GameProfile) -> GameProfile) {
@@ -143,9 +147,14 @@ fun NetworkSyncScreen(
                 ) {
                     NetworkBackgroundSyncSection(
                         pauseSync = pauseSync,
+                        pauseAirSync = pauseAirSync,
                         onPauseSyncChange = {
                             if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
                             else repo.setPauseAutoSync(it)
+                        },
+                        onPauseAirSyncChange = {
+                            if (isScoped) updateScoped { p -> p.copy(pauseAirSync = it) }
+                            else repo.setPauseAirSync(it)
                         },
                     )
                     NetworkPowerSection(
@@ -189,9 +198,14 @@ fun NetworkSyncScreen(
 
             NetworkBackgroundSyncSection(
                 pauseSync = pauseSync,
+                pauseAirSync = pauseAirSync,
                 onPauseSyncChange = {
                     if (isScoped) updateScoped { p -> p.copy(pauseAutoSync = it) }
                     else repo.setPauseAutoSync(it)
+                },
+                onPauseAirSyncChange = {
+                    if (isScoped) updateScoped { p -> p.copy(pauseAirSync = it) }
+                    else repo.setPauseAirSync(it)
                 },
             )
             NetworkPowerSection(
@@ -282,7 +296,9 @@ private fun NetworkWifiLatencySection(
 @Composable
 private fun NetworkBackgroundSyncSection(
     pauseSync: Boolean,
+    pauseAirSync: Boolean,
     onPauseSyncChange: (Boolean) -> Unit,
+    onPauseAirSyncChange: (Boolean) -> Unit,
 ) {
     Text(
         text = stringResource(R.string.net_section_sync),
@@ -300,7 +316,17 @@ private fun NetworkBackgroundSyncSection(
             isChecked = pauseSync,
             onCheckedChange = onPauseSyncChange,
             index = 0,
-            count = 1,
+            count = 2,
+        )
+        IconToggleItem(
+            title = stringResource(R.string.net_pause_airsync_title),
+            subtitle = stringResource(R.string.net_pause_airsync_desc),
+            command = stringResource(R.string.net_pause_airsync_cmd),
+            icon = ImageVector.vectorResource(R.drawable.ic_airsync),
+            isChecked = pauseAirSync,
+            onCheckedChange = onPauseAirSyncChange,
+            index = 1,
+            count = 2,
         )
     }
 }

@@ -69,6 +69,7 @@ object GameModeManager {
     private var didLockWifiNetworkSelection = false
     private var didDisableIpReachDisconnect = false
     private var didDisablePrivateDns = false
+    private var didDisableAirSync = false
 
     private var activeGameSuspendedApps: Set<String> = emptySet()
 
@@ -139,6 +140,10 @@ object GameModeManager {
             }
         }
     }
+
+    private const val AIRSYNC_PACKAGE = "com.sameerasw.airsync"
+    private const val AIRSYNC_ACTION_PAUSE = "com.sameerasw.airsync.action.PAUSE_SYNC"
+    private const val AIRSYNC_ACTION_RESUME = "com.sameerasw.airsync.action.RESUME_SYNC"
 
     private const val PREFS_NAME = "pixel_game_booster_system_snapshot"
     private const val KEY_BACK_GESTURE_LOCKED = "back_gesture_locked"
@@ -813,6 +818,11 @@ object GameModeManager {
                 }
             }
 
+            // 12b. Pause AirSync background sync & WebDAV transfers
+            if (profile.pauseAirSync) {
+                pauseAirSync(context)
+            }
+
             withContext(Dispatchers.Main) {
                 if (repo.isGameModeToastEnabled.value) {
                     Toast.makeText(context, context.getString(R.string.game_mode_toast_activated), Toast.LENGTH_SHORT).show()
@@ -1164,6 +1174,9 @@ object GameModeManager {
                 snapshottedAutoSync = null
             }
 
+            // 10b. Resume AirSync
+            resumeAirSync(context)
+
             withContext(Dispatchers.Main) {
                 if (repo.isGameModeToastEnabled.value) {
                     Toast.makeText(context, context.getString(R.string.game_mode_toast_deactivated), Toast.LENGTH_SHORT).show()
@@ -1322,6 +1335,35 @@ object GameModeManager {
         scope.launch {
             restorePrivateDns(context)
         }
+
+        resumeAirSync(context)
+    }
+
+    private fun pauseAirSync(context: Context) {
+        runCatching {
+            val pauseIntent = Intent(AIRSYNC_ACTION_PAUSE).apply {
+                setPackage(AIRSYNC_PACKAGE)
+            }
+            context.sendBroadcast(pauseIntent)
+            didDisableAirSync = true
+            Log.d(TAG, "Sent AirSync pause broadcast")
+        }.onFailure { e ->
+            Log.e(TAG, "Failed to pause AirSync", e)
+        }
+    }
+
+    private fun resumeAirSync(context: Context) {
+        if (!didDisableAirSync) return
+        runCatching {
+            val resumeIntent = Intent(AIRSYNC_ACTION_RESUME).apply {
+                setPackage(AIRSYNC_PACKAGE)
+            }
+            context.sendBroadcast(resumeIntent)
+            Log.d(TAG, "Sent AirSync resume broadcast")
+        }.onFailure { e ->
+            Log.e(TAG, "Failed to resume AirSync", e)
+        }
+        didDisableAirSync = false
     }
 
     // --- Live Mid-Game Overlay Tile Helpers ---
@@ -1509,6 +1551,15 @@ object GameModeManager {
                 ContentResolver.setMasterSyncAutomatically(restoreTarget)
                 snapshottedAutoSync = null
             }
+        }
+    }
+
+    fun setPauseAirSyncLive(context: Context, enabled: Boolean) {
+        if (enabled) {
+            pauseAirSync(context)
+        } else {
+            didDisableAirSync = true
+            resumeAirSync(context)
         }
     }
 

@@ -51,6 +51,7 @@ class SettingsRepository(
         const val KEY_WIFI_PREVENT_ARP = "wifi_prevent_arp"
         const val KEY_BLOCK_BATTERY_SAVER = "block_battery_saver"
         const val KEY_PAUSE_AUTO_SYNC = "pause_auto_sync"
+        const val KEY_PAUSE_AIRSYNC = "pause_airsync"
         const val KEY_DISABLE_PRIVATE_DNS = "disable_private_dns"
         const val KEY_THEME_MODE = "theme_mode" // 0=System, 1=Light, 2=Dark
         const val KEY_PITCH_BLACK = "pitch_black"
@@ -117,6 +118,7 @@ class SettingsRepository(
     val isWifiPreventArp = MutableStateFlow(prefs.getBoolean(KEY_WIFI_PREVENT_ARP, true))
     val isBlockBatterySaver = MutableStateFlow(prefs.getBoolean(KEY_BLOCK_BATTERY_SAVER, true))
     val isPauseAutoSync = MutableStateFlow(prefs.getBoolean(KEY_PAUSE_AUTO_SYNC, true))
+    val isPauseAirSync = MutableStateFlow(prefs.getBoolean(KEY_PAUSE_AIRSYNC, true))
     val isDisablePrivateDns = MutableStateFlow(prefs.getBoolean(KEY_DISABLE_PRIVATE_DNS, true))
     val themeMode = MutableStateFlow(prefs.getInt(KEY_THEME_MODE, 0))
     val isPitchBlack = MutableStateFlow(prefs.getBoolean(KEY_PITCH_BLACK, false))
@@ -167,6 +169,7 @@ class SettingsRepository(
             KEY_WIFI_PREVENT_ARP -> isWifiPreventArp.value = prefs.getBoolean(KEY_WIFI_PREVENT_ARP, true)
             KEY_BLOCK_BATTERY_SAVER -> isBlockBatterySaver.value = prefs.getBoolean(KEY_BLOCK_BATTERY_SAVER, true)
             KEY_PAUSE_AUTO_SYNC -> isPauseAutoSync.value = prefs.getBoolean(KEY_PAUSE_AUTO_SYNC, true)
+            KEY_PAUSE_AIRSYNC -> isPauseAirSync.value = prefs.getBoolean(KEY_PAUSE_AIRSYNC, true)
             KEY_DISABLE_PRIVATE_DNS -> isDisablePrivateDns.value = prefs.getBoolean(KEY_DISABLE_PRIVATE_DNS, true)
             KEY_THEME_MODE -> themeMode.value = prefs.getInt(KEY_THEME_MODE, 0)
             KEY_PITCH_BLACK -> isPitchBlack.value = prefs.getBoolean(KEY_PITCH_BLACK, false)
@@ -296,6 +299,11 @@ class SettingsRepository(
     fun setPauseAutoSync(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PAUSE_AUTO_SYNC, enabled).apply()
         isPauseAutoSync.value = enabled
+    }
+
+    fun setPauseAirSync(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PAUSE_AIRSYNC, enabled).apply()
+        isPauseAirSync.value = enabled
     }
 
     fun setDisablePrivateDns(enabled: Boolean) {
@@ -478,6 +486,7 @@ class SettingsRepository(
             wifiPreventArp = isWifiPreventArp.value,
             blockBatterySaver = isBlockBatterySaver.value,
             pauseAutoSync = isPauseAutoSync.value,
+            pauseAirSync = isPauseAirSync.value,
             disablePrivateDns = isDisablePrivateDns.value,
             interruptionMode = 1,
             callHandlingMode = 0,
@@ -517,6 +526,7 @@ class SettingsRepository(
                 isWifiPreventArp,
                 isBlockBatterySaver,
                 isPauseAutoSync,
+                isPauseAirSync,
                 isDisablePrivateDns,
                 fpsOverride,
                 interventionMode,

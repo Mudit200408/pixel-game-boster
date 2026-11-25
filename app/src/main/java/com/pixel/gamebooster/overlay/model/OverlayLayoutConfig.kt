@@ -55,6 +55,7 @@ enum class OverlayTileType(val category: OverlayTileCategory) {
     WIFI_PREVENT_ARP(OverlayTileCategory.NETWORK),
     PRIVATE_DNS_BYPASS(OverlayTileCategory.NETWORK),
     PAUSE_AUTO_SYNC(OverlayTileCategory.NETWORK),
+    PAUSE_AIRSYNC(OverlayTileCategory.NETWORK),
     BLOCK_BATTERY_SAVER(OverlayTileCategory.NETWORK),
 
     // Suspension

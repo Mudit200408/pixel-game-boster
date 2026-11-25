@@ -43,6 +43,7 @@ fun OverlayTileType.labelRes(): Int = when (this) {
     OverlayTileType.WIFI_PREVENT_ARP -> R.string.net_prevent_arp_title
     OverlayTileType.PRIVATE_DNS_BYPASS -> R.string.net_disable_private_dns_title
     OverlayTileType.PAUSE_AUTO_SYNC -> R.string.net_pause_sync_title
+    OverlayTileType.PAUSE_AIRSYNC -> R.string.net_pause_airsync_title
     OverlayTileType.BLOCK_BATTERY_SAVER -> R.string.net_block_battery_saver_title
     OverlayTileType.SUSPEND_APPS -> R.string.freezer_header_title
 }
@@ -65,6 +66,7 @@ fun OverlayTileType.iconVector(): ImageVector = when (this) {
     OverlayTileType.WIFI_PREVENT_ARP -> Icons.Rounded.Security
     OverlayTileType.PRIVATE_DNS_BYPASS -> Icons.Rounded.Dns
     OverlayTileType.PAUSE_AUTO_SYNC -> Icons.Rounded.SyncDisabled
+    OverlayTileType.PAUSE_AIRSYNC -> ImageVector.vectorResource(R.drawable.ic_airsync)
     OverlayTileType.BLOCK_BATTERY_SAVER -> Icons.Rounded.BatteryChargingFull
     OverlayTileType.SUSPEND_APPS -> Icons.Rounded.Block
 }
@@ -86,6 +88,7 @@ fun OverlayTileType.isActiveIn(state: OverlayUiState): Boolean = when (this) {
     OverlayTileType.WIFI_PREVENT_ARP -> state.wifiPreventArpEnabled
     OverlayTileType.PRIVATE_DNS_BYPASS -> state.privateDnsBypassed
     OverlayTileType.PAUSE_AUTO_SYNC -> state.autoSyncPaused
+    OverlayTileType.PAUSE_AIRSYNC -> state.airSyncPaused
     OverlayTileType.BLOCK_BATTERY_SAVER -> state.batterySaverBlocked
     OverlayTileType.SUSPEND_APPS -> state.appsSuspended
 }

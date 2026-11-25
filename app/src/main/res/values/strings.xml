@@ -158,6 +158,9 @@
     <string name="net_pause_sync_title">Pause Master Auto-Sync</string>
     <string name="net_pause_sync_desc">Pauses background account sync to save bandwidth and CPU.</string>
     <string name="net_pause_sync_cmd" translatable="false">ContentResolver.setMasterSyncAutomatically(false)</string>
+    <string name="net_pause_airsync_title">Pause AirSync Transfers</string>
+    <string name="net_pause_airsync_desc">Pauses AirSync background transfers to reduce local network lag.</string>
+    <string name="net_pause_airsync_cmd" translatable="false">sendBroadcast(com.sameerasw.airsync.action.PAUSE_SYNC)</string>
     <string name="net_block_battery_saver_title">Suppress Battery Saver</string>
     <string name="net_block_battery_saver_desc">Prevents Battery Saver from slowing down your CPU while gaming.</string>
     <string name="net_block_battery_saver_cmd" translatable="false">settings put global low_power 0 &amp;&amp; cmd power set-mode 0</string>

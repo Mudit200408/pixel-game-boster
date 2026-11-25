@@ -104,6 +104,7 @@ class OverlayViewModel(
                     wifiPreventArpEnabled = initialProfile.stabilizeWifi && initialProfile.wifiPreventArp,
                     privateDnsBypassed = initialProfile.disablePrivateDns,
                     autoSyncPaused = initialProfile.pauseAutoSync,
+                    airSyncPaused = initialProfile.pauseAirSync,
                     batterySaverBlocked = initialProfile.blockBatterySaver,
                     appsSuspended = initialProfile.suspendedApps.isNotEmpty() || repository.suspendedServices.value.isNotEmpty(),
                     overlayStyle = repository.overlayStyle.value,
@@ -630,6 +631,7 @@ class OverlayViewModel(
             OverlayTileType.WIFI_PREVENT_ARP -> toggleWifiPreventArp()
             OverlayTileType.PRIVATE_DNS_BYPASS -> togglePrivateDnsBypass()
             OverlayTileType.PAUSE_AUTO_SYNC -> togglePauseAutoSync()
+            OverlayTileType.PAUSE_AIRSYNC -> togglePauseAirSync()
             OverlayTileType.BLOCK_BATTERY_SAVER -> toggleBlockBatterySaver()
             OverlayTileType.SUSPEND_APPS -> toggleAppSuspension()
         }
@@ -709,6 +711,15 @@ class OverlayViewModel(
         scope.launch(Dispatchers.IO) {
             GameModeManager.setPauseAutoSyncLive(context, target)
             updatePersistedProfile { it.copy(pauseAutoSync = target) }
+        }
+    }
+
+    fun togglePauseAirSync() {
+        val target = !_uiState.value.airSyncPaused
+        _uiState.update { it.copy(airSyncPaused = target) }
+        scope.launch(Dispatchers.IO) {
+            GameModeManager.setPauseAirSyncLive(context, target)
+            updatePersistedProfile { it.copy(pauseAirSync = target) }
         }
     }
 

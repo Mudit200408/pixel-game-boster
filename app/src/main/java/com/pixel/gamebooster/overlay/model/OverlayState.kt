@@ -32,6 +32,7 @@ data class OverlayUiState(
     val wifiPreventArpEnabled: Boolean = true,
     val privateDnsBypassed: Boolean = true,
     val autoSyncPaused: Boolean = true,
+    val airSyncPaused: Boolean = true,
     val batterySaverBlocked: Boolean = true,
     val appsSuspended: Boolean = false,
     val ramBoostActive: Boolean = false,
