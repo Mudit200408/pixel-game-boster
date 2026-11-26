@@ -15,7 +15,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.pixel.gamebooster.R
-import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.overlay.GameOverlayManager
@@ -24,6 +23,7 @@ import com.pixel.gamebooster.services.GameBoosterAccessibilityService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,9 +80,65 @@ object GameModeManager {
     private var notifiedBattery10 = false
     private var notifiedBattery5 = false
 
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pendingRestoreJob: Job? = null
     private var gameWakeLock: PowerManager.WakeLock? = null
+
+    private fun shellQuote(arg: String): String = "'${arg.replace("'", "'\\''")}'"
+
+    private data class SystemServiceRule(
+        val key: String,
+        val suspendCmd: String,
+        val restoreCmd: String,
+    )
+
+    private val systemServiceRules = listOf(
+        SystemServiceRule(
+            key = "com.google.android.aicore",
+            suspendCmd = "pm disable-user --user 0 com.google.android.aicore",
+            restoreCmd = "pm enable com.google.android.aicore",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.apps.turbo",
+            suspendCmd = "pm disable-user --user 0 com.google.android.apps.turbo && pm disable-user --user 0 com.google.android.turboadapter",
+            restoreCmd = "pm enable com.google.android.apps.turbo && pm enable com.google.android.turboadapter",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.settings.intelligence",
+            suspendCmd = "pm disable-user --user 0 com.google.android.settings.intelligence",
+            restoreCmd = "pm enable com.google.android.settings.intelligence",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.apps.scone",
+            suspendCmd = "pm disable-user --user 0 com.google.android.apps.scone",
+            restoreCmd = "pm enable com.google.android.apps.scone",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.apps.carrier.carrierwifi",
+            suspendCmd = "cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi && am force-stop com.google.android.apps.carrier.carrierwifi",
+            restoreCmd = "cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi && cmd package unstop --user 0 com.google.android.apps.carrier.carrierwifi",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.projection.gearhead",
+            suspendCmd = "cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead",
+            restoreCmd = "cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead",
+        ),
+        SystemServiceRule(
+            key = "com.google.android.as",
+            suspendCmd = "cmd package suspend --user 0 com.google.android.as && am force-stop com.google.android.as",
+            restoreCmd = "cmd package unsuspend --user 0 com.google.android.as && cmd package unstop --user 0 com.google.android.as",
+        ),
+    )
+
+    private fun buildSystemServiceCommands(services: Set<String>, suspend: Boolean): List<String> {
+        return systemServiceRules.mapNotNull { rule ->
+            if (services.contains(rule.key)) {
+                if (suspend) rule.suspendCmd else rule.restoreCmd
+            } else {
+                null
+            }
+        }
+    }
 
     private const val PREFS_NAME = "pixel_game_booster_system_snapshot"
     private const val KEY_BACK_GESTURE_LOCKED = "back_gesture_locked"
@@ -92,6 +148,13 @@ object GameModeManager {
     private const val KEY_LOW_POWER_PREV = "low_power_prev"
     private const val KEY_LOW_POWER_TRIGGER_PREV = "low_power_trigger_prev"
     private const val KEY_DISPLAY_MODE_LOCKED = "display_mode_locked"
+    private const val KEY_PRIVATE_DNS_BYPASSED = "private_dns_bypassed"
+    private const val KEY_PRIVATE_DNS_MODE_PREV = "private_dns_mode_prev"
+    private const val KEY_PRIVATE_DNS_SPECIFIER_PREV = "private_dns_specifier_prev"
+    private const val KEY_AUTO_BRIGHTNESS_DISABLED = "auto_brightness_disabled"
+    private const val KEY_AUTO_BRIGHTNESS_PREV = "auto_brightness_prev"
+    private const val KEY_SUSPENDED_APPS = "suspended_apps_snapshot"
+    private const val KEY_SUSPENDED_SERVICES = "suspended_services_snapshot"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -135,6 +198,50 @@ object GameModeManager {
 
     private fun clearDisplayModeSnapshot(context: Context) {
         getPrefs(context).edit().remove(KEY_DISPLAY_MODE_LOCKED).apply()
+    }
+
+    private fun persistPrivateDnsSnapshot(context: Context, mode: String?, specifier: String?) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_PRIVATE_DNS_BYPASSED, true)
+            .putString(KEY_PRIVATE_DNS_MODE_PREV, mode)
+            .putString(KEY_PRIVATE_DNS_SPECIFIER_PREV, specifier)
+            .apply()
+    }
+
+    private fun clearPrivateDnsSnapshot(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_PRIVATE_DNS_BYPASSED)
+            .remove(KEY_PRIVATE_DNS_MODE_PREV)
+            .remove(KEY_PRIVATE_DNS_SPECIFIER_PREV)
+            .apply()
+    }
+
+    private fun persistAutoBrightnessSnapshot(context: Context, prevMode: Int) {
+        getPrefs(context).edit()
+            .putBoolean(KEY_AUTO_BRIGHTNESS_DISABLED, true)
+            .putInt(KEY_AUTO_BRIGHTNESS_PREV, prevMode)
+            .apply()
+    }
+
+    private fun clearAutoBrightnessSnapshot(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_AUTO_BRIGHTNESS_DISABLED)
+            .remove(KEY_AUTO_BRIGHTNESS_PREV)
+            .apply()
+    }
+
+    private fun persistSuspendedPackagesSnapshot(context: Context, apps: Set<String>, services: Set<String>) {
+        getPrefs(context).edit()
+            .putStringSet(KEY_SUSPENDED_APPS, apps.toSet())
+            .putStringSet(KEY_SUSPENDED_SERVICES, services.toSet())
+            .apply()
+    }
+
+    private fun clearSuspendedPackagesSnapshot(context: Context) {
+        getPrefs(context).edit()
+            .remove(KEY_SUSPENDED_APPS)
+            .remove(KEY_SUSPENDED_SERVICES)
+            .apply()
     }
 
     fun isBackGestureSystemLocked(context: Context): Boolean {
@@ -189,11 +296,67 @@ object GameModeManager {
         }
     }
 
+    fun recoverLeakedPrivateDns(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean(KEY_PRIVATE_DNS_BYPASSED, false) && !isGameModeActive) {
+            val prevMode = prefs.getString(KEY_PRIVATE_DNS_MODE_PREV, null)
+            val prevSpecifier = prefs.getString(KEY_PRIVATE_DNS_SPECIFIER_PREV, null)
+            Log.w(TAG, "Detected dangling Private DNS bypass (prevMode=$prevMode). Recovering...")
+            snapshottedPrivateDnsMode = prevMode
+            snapshottedPrivateDnsSpecifier = prevSpecifier
+            didDisablePrivateDns = true
+            scope.launch {
+                restorePrivateDns(context)
+            }
+        }
+    }
+
+    fun recoverLeakedAutoBrightness(context: Context) {
+        val prefs = getPrefs(context)
+        if (prefs.getBoolean(KEY_AUTO_BRIGHTNESS_DISABLED, false) && !isGameModeActive) {
+            val prevMode = prefs.getInt(KEY_AUTO_BRIGHTNESS_PREV, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+            Log.w(TAG, "Detected dangling Auto-Brightness lock (prevMode=$prevMode). Recovering...")
+            scope.launch {
+                runCatching {
+                    Settings.System.putInt(context.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, prevMode)
+                }
+                ShellUtils.runCommand(context, "settings put system screen_brightness_mode $prevMode")
+                clearAutoBrightnessSnapshot(context)
+            }
+        }
+    }
+
+    fun recoverLeakedSuspendedPackages(context: Context) {
+        val prefs = getPrefs(context)
+        val apps = prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet().orEmpty()
+        val services = prefs.getStringSet(KEY_SUSPENDED_SERVICES, emptySet())?.toSet().orEmpty()
+        if ((apps.isNotEmpty() || services.isNotEmpty()) && !isGameModeActive) {
+            Log.w(TAG, "Detected dangling suspended apps/services (${apps.size} apps, ${services.size} services). Recovering...")
+            scope.launch {
+                if (apps.isNotEmpty()) {
+                    val unsuspendCmd = apps.joinToString(" && ") { pkg ->
+                        val q = shellQuote(pkg)
+                        "cmd package unsuspend --user 0 $q && cmd package unstop --user 0 $q"
+                    }
+                    ShellUtils.runCommand(context, unsuspendCmd)
+                }
+                val sysCmds = buildSystemServiceCommands(services, suspend = false)
+                if (sysCmds.isNotEmpty()) {
+                    ShellUtils.runCommand(context, sysCmds.joinToString(" && "))
+                }
+                clearSuspendedPackagesSnapshot(context)
+            }
+        }
+    }
+
     fun init(context: Context) {
         DNDManager.recoverLeakedDndState(context)
         recoverLeakedBackGestureLock(context)
         recoverLeakedBatterySaver(context)
         recoverLeakedDisplayMode(context)
+        recoverLeakedPrivateDns(context)
+        recoverLeakedAutoBrightness(context)
+        recoverLeakedSuspendedPackages(context)
     }
 
     fun onGameForeground(context: Context, packageName: String, repo: SettingsRepository) {
@@ -261,6 +424,7 @@ object GameModeManager {
                     } else {
                         currentMode
                     }
+                    persistAutoBrightnessSnapshot(context, snapshottedAutoBrightness ?: Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
 
                     runCatching {
                         Settings.System.putInt(
@@ -353,35 +517,18 @@ object GameModeManager {
             val appsToSuspend = profile.suspendedApps.filterTo(mutableSetOf()) { it != packageName }
             activeGameSuspendedApps = appsToSuspend
             if (appsToSuspend.isNotEmpty()) {
-                val suspendCmd = appsToSuspend.joinToString(" && ") { "cmd package suspend --user 0 $it && am force-stop $it" }
+                val suspendCmd = appsToSuspend.joinToString(" && ") { pkg ->
+                    val q = shellQuote(pkg)
+                    "cmd package suspend --user 0 $q && am force-stop $q"
+                }
                 ShellUtils.runCommand(context, suspendCmd)
                 Log.d(TAG, "Suspended ${appsToSuspend.size} user background apps: $appsToSuspend")
             }
 
             // 7. Freeze system services
             val servicesToSuspend = repo.suspendedServices.value
-            val sysCmds = mutableListOf<String>()
-            if (servicesToSuspend.contains("com.google.android.aicore")) {
-                sysCmds.add("pm disable-user --user 0 com.google.android.aicore")
-            }
-            if (servicesToSuspend.contains("com.google.android.apps.turbo")) {
-                sysCmds.add("pm disable-user --user 0 com.google.android.apps.turbo && pm disable-user --user 0 com.google.android.turboadapter")
-            }
-            if (servicesToSuspend.contains("com.google.android.settings.intelligence")) {
-                sysCmds.add("pm disable-user --user 0 com.google.android.settings.intelligence")
-            }
-            if (servicesToSuspend.contains("com.google.android.apps.scone")) {
-                sysCmds.add("pm disable-user --user 0 com.google.android.apps.scone")
-            }
-            if (servicesToSuspend.contains("com.google.android.apps.carrier.carrierwifi")) {
-                sysCmds.add("cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi && am force-stop com.google.android.apps.carrier.carrierwifi")
-            }
-            if (servicesToSuspend.contains("com.google.android.projection.gearhead")) {
-                sysCmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead")
-            }
-            if (servicesToSuspend.contains("com.google.android.as")) {
-                sysCmds.add("cmd package suspend --user 0 com.google.android.as && am force-stop com.google.android.as")
-            }
+            persistSuspendedPackagesSnapshot(context, appsToSuspend, servicesToSuspend)
+            val sysCmds = buildSystemServiceCommands(servicesToSuspend, suspend = true)
             if (sysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, sysCmds.joinToString(" && "))
             }
@@ -394,10 +541,11 @@ object GameModeManager {
                 else -> "performance"
             }
             val fps = profile.fpsOverride
+            val qPkg = shellQuote(packageName)
             val gameCmd = if (fps > 0) {
-                "cmd game set --downscale disable --fps $fps --mode $mode $packageName && cmd game mode $modeName $packageName"
+                "cmd game set --downscale disable --fps $fps --mode $mode $qPkg && cmd game mode $modeName $qPkg"
             } else {
-                "cmd game set --downscale disable --mode $mode $packageName && cmd game mode $modeName $packageName"
+                "cmd game set --downscale disable --mode $mode $qPkg && cmd game mode $modeName $qPkg"
             }
             ShellUtils.runCommand(context, gameCmd)
             didApplyGameIntervention = true
@@ -534,6 +682,7 @@ object GameModeManager {
                         snapshottedPrivateDnsMode = currentMode
                         snapshottedPrivateDnsSpecifier = currentSpecifier
                         didDisablePrivateDns = true
+                        persistPrivateDnsSnapshot(context, currentMode, currentSpecifier)
 
                         runCatching {
                             Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
@@ -544,6 +693,7 @@ object GameModeManager {
                         snapshottedPrivateDnsMode = "hostname"
                         snapshottedPrivateDnsSpecifier = currentSpecifier
                         didDisablePrivateDns = true
+                        persistPrivateDnsSnapshot(context, "hostname", currentSpecifier)
 
                         runCatching {
                             Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
@@ -677,10 +827,11 @@ object GameModeManager {
             3 -> "battery"
             else -> "performance"
         }
+        val qPkg = shellQuote(packageName)
         val gameCmd = if (fps > 0) {
-            "cmd game set --downscale disable --fps $fps --mode $mode $packageName && cmd game mode $modeName $packageName"
+            "cmd game set --downscale disable --fps $fps --mode $mode $qPkg && cmd game mode $modeName $qPkg"
         } else {
-            "cmd game set --downscale disable --mode $mode $packageName && cmd game mode $modeName $packageName"
+            "cmd game set --downscale disable --mode $mode $qPkg && cmd game mode $modeName $qPkg"
         }
         ShellUtils.runCommand(context, gameCmd)
     }
@@ -805,7 +956,8 @@ object GameModeManager {
 
             // 1. Reset Game Manager intervention
             if (didApplyGameIntervention) {
-                ShellUtils.runCommand(context, "cmd game reset $gamePackage && cmd game mode standard $gamePackage")
+                val qPkg = shellQuote(gamePackage)
+                ShellUtils.runCommand(context, "cmd game reset $qPkg && cmd game mode standard $qPkg")
                 didApplyGameIntervention = false
             }
 
@@ -820,38 +972,20 @@ object GameModeManager {
                 }
             }
             if (suspended.isNotEmpty()) {
-                val unsuspendCmd = suspended.joinToString(" && ") { "cmd package unsuspend --user 0 $it && cmd package unstop --user 0 $it" }
+                val unsuspendCmd = suspended.joinToString(" && ") { pkg ->
+                    val q = shellQuote(pkg)
+                    "cmd package unsuspend --user 0 $q && cmd package unstop --user 0 $q"
+                }
                 ShellUtils.runCommand(context, unsuspendCmd)
             }
             activeGameSuspendedApps = emptySet()
 
             // 3. Re-enable system services
-            val restoreSysCmds = mutableListOf<String>()
-            val services = repo.suspendedServices.value
-            if (services.contains("com.google.android.aicore")) {
-                restoreSysCmds.add("pm enable com.google.android.aicore")
-            }
-            if (services.contains("com.google.android.apps.turbo")) {
-                restoreSysCmds.add("pm enable com.google.android.apps.turbo && pm enable com.google.android.turboadapter")
-            }
-            if (services.contains("com.google.android.settings.intelligence")) {
-                restoreSysCmds.add("pm enable com.google.android.settings.intelligence")
-            }
-            if (services.contains("com.google.android.apps.scone")) {
-                restoreSysCmds.add("pm enable com.google.android.apps.scone")
-            }
-            if (services.contains("com.google.android.apps.carrier.carrierwifi")) {
-                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi && cmd package unstop --user 0 com.google.android.apps.carrier.carrierwifi")
-            }
-            if (services.contains("com.google.android.projection.gearhead")) {
-                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead")
-            }
-            if (services.contains("com.google.android.as")) {
-                restoreSysCmds.add("cmd package unsuspend --user 0 com.google.android.as && cmd package unstop --user 0 com.google.android.as")
-            }
+            val restoreSysCmds = buildSystemServiceCommands(repo.suspendedServices.value, suspend = false)
             if (restoreSysCmds.isNotEmpty()) {
                 ShellUtils.runCommand(context, restoreSysCmds.joinToString(" && "))
             }
+            clearSuspendedPackagesSnapshot(context)
 
             // 4. Restore Display Refresh Rate & Mode
             if (didLockDisplayPreferredMode) {
@@ -880,6 +1014,7 @@ object GameModeManager {
                 } finally {
                     snapshottedAutoBrightness = null
                     didDisableAutoBrightness = false
+                    clearAutoBrightnessSnapshot(context)
                 }
             }
 
@@ -990,39 +1125,7 @@ object GameModeManager {
             }
 
             // 8. Restore Private DNS
-            try {
-                val prevMode = snapshottedPrivateDnsMode
-                val prevSpecifier = snapshottedPrivateDnsSpecifier
-                val shouldRestore = didDisablePrivateDns || !prevSpecifier.isNullOrEmpty()
-
-                val targetMode = if (!prevMode.isNullOrEmpty() && prevMode != "off") {
-                    prevMode
-                } else if (!prevSpecifier.isNullOrEmpty()) {
-                    "hostname"
-                } else null
-
-                if (shouldRestore && targetMode != null) {
-                    Log.d(TAG, "Restoring Private DNS to mode=$targetMode, specifier=$prevSpecifier")
-                    runCatching {
-                        if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
-                            Settings.Global.putString(context.contentResolver, "private_dns_specifier", prevSpecifier)
-                        }
-                        Settings.Global.putString(context.contentResolver, "private_dns_mode", targetMode)
-                    }
-                    val shellCmd = if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
-                        "settings put global private_dns_specifier $prevSpecifier && settings put global private_dns_mode $targetMode"
-                    } else {
-                        "settings put global private_dns_mode $targetMode"
-                    }
-                    ShellUtils.runCommand(context, shellCmd)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to restore Private DNS", e)
-            } finally {
-                snapshottedPrivateDnsMode = null
-                snapshottedPrivateDnsSpecifier = null
-                didDisablePrivateDns = false
-            }
+            restorePrivateDns(context)
 
             // 9. Restore Battery Saver & Low Power trigger level
             batterySaverReceiver?.let {
@@ -1178,381 +1281,7 @@ object GameModeManager {
         }
     }
 
-    fun restorePrivateDnsIfDisabled(context: Context) {
-        scope.launch {
-            try {
-                val prevMode = snapshottedPrivateDnsMode
-                val prevSpecifier = snapshottedPrivateDnsSpecifier
-                val shouldRestore = didDisablePrivateDns || !prevSpecifier.isNullOrEmpty()
-
-                val targetMode = if (!prevMode.isNullOrEmpty() && prevMode != "off") {
-                    prevMode
-                } else if (!prevSpecifier.isNullOrEmpty()) {
-                    "hostname"
-                } else null
-
-                if (shouldRestore && targetMode != null) {
-                    Log.d(TAG, "Restoring Private DNS early to mode=$targetMode, specifier=$prevSpecifier")
-                    runCatching {
-                        if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
-                            Settings.Global.putString(context.contentResolver, "private_dns_specifier", prevSpecifier)
-                        }
-                        Settings.Global.putString(context.contentResolver, "private_dns_mode", targetMode)
-                    }
-                    val shellCmd = if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
-                        "settings put global private_dns_specifier $prevSpecifier && settings put global private_dns_mode $targetMode"
-                    } else {
-                        "settings put global private_dns_mode $targetMode"
-                    }
-                    ShellUtils.runCommand(context, shellCmd)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to restore Private DNS early", e)
-            } finally {
-                snapshottedPrivateDnsMode = null
-                snapshottedPrivateDnsSpecifier = null
-                didDisablePrivateDns = false
-            }
-        }
-    }
-
-    fun applyNetworkStabilization(context: Context, profile: GameProfile) {
-        if (!profile.stabilizeWifi) return
-
-        try {
-            val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-            val wifiCmds = mutableListOf<String>()
-
-            // 9a. Low-Latency Wi-Fi lock & power save bypass
-            if (profile.wifiLowLatency) {
-                if (wifiHighPerfLock == null) {
-                    @Suppress("DEPRECATION")
-                    val highPerf = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "PixelGameBooster:HighPerf")
-                    highPerf?.setReferenceCounted(false)
-                    highPerf?.acquire()
-                    wifiHighPerfLock = highPerf
-                }
-                if (wifiLowLatencyLock == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val lowLatency = wm?.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "PixelGameBooster:LowLatency")
-                    lowLatency?.setReferenceCounted(false)
-                    lowLatency?.acquire()
-                    wifiLowLatencyLock = lowLatency
-                }
-                if (snapshottedWifiPowerSave == null) {
-                    snapshottedWifiPowerSave = Settings.Global.getString(
-                        context.contentResolver,
-                        "wifi_power_save",
-                    ) ?: "UNSET"
-                }
-                wifiCmds.add("settings put global wifi_power_save 0")
-            }
-
-            // 9b. Suppress background Wi-Fi and BLE scans
-            if (profile.wifiSuppressScans) {
-                if (snapshottedWifiScanAlwaysEnabled == null) {
-                    snapshottedWifiScanAlwaysEnabled = Settings.Global.getInt(
-                        context.contentResolver,
-                        "wifi_scan_always_enabled",
-                        0,
-                    )
-                }
-                if (snapshottedBleScanAlwaysEnabled == null) {
-                    snapshottedBleScanAlwaysEnabled = Settings.Global.getInt(
-                        context.contentResolver,
-                        "ble_scan_always_enabled",
-                        0,
-                    )
-                }
-                if (snapshottedWifiWakeup == null) {
-                    snapshottedWifiWakeup = runCatching {
-                        Settings.Global.getInt(
-                            context.contentResolver,
-                            "wifi_wakeup_enabled",
-                            1,
-                        )
-                    }.getOrDefault(1)
-                }
-                if (snapshottedWifiNotification == null) {
-                    snapshottedWifiNotification = runCatching {
-                        Settings.Global.getInt(
-                            context.contentResolver,
-                            "wifi_networks_available_notification_on",
-                            1,
-                        )
-                    }.getOrDefault(1)
-                }
-                wifiCmds.add("settings put global wifi_scan_always_enabled 0")
-                wifiCmds.add("settings put global ble_scan_always_enabled 0")
-                wifiCmds.add("settings put global wifi_scan_throttle_enabled 1")
-                wifiCmds.add("settings put global wifi_wakeup_enabled 0")
-                wifiCmds.add("settings put global wifi_networks_available_notification_on 0")
-                wifiCmds.add("cmd wifi set-scan-always-available disabled")
-            }
-
-            // 9c. Lock network sufficiency & disable network scoring ping churn
-            if (profile.wifiLockSufficiency) {
-                if (snapshottedAdaptiveConnectivity == null) {
-                    snapshottedAdaptiveConnectivity = runCatching {
-                        Settings.Secure.getInt(
-                            context.contentResolver,
-                            "adaptive_connectivity_enabled",
-                            1,
-                        )
-                    }.getOrDefault(1)
-                }
-                if (snapshottedNetworkRecommendations == null) {
-                    snapshottedNetworkRecommendations = Settings.Global.getString(
-                        context.contentResolver,
-                        "network_recommendations_enabled",
-                    ) ?: "UNSET"
-                }
-                if (snapshottedNetworkAvoidBadWifi == null) {
-                    snapshottedNetworkAvoidBadWifi = Settings.Global.getString(
-                        context.contentResolver,
-                        "network_avoid_bad_wifi",
-                    ) ?: "UNSET"
-                }
-                wifiCmds.add("settings put secure adaptive_connectivity_enabled 0")
-                wifiCmds.add("settings put global network_recommendations_enabled 0")
-                wifiCmds.add("settings put global network_avoid_bad_wifi 0")
-                wifiCmds.add("cmd wifi set-network-selection-config enabled enabled -a 0")
-                didLockWifiNetworkSelection = true
-            }
-
-            // 9d. Prevent ARP disconnects
-            if (profile.wifiPreventArp) {
-                wifiCmds.add("cmd wifi set-ipreach-disconnect disabled")
-                didDisableIpReachDisconnect = true
-            }
-
-            if (wifiCmds.isNotEmpty()) {
-                ShellUtils.runCommand(context, wifiCmds.joinToString(" && "))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed Wi-Fi stabilization", e)
-        }
-
-        // 10. Disable Private DNS (DoT)
-        if (profile.disablePrivateDns) {
-            try {
-                val currentMode = Settings.Global.getString(
-                    context.contentResolver,
-                    "private_dns_mode",
-                )
-                val currentSpecifier = Settings.Global.getString(
-                    context.contentResolver,
-                    "private_dns_specifier",
-                )
-
-                if (!currentMode.isNullOrEmpty() && currentMode != "off") {
-                    snapshottedPrivateDnsMode = currentMode
-                    snapshottedPrivateDnsSpecifier = currentSpecifier
-                    didDisablePrivateDns = true
-
-                    runCatching {
-                        Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
-                    }
-                    ShellUtils.runCommand(context, "settings put global private_dns_mode off")
-                    Log.d(TAG, "Disabled Private DNS (was mode=$currentMode, specifier=$currentSpecifier)")
-                } else if (!currentSpecifier.isNullOrEmpty()) {
-                    snapshottedPrivateDnsMode = "hostname"
-                    snapshottedPrivateDnsSpecifier = currentSpecifier
-                    didDisablePrivateDns = true
-
-                    runCatching {
-                        Settings.Global.putString(context.contentResolver, "private_dns_mode", "off")
-                    }
-                    ShellUtils.runCommand(context, "settings put global private_dns_mode off")
-                    Log.d(TAG, "Disabled Private DNS (was hostname with specifier=$currentSpecifier)")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to disable private DNS", e)
-            }
-        }
-
-        // 11. Battery Saver Suppress & Continuous Defensive Receiver
-        if (profile.blockBatterySaver) {
-            try {
-                notifiedBattery20 = false
-                notifiedBattery10 = false
-                notifiedBattery5 = false
-
-                if (snapshottedLowPowerTriggerLevel == null) {
-                    snapshottedLowPowerTriggerLevel = Settings.Global.getInt(
-                        context.contentResolver,
-                        "low_power_trigger_level",
-                        0,
-                    )
-                }
-                if (snapshottedLowPower == null) {
-                    snapshottedLowPower = Settings.Global.getInt(
-                        context.contentResolver,
-                        "low_power",
-                        0,
-                    )
-                }
-
-                ShellUtils.runCommand(
-                    context,
-                    "settings put global low_power_trigger_level 0 && settings put global low_power 0 && cmd power set-mode 0",
-                )
-
-                if (batterySaverReceiver == null) {
-                    val filter = IntentFilter().apply {
-                        addAction(Intent.ACTION_BATTERY_CHANGED)
-                        addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
-                    }
-                    val receiver = object : BroadcastReceiver() {
-                        override fun onReceive(c: Context?, intent: Intent?) {
-                            if (!isGameModeActive) return
-                            when (intent?.action) {
-                                PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> {
-                                    val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-                                    if (pm?.isPowerSaveMode == true) {
-                                        ShellUtils.runCommand(
-                                            context,
-                                            "settings put global low_power 0 && cmd power set-mode 0",
-                                        )
-                                    }
-                                }
-                                Intent.ACTION_BATTERY_CHANGED -> {
-                                    val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                                    val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
-                                    val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-                                    val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                        status == BatteryManager.BATTERY_STATUS_FULL
-                                    if (isCharging) {
-                                        notifiedBattery20 = false
-                                        notifiedBattery10 = false
-                                        notifiedBattery5 = false
-                                    } else if (level >= 0 && scale > 0) {
-                                        val pct = (level * 100) / scale
-                                        if (pct > 20) {
-                                            notifiedBattery20 = false
-                                            notifiedBattery10 = false
-                                            notifiedBattery5 = false
-                                        } else if (pct in 11..20 && !notifiedBattery20) {
-                                            notifiedBattery20 = true
-                                            showToast(context, context.getString(R.string.game_mode_battery_low_20))
-                                        } else if (pct in 6..10 && !notifiedBattery10) {
-                                            notifiedBattery10 = true
-                                            showToast(context, context.getString(R.string.game_mode_battery_low_10))
-                                        } else if (pct in 1..5 && !notifiedBattery5) {
-                                            notifiedBattery5 = true
-                                            showToast(context, context.getString(R.string.game_mode_battery_low_5))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    ContextCompat.registerReceiver(
-                        context.applicationContext,
-                        receiver,
-                        filter,
-                        ContextCompat.RECEIVER_NOT_EXPORTED,
-                    )
-                    batterySaverReceiver = receiver
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to suppress battery saver", e)
-            }
-        }
-
-        // 12. Pause Master Auto-Sync
-        if (profile.pauseAutoSync) {
-            try {
-                val sync = ContentResolver.getMasterSyncAutomatically()
-                if (snapshottedAutoSync == null) snapshottedAutoSync = sync
-                if (sync) ContentResolver.setMasterSyncAutomatically(false)
-            } catch (e: SecurityException) {
-                Log.w(TAG, "SecurityException pausing auto-sync", e)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed auto-sync pause", e)
-            }
-        }
-    }
-
-    fun restoreNetworkStabilization(context: Context) {
-        wifiHighPerfLock?.let {
-            try {
-                if (it.isHeld) it.release()
-            } catch (_: Exception) { }
-        }
-        wifiHighPerfLock = null
-
-        wifiLowLatencyLock?.let {
-            try {
-                if (it.isHeld) it.release()
-            } catch (_: Exception) { }
-        }
-        wifiLowLatencyLock = null
-
-        snapshottedWifiScanAlwaysEnabled?.let { prevScan ->
-            ShellUtils.runCommand(context, "settings put global wifi_scan_always_enabled $prevScan && cmd wifi set-scan-always-available enabled")
-            snapshottedWifiScanAlwaysEnabled = null
-        }
-
-        if (didLockWifiNetworkSelection) {
-            ShellUtils.runCommand(context, "cmd wifi set-network-selection-config enabled enabled -a 0")
-            didLockWifiNetworkSelection = false
-        }
-
-        snapshottedWifiWakeup?.let { prevWakeup ->
-            ShellUtils.runCommand(context, "settings put global wifi_wakeup_enabled $prevWakeup")
-            snapshottedWifiWakeup = null
-        }
-
-        snapshottedWifiNotification?.let { prevNotif ->
-            ShellUtils.runCommand(context, "settings put global wifi_networks_available_notification_on $prevNotif")
-            snapshottedWifiNotification = null
-        }
-
-        snapshottedWifiPowerSave?.let { prevPowerSave ->
-            val cmd = if (prevPowerSave == "UNSET") {
-                "settings delete global wifi_power_save"
-            } else {
-                "settings put global wifi_power_save $prevPowerSave"
-            }
-            ShellUtils.runCommand(context, cmd)
-            snapshottedWifiPowerSave = null
-        }
-
-        if (didDisableIpReachDisconnect) {
-            ShellUtils.runCommand(context, "cmd wifi set-ipreach-disconnect enabled")
-            didDisableIpReachDisconnect = false
-        }
-
-        snapshottedBleScanAlwaysEnabled?.let { prevBle ->
-            ShellUtils.runCommand(context, "settings put global ble_scan_always_enabled $prevBle")
-            snapshottedBleScanAlwaysEnabled = null
-        }
-
-        snapshottedAdaptiveConnectivity?.let { prevAdaptive ->
-            ShellUtils.runCommand(context, "settings put secure adaptive_connectivity_enabled $prevAdaptive")
-            snapshottedAdaptiveConnectivity = null
-        }
-
-        snapshottedNetworkRecommendations?.let { prev ->
-            val cmd = if (prev == "UNSET") {
-                "settings delete global network_recommendations_enabled"
-            } else {
-                "settings put global network_recommendations_enabled $prev"
-            }
-            ShellUtils.runCommand(context, cmd)
-            snapshottedNetworkRecommendations = null
-        }
-
-        snapshottedNetworkAvoidBadWifi?.let { prev ->
-            val cmd = if (prev == "UNSET") {
-                "settings delete global network_avoid_bad_wifi"
-            } else {
-                "settings put global network_avoid_bad_wifi $prev"
-            }
-            ShellUtils.runCommand(context, cmd)
-            snapshottedNetworkAvoidBadWifi = null
-        }
-
+    private fun restorePrivateDns(context: Context) {
         try {
             val prevMode = snapshottedPrivateDnsMode
             val prevSpecifier = snapshottedPrivateDnsSpecifier
@@ -1573,9 +1302,9 @@ object GameModeManager {
                     Settings.Global.putString(context.contentResolver, "private_dns_mode", targetMode)
                 }
                 val shellCmd = if (targetMode == "hostname" && !prevSpecifier.isNullOrEmpty()) {
-                    "settings put global private_dns_specifier $prevSpecifier && settings put global private_dns_mode $targetMode"
+                    "settings put global private_dns_specifier ${shellQuote(prevSpecifier)} && settings put global private_dns_mode ${shellQuote(targetMode)}"
                 } else {
-                    "settings put global private_dns_mode $targetMode"
+                    "settings put global private_dns_mode ${shellQuote(targetMode)}"
                 }
                 ShellUtils.runCommand(context, shellCmd)
             }
@@ -1585,40 +1314,13 @@ object GameModeManager {
             snapshottedPrivateDnsMode = null
             snapshottedPrivateDnsSpecifier = null
             didDisablePrivateDns = false
+            clearPrivateDnsSnapshot(context)
         }
+    }
 
-        batterySaverReceiver?.let {
-            runCatching { context.applicationContext.unregisterReceiver(it) }
-        }
-        batterySaverReceiver = null
-        notifiedBattery20 = false
-        notifiedBattery10 = false
-        notifiedBattery5 = false
-
-        snapshottedLowPowerTriggerLevel?.let { prevTrigger ->
-            ShellUtils.runCommand(context, "settings put global low_power_trigger_level $prevTrigger")
-            snapshottedLowPowerTriggerLevel = null
-        }
-
-        snapshottedLowPower?.let { prevLowPower ->
-            if (prevLowPower == 1) {
-                ShellUtils.runCommand(context, "settings put global low_power 1 && cmd power set-mode 1")
-            }
-            snapshottedLowPower = null
-        }
-
-        snapshottedAutoSync?.let { wasActive ->
-            if (wasActive) {
-                try {
-                    ContentResolver.setMasterSyncAutomatically(true)
-                    Log.d(TAG, "Master auto-sync restored")
-                } catch (e: SecurityException) {
-                    Log.w(TAG, "SecurityException restoring auto-sync", e)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to restore auto-sync", e)
-                }
-            }
-            snapshottedAutoSync = null
+    fun restorePrivateDnsIfDisabled(context: Context) {
+        scope.launch {
+            restorePrivateDns(context)
         }
     }
 
@@ -1846,29 +1548,18 @@ object GameModeManager {
         if (suspended) {
             activeGameSuspendedApps = safeApps
             safeApps.forEach { pkg ->
-                cmds.add("cmd package suspend --user 0 $pkg && am force-stop $pkg")
+                val q = shellQuote(pkg)
+                cmds.add("cmd package suspend --user 0 $q && am force-stop $q")
             }
-            if (services.contains("com.google.android.aicore")) cmds.add("pm disable-user --user 0 com.google.android.aicore")
-            if (services.contains("com.google.android.apps.turbo")) cmds.add("pm disable-user --user 0 com.google.android.apps.turbo && pm disable-user --user 0 com.google.android.turboadapter")
-            if (services.contains("com.google.android.settings.intelligence")) cmds.add("pm disable-user --user 0 com.google.android.settings.intelligence")
-            if (services.contains("com.google.android.apps.scone")) cmds.add("pm disable-user --user 0 com.google.android.apps.scone")
-            if (services.contains("com.google.android.apps.carrier.carrierwifi")) cmds.add("cmd package suspend --user 0 com.google.android.apps.carrier.carrierwifi && am force-stop com.google.android.apps.carrier.carrierwifi")
-            if (services.contains("com.google.android.projection.gearhead")) cmds.add("cmd package suspend --user 0 com.google.android.projection.gearhead && am force-stop com.google.android.projection.gearhead")
-            if (services.contains("com.google.android.as")) cmds.add("cmd package suspend --user 0 com.google.android.as && am force-stop com.google.android.as")
         } else {
             val toUnsuspend = activeGameSuspendedApps.ifEmpty { safeApps }
             toUnsuspend.forEach { pkg ->
-                cmds.add("cmd package unsuspend --user 0 $pkg && cmd package unstop --user 0 $pkg")
+                val q = shellQuote(pkg)
+                cmds.add("cmd package unsuspend --user 0 $q && cmd package unstop --user 0 $q")
             }
             activeGameSuspendedApps = emptySet()
-            if (services.contains("com.google.android.aicore")) cmds.add("pm enable com.google.android.aicore")
-            if (services.contains("com.google.android.apps.turbo")) cmds.add("pm enable com.google.android.apps.turbo && pm enable com.google.android.turboadapter")
-            if (services.contains("com.google.android.settings.intelligence")) cmds.add("pm enable com.google.android.settings.intelligence")
-            if (services.contains("com.google.android.apps.scone")) cmds.add("pm enable com.google.android.apps.scone")
-            if (services.contains("com.google.android.apps.carrier.carrierwifi")) cmds.add("cmd package unsuspend --user 0 com.google.android.apps.carrier.carrierwifi && cmd package unstop --user 0 com.google.android.apps.carrier.carrierwifi")
-            if (services.contains("com.google.android.projection.gearhead")) cmds.add("cmd package unsuspend --user 0 com.google.android.projection.gearhead && cmd package unstop --user 0 com.google.android.projection.gearhead")
-            if (services.contains("com.google.android.as")) cmds.add("cmd package unsuspend --user 0 com.google.android.as && cmd package unstop --user 0 com.google.android.as")
         }
+        cmds.addAll(buildSystemServiceCommands(services, suspend = suspended))
         if (cmds.isNotEmpty()) {
             ShellUtils.runCommand(context, cmds.joinToString(" && "))
         }

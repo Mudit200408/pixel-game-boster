@@ -7,9 +7,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import rikka.shizuku.Shizuku
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 object ShellUtils {
     private const val TAG = "PixelGameBooster:Shell"
+    private const val COMMAND_TIMEOUT_SECONDS = 10L
     private val commandExecutor = Executors.newSingleThreadExecutor { r -> Thread(r, "gamebooster-shell") }
 
     fun isShizukuAvailable(): Boolean =
@@ -46,10 +48,14 @@ object ShellUtils {
             } else null
 
             process?.let {
-                val output = it.inputStream.bufferedReader().use { reader -> reader.readText() }.trim()
-                it.waitFor()
-                it.destroy()
-                output
+                try {
+                    val output = it.inputStream.bufferedReader().use { reader -> reader.readText() }.trim()
+                    runCatching { it.errorStream.close() }
+                    it.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    output
+                } finally {
+                    it.destroy()
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "runCommandWithOutput failed for $command", e)
@@ -89,14 +95,25 @@ object ShellUtils {
                 arrayOf("sh", "-c", command),
                 null,
                 "/",
-            )
-            val exitCode = process?.waitFor() ?: -1
-            if (exitCode != 0 && process != null) {
-                val err = process.errorStream.bufferedReader().readText()
-                Log.e(TAG, "Shizuku error ($exitCode): $err")
+            ) ?: return false
+            try {
+                // Drain stdout and stderr before waiting so full pipes cannot deadlock waitFor().
+                runCatching { process.inputStream.bufferedReader().use { it.readText() } }
+                val err = runCatching { process.errorStream.bufferedReader().use { it.readText() } }.getOrDefault("")
+                val finished = process.waitFor(COMMAND_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                if (!finished) {
+                    Log.e(TAG, "Shizuku command timed out after ${COMMAND_TIMEOUT_SECONDS}s: $command")
+                    return false
+                }
+                val exitCode = process.exitValue()
+                if (exitCode != 0) {
+                    Log.e(TAG, "Shizuku error ($exitCode): $err")
+                }
+                exitCode == 0
+            } finally {
+                process.destroy()
             }
-            exitCode == 0
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             Log.e(TAG, "Shizuku execution failed", e)
             false
         }
