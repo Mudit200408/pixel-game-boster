@@ -184,7 +184,7 @@
     <string name="settings_cd_granted">Granted</string>
     <string name="settings_app_name">Pixel Game Booster</string>
     <string name="settings_version">Version %1$s</string>
-    <string name="settings_version_fallback" translatable="false">1.0.0-beta.2</string>
+    <string name="settings_version_fallback" translatable="false">1.0.0</string>
     <string name="settings_perm_shizuku_title">Privileged Shell (Shizuku / Root)</string>
     <string name="settings_perm_shizuku_desc">Allows 120Hz locking, app freezing, and system boosts.</string>
     <string name="settings_perm_accessibility_title">Accessibility Window Trigger</string>
