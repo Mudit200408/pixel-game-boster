@@ -115,7 +115,7 @@ object GameDetectionUtils {
         return installed.filter { appInfo ->
             val pkg = appInfo.packageName
             if (pkg == context.packageName) return@filter false
-            if (PackageFilterUtils.isPackageIgnored(pkg, context, manualGameApps)) return@filter false
+            if (PackageFilterUtils.isPackageIgnored(pkg, context, manualGameApps, checkAudioMode = false)) return@filter false
 
             manualGameApps.contains(pkg) ||
                 isKnownGamePackage(pkg) ||

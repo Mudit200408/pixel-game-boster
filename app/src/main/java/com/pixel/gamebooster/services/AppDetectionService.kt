@@ -9,8 +9,8 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.IBinder
-import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.pixel.gamebooster.R
@@ -21,16 +21,22 @@ import com.pixel.gamebooster.utils.PackageFilterUtils
 
 class AppDetectionService : Service() {
     private lateinit var settingsRepository: SettingsRepository
-    private val handler = Handler(Looper.getMainLooper())
+    private lateinit var handlerThread: HandlerThread
+    private lateinit var handler: Handler
+    @Volatile
     private var isPolling = false
+    @Volatile
     private var lastPackageName: String? = null
+    @Volatile
     private var cachedForegroundPackage: String? = null
 
     companion object {
         private const val TAG = "PixelGameBooster:Detect"
         private const val CHANNEL_ID = "game_booster_detection_channel"
         private const val NOTIFICATION_ID = 2001
-        private const val POLL_INTERVAL = 500L
+        private const val POLL_INTERVAL_ACTIVE_A11Y = 2000L
+        private const val POLL_INTERVAL_FALLBACK = 750L
+        private const val USAGE_QUERY_WINDOW_MS = 60_000L
         var isRunning = false
         var instance: AppDetectionService? = null
             private set
@@ -52,7 +58,9 @@ class AppDetectionService : Service() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        settingsRepository = SettingsRepository(this)
+        handlerThread = HandlerThread("AppDetectionThread").apply { start() }
+        handler = Handler(handlerThread.looper)
+        settingsRepository = SettingsRepository.getInstance(this)
         GameModeManager.init(this)
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -70,6 +78,7 @@ class AppDetectionService : Service() {
         isPolling = false
         isRunning = false
         handler.removeCallbacksAndMessages(null)
+        handlerThread.quitSafely()
     }
 
     fun resetLastPackage() {
@@ -134,7 +143,12 @@ class AppDetectionService : Service() {
                         }
                     }
                 }
-                handler.postDelayed(this, POLL_INTERVAL)
+                val nextDelay = if (GameBoosterAccessibilityService.instance != null) {
+                    POLL_INTERVAL_ACTIVE_A11Y
+                } else {
+                    POLL_INTERVAL_FALLBACK
+                }
+                handler.postDelayed(this, nextDelay)
             }
         })
     }
@@ -144,7 +158,7 @@ class AppDetectionService : Service() {
         val time = System.currentTimeMillis()
 
         try {
-            val events = usageStatsManager.queryEvents(time - 1000 * 60 * 5, time)
+            val events = usageStatsManager.queryEvents(time - USAGE_QUERY_WINDOW_MS, time)
             val event = UsageEvents.Event()
             var lastResumedPackage: String? = null
             var lastEventTime = 0L

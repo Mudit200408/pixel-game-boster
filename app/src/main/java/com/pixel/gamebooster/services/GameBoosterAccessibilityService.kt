@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.utils.GameDetectionUtils
 import com.pixel.gamebooster.utils.GameModeManager
@@ -23,7 +24,7 @@ class GameBoosterAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        settingsRepository = SettingsRepository(this)
+        settingsRepository = SettingsRepository.getInstance(this)
         GameModeManager.init(this)
         if (settingsRepository.isBoosterEnabled.value &&
             PermissionHelper.hasUsageStatsPermission(this) &&
@@ -59,10 +60,28 @@ class GameBoosterAccessibilityService : AccessibilityService() {
         val className = event.className?.toString() ?: ""
         if (className.contains("Toast") || className.contains("TransientNotification")) return
 
-        val packageName = event.packageName?.toString()
+        val focusedAppPackage = windows
+            ?.firstOrNull { it.isFocused && it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            ?.root?.packageName?.toString()
             ?: rootInActiveWindow?.packageName?.toString()
-            ?: windows?.firstOrNull { it.isFocused }?.root?.packageName?.toString()
-            ?: return
+
+        val eventPkg = event.packageName?.toString()
+        // Ignore events from non-application overlay windows (e.g. third-party accessibility
+        // overlays or our own HUD) when an application window is focused.
+        val packageName = if (focusedAppPackage != null && eventPkg != focusedAppPackage) {
+            focusedAppPackage
+        } else {
+            eventPkg ?: focusedAppPackage ?: return
+        }
+
+        // Ignore our own in-game overlay window events while Game Mode is active unless MainActivity
+        // explicitly came to the foreground.
+        if (packageName == this.packageName &&
+            GameModeManager.isGameModeActive &&
+            !className.contains("MainActivity")
+        ) {
+            return
+        }
 
         val manualGames = settingsRepository.gameApps.value
 

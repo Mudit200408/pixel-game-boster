@@ -58,6 +58,7 @@ object PackageFilterUtils {
         packageName: String?,
         context: Context? = null,
         configuredGamePackages: Set<String> = emptySet(),
+        checkAudioMode: Boolean = true,
     ): Boolean {
         if (packageName.isNullOrBlank()) return true
 
@@ -66,7 +67,7 @@ object PackageFilterUtils {
         if (configuredGamePackages.contains(packageName)) return false
 
         // Check active call state via AudioManager mode (100ms TTL cache)
-        if (context != null) {
+        if (checkAudioMode && context != null) {
             val now = System.currentTimeMillis()
             val audioMode = if (now - cachedAudioModeTimestamp > 100L) {
                 runCatching {
