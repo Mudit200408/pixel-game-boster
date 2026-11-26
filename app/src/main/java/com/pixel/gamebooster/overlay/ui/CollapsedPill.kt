@@ -187,7 +187,6 @@ fun CollapsedPill(
                             HapticUtil.performLightHaptic(view)
                         }
                         if (dragState.isDragging) {
-                            lastInteractionTime = System.currentTimeMillis()
                             dragState.lastTargetX = (dragState.startWinX + dx).roundToInt()
                             dragState.lastTargetY = (dragState.startWinY + dy).roundToInt()
                             onDrag(dragState.lastTargetX, dragState.lastTargetY)
@@ -248,10 +247,10 @@ fun CollapsedPill(
                         dragState.longPressJob?.cancel()
                         dragState.longPressJob = null
                         dragState.longPressTriggered = false
+                        lastInteractionTime = System.currentTimeMillis()
                         if (dragState.isDragging) {
                             dragState.isDragging = false
                             isInteracting = false
-                            lastInteractionTime = System.currentTimeMillis()
                             onDragEnd(dragState.lastTargetX, dragState.lastTargetY)
                         }
                         true
@@ -261,38 +260,44 @@ fun CollapsedPill(
             },
         contentAlignment = if (isCircle) Alignment.Center else if (isDockedOnRight) Alignment.CenterEnd else Alignment.CenterStart
     ) {
-        val edgeOrigin = TransformOrigin(if (isDockedOnRight) 1f else 0f, 0.5f)
-        val enterAnim = if (isCircle) {
-            scaleIn(
-                animationSpec = spring(dampingRatio = 0.68f, stiffness = 480f),
-                initialScale = 0f,
-                transformOrigin = TransformOrigin.Center,
-            ) + fadeIn(animationSpec = tween(durationMillis = 150))
-        } else {
-            slideInHorizontally(
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 480f),
-                initialOffsetX = { w -> if (isDockedOnRight) w else -w },
-            ) + scaleIn(
-                animationSpec = spring(dampingRatio = 0.72f, stiffness = 480f),
-                initialScale = 0.2f,
-                transformOrigin = edgeOrigin,
-            ) + fadeIn(animationSpec = tween(durationMillis = 140))
+        val edgeOrigin = remember(isDockedOnRight) {
+            TransformOrigin(if (isDockedOnRight) 1f else 0f, 0.5f)
         }
-        val exitAnim = if (isCircle) {
-            scaleOut(
-                animationSpec = tween(durationMillis = 130, easing = FastOutLinearInEasing),
-                targetScale = 0f,
-                transformOrigin = TransformOrigin.Center,
-            ) + fadeOut(animationSpec = tween(durationMillis = 110))
-        } else {
-            slideOutHorizontally(
-                animationSpec = tween(durationMillis = 130, easing = FastOutLinearInEasing),
-                targetOffsetX = { w -> if (isDockedOnRight) w else -w },
-            ) + scaleOut(
-                animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing),
-                targetScale = 0.2f,
-                transformOrigin = edgeOrigin,
-            ) + fadeOut(animationSpec = tween(durationMillis = 100))
+        val enterAnim = remember(isCircle, isDockedOnRight) {
+            if (isCircle) {
+                scaleIn(
+                    animationSpec = spring(dampingRatio = 0.68f, stiffness = 480f),
+                    initialScale = 0f,
+                    transformOrigin = TransformOrigin.Center,
+                ) + fadeIn(animationSpec = tween(durationMillis = 150))
+            } else {
+                slideInHorizontally(
+                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 480f),
+                    initialOffsetX = { w -> if (isDockedOnRight) w else -w },
+                ) + scaleIn(
+                    animationSpec = spring(dampingRatio = 0.72f, stiffness = 480f),
+                    initialScale = 0.2f,
+                    transformOrigin = edgeOrigin,
+                ) + fadeIn(animationSpec = tween(durationMillis = 140))
+            }
+        }
+        val exitAnim = remember(isCircle, isDockedOnRight) {
+            if (isCircle) {
+                scaleOut(
+                    animationSpec = tween(durationMillis = 130, easing = FastOutLinearInEasing),
+                    targetScale = 0f,
+                    transformOrigin = TransformOrigin.Center,
+                ) + fadeOut(animationSpec = tween(durationMillis = 110))
+            } else {
+                slideOutHorizontally(
+                    animationSpec = tween(durationMillis = 130, easing = FastOutLinearInEasing),
+                    targetOffsetX = { w -> if (isDockedOnRight) w else -w },
+                ) + scaleOut(
+                    animationSpec = tween(durationMillis = 120, easing = FastOutLinearInEasing),
+                    targetScale = 0.2f,
+                    transformOrigin = edgeOrigin,
+                ) + fadeOut(animationSpec = tween(durationMillis = 100))
+            }
         }
 
         AnimatedVisibility(

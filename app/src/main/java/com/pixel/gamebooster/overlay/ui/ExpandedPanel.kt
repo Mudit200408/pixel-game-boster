@@ -64,6 +64,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -185,7 +186,10 @@ fun ExpandedPanel(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 val layout = state.layoutConfig
-                layout.blocks.filter { it.enabled }.forEach { block ->
+                val enabledBlocks = remember(layout.blocks) {
+                    layout.blocks.filter { it.enabled }
+                }
+                enabledBlocks.forEach { block ->
                     when (block.type) {
                         com.pixel.gamebooster.overlay.model.OverlayBlockType.TELEMETRY_PILL -> {
                             ExpandedPanelTelemetryPill(
@@ -209,12 +213,13 @@ fun ExpandedPanel(
 
                         com.pixel.gamebooster.overlay.model.OverlayBlockType.ACTION_TILES -> {
                             val tiles = layout.tiles
+                            val chunkedTiles = remember(tiles) { tiles.chunked(3) }
                             if (tiles.isNotEmpty()) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    tiles.chunked(3).forEach { rowTiles ->
+                                    chunkedTiles.forEach { rowTiles ->
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -498,16 +503,18 @@ fun ExpressiveSystemSlider(
         sliderState.value = value
         lastHapticStep = (value * 20).roundToInt()
     }
-    sliderState.onValueChange = { newValue ->
-        if (!interactive) {
-            sliderState.value = value
-        } else {
-            val newStep = (newValue * 20).roundToInt()
-            if (newStep != lastHapticStep) {
-                lastHapticStep = newStep
-                HapticUtil.performSliderHaptic(view)
+    SideEffect {
+        sliderState.onValueChange = { newValue ->
+            if (!interactive) {
+                sliderState.value = value
+            } else {
+                val newStep = (newValue * 20).roundToInt()
+                if (newStep != lastHapticStep) {
+                    lastHapticStep = newStep
+                    HapticUtil.performSliderHaptic(view)
+                }
+                onValueChange(newValue)
             }
-            onValueChange(newValue)
         }
     }
 

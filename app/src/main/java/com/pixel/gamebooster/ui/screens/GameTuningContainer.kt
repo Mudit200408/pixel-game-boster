@@ -54,7 +54,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -63,7 +62,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
@@ -74,6 +72,7 @@ import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
 import com.pixel.gamebooster.ui.sheets.SystemServicesSheet
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import com.pixel.gamebooster.ui.util.rememberAppInfo
 import kotlinx.coroutines.launch
 
 /**
@@ -100,16 +99,9 @@ fun GameTuningContainer(
     }
     val profile by repository.observeEffectiveProfile(packageName).collectAsState(initial = initialProfile)
 
-    val appInfo = remember(packageName) {
-        runCatching {
-            val info = pm.getApplicationInfo(packageName, 0)
-            val label = pm.getApplicationLabel(info).toString()
-            val icon = pm.getApplicationIcon(info)
-            label to icon
-        }.getOrNull()
-    }
-    val appName = appInfo?.first ?: packageName
-    val appIcon = appInfo?.second
+    val appInfo = rememberAppInfo(packageName, iconSizePx = 96)
+    val appName = appInfo?.label ?: packageName
+    val appIconBitmap = appInfo?.icon
 
     var currentSubTab by rememberSaveable { mutableStateOf(NavDestination.DASHBOARD) }
     var showAppSelectionSheet by rememberSaveable { mutableStateOf(false) }
@@ -152,19 +144,14 @@ fun GameTuningContainer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        if (appIcon != null) {
-                            val bitmap = remember(packageName) {
-                                runCatching { appIcon.toBitmap(96, 96).asImageBitmap() }.getOrNull()
-                            }
-                            if (bitmap != null) {
-                                Image(
-                                    bitmap = bitmap,
-                                    contentDescription = stringResource(R.string.game_tuning_cd_icon),
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                )
-                            }
+                        if (appIconBitmap != null) {
+                            Image(
+                                bitmap = appIconBitmap,
+                                contentDescription = stringResource(R.string.game_tuning_cd_icon),
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                            )
                         } else {
                             Box(
                                 modifier = Modifier

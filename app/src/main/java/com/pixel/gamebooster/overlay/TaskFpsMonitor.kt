@@ -5,12 +5,14 @@ import android.content.Context
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.IInterface
 import android.os.Parcel
 import android.util.Log
 import com.pixel.gamebooster.utils.ShellUtils
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import rikka.shizuku.ShizukuBinderWrapper
 import rikka.shizuku.SystemServiceHelper
+import java.lang.reflect.Proxy
 import kotlin.math.roundToInt
 
 /**
@@ -87,9 +89,26 @@ object TaskFpsMonitor {
             }
 
             val callbackInterface = Class.forName("android.window.ITaskFpsCallback")
-            val callbackStub = Class.forName("android.window.ITaskFpsCallback\$Stub")
-            val callbackProxy = callbackStub.getMethod("asInterface", IBinder::class.java)
-                .invoke(null, localBinder) ?: return false
+            val callbackProxy = Proxy.newProxyInstance(
+                callbackInterface.classLoader,
+                arrayOf(callbackInterface),
+            ) { proxy, method, args ->
+                when (method.name) {
+                    "asBinder" -> localBinder
+                    "onFpsReported" -> {
+                        val fps = args?.firstOrNull() as? Float
+                        if (fps != null && !fps.isNaN() && fps >= 0f) {
+                            onFps(fps.roundToInt())
+                        }
+                        null
+                    }
+                    "equals" -> proxy === args?.firstOrNull()
+                    "hashCode" -> System.identityHashCode(proxy)
+                    "toString" -> "ITaskFpsCallbackProxy($DESCRIPTOR)"
+                    else -> null
+                }
+            } as IInterface
+            localBinder.attachInterface(callbackProxy, DESCRIPTOR)
 
             val registerMethod = iwm.javaClass.getMethod(
                 "registerTaskFpsCallback",

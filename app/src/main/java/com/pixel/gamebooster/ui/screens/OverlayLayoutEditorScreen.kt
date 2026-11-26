@@ -56,6 +56,7 @@ import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -598,30 +599,38 @@ private fun OverlayLayoutLivePreview(
     // never causes other blocks to re-animate before the drop handoff completes.
     val renderedBlocks = dragSnapshotBlocks ?: activeBlocks
 
-    val baseSlotTops = remember(renderedBlocks, blockHeights.toMap(), spacingPx) {
-        computeBlockSlotTops(renderedBlocks, blockHeights, spacingPx)
+    val baseSlotTops by remember(renderedBlocks, spacingPx) {
+        derivedStateOf {
+            computeBlockSlotTops(renderedBlocks, blockHeights, spacingPx)
+        }
     }
 
     val draggedType = draggingBlock
     val dragFromIdx = if (draggedType != null) renderedBlocks.indexOfFirst { it.type == draggedType } else -1
-    val dragTargetIdx = if (draggedType != null && dragFromIdx >= 0) {
-        if (isDropping && lockedTargetIdx >= 0) {
-            lockedTargetIdx
-        } else {
-            computeBlockTargetIdx(renderedBlocks, draggedType, blockHeights, baseSlotTops, dragOffsetY.value)
+    val dragTargetIdx by remember(renderedBlocks, draggedType, dragFromIdx, isDropping, lockedTargetIdx) {
+        derivedStateOf {
+            if (draggedType != null && dragFromIdx >= 0) {
+                if (isDropping && lockedTargetIdx >= 0) {
+                    lockedTargetIdx
+                } else {
+                    computeBlockTargetIdx(renderedBlocks, draggedType, blockHeights, baseSlotTops, dragOffsetY.value)
+                }
+            } else {
+                -1
+            }
         }
-    } else {
-        -1
     }
 
-    val previewSlotTops = remember(renderedBlocks, draggedType, dragFromIdx, dragTargetIdx, blockHeights.toMap(), spacingPx) {
-        if (draggedType == null || dragFromIdx < 0 || dragTargetIdx < 0) {
-            baseSlotTops
-        } else {
-            val reordered = renderedBlocks.toMutableList()
-            val moved = reordered.removeAt(dragFromIdx)
-            reordered.add(dragTargetIdx.coerceIn(0, reordered.size), moved)
-            computeBlockSlotTops(reordered, blockHeights, spacingPx)
+    val previewSlotTops by remember(renderedBlocks, draggedType, dragFromIdx, spacingPx) {
+        derivedStateOf {
+            if (draggedType == null || dragFromIdx < 0 || dragTargetIdx < 0) {
+                baseSlotTops
+            } else {
+                val reordered = renderedBlocks.toMutableList()
+                val moved = reordered.removeAt(dragFromIdx)
+                reordered.add(dragTargetIdx.coerceIn(0, reordered.size), moved)
+                computeBlockSlotTops(reordered, blockHeights, spacingPx)
+            }
         }
     }
 
@@ -1090,23 +1099,37 @@ private fun DraggablePreviewTileGrid(
 
     val draggedTile = draggingTile
     val dragFromIdx = if (draggedTile != null) renderedTiles.indexOf(draggedTile) else -1
-    val dragTargetIdx = if (draggedTile != null && dragFromIdx >= 0) {
-        if (isDropping && lockedTargetIdx >= 0) {
-            lockedTargetIdx
-        } else {
-            computeTileTargetIdx(
-                tileCount = renderedTiles.size,
-                fromIdx = dragFromIdx,
-                colWidthPx = colWidthPx,
-                tileHeightPx = tileHeightPx,
-                hSpacingPx = hSpacingPx,
-                vSpacingPx = vSpacingPx,
-                dragOffsetX = dragOffsetX.value,
-                dragOffsetY = dragOffsetY.value,
-            )
+    val dragTargetIdx by remember(
+        renderedTiles,
+        draggedTile,
+        dragFromIdx,
+        isDropping,
+        lockedTargetIdx,
+        colWidthPx,
+        tileHeightPx,
+        hSpacingPx,
+        vSpacingPx,
+    ) {
+        derivedStateOf {
+            if (draggedTile != null && dragFromIdx >= 0) {
+                if (isDropping && lockedTargetIdx >= 0) {
+                    lockedTargetIdx
+                } else {
+                    computeTileTargetIdx(
+                        tileCount = renderedTiles.size,
+                        fromIdx = dragFromIdx,
+                        colWidthPx = colWidthPx,
+                        tileHeightPx = tileHeightPx,
+                        hSpacingPx = hSpacingPx,
+                        vSpacingPx = vSpacingPx,
+                        dragOffsetX = dragOffsetX.value,
+                        dragOffsetY = dragOffsetY.value,
+                    )
+                }
+            } else {
+                -1
+            }
         }
-    } else {
-        -1
     }
 
     val previewOrder = remember(renderedTiles, dragFromIdx, dragTargetIdx) {

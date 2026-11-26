@@ -2,6 +2,7 @@ package com.pixel.gamebooster.ui.screens
 
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -102,6 +104,7 @@ fun OverlayGesturesScreen(
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
+    val context = LocalContext.current
     val overlayStyle by repo.overlayStyle.collectAsState()
     val doubleTapAction by repo.overlayDoubleTapAction.collectAsState()
     val longTapAction by repo.overlayLongTapAction.collectAsState()
@@ -255,6 +258,7 @@ fun OverlayGesturesScreen(
                             )
 
                             RoundedCardContainer {
+                                val resources = LocalResources.current
                                 ConfigSliderItem(
                                     title = stringResource(R.string.overlay_gestures_double_tap_delay_title),
                                     subtitle = stringResource(R.string.overlay_gestures_double_tap_delay_desc),
@@ -269,7 +273,12 @@ fun OverlayGesturesScreen(
                                     valueRange = 100f..500f,
                                     steps = 15,
                                     increment = 25f,
-                                    valueFormatter = { "${it.roundToInt()} ms" },
+                                    valueFormatter = {
+                                        resources.getString(
+                                            R.string.overlay_gestures_double_tap_delay_ms,
+                                            it.roundToInt(),
+                                        )
+                                    },
                                     index = 0,
                                     count = 2,
                                 )

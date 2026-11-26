@@ -36,6 +36,9 @@ object GameOverlayManager {
     var isOverlayShowing: Boolean = false
         private set
 
+    @Volatile
+    private var isOverlayRequested: Boolean = false
+
     var windowManager: WindowManager? = null
         private set
 
@@ -64,6 +67,7 @@ object GameOverlayManager {
     private var isDraggingPill: Boolean = false
     private var appContext: Context? = null
     private var configCallbacks: ComponentCallbacks? = null
+    private var activePackageName: String? = null
 
     fun clampY(
         rawY: Int,
@@ -79,21 +83,32 @@ object GameOverlayManager {
     }
 
     fun show(context: Context, packageName: String, repo: SettingsRepository) {
+        isOverlayRequested = true
         if (Looper.myLooper() != Looper.getMainLooper()) {
             ContextCompat.getMainExecutor(context).execute {
-                show(context, packageName, repo)
+                if (isOverlayRequested) {
+                    show(context, packageName, repo)
+                }
             }
             return
         }
 
+        if (!isOverlayRequested) return
+
         if (composeView != null) {
-            Log.d(TAG, "Overlay is already showing for $packageName")
-            return
+            if (activePackageName == packageName) {
+                Log.d(TAG, "Overlay is already showing for $packageName")
+                return
+            }
+            Log.d(TAG, "Switching overlay from $activePackageName to $packageName")
+            hide()
+            isOverlayRequested = true
         }
 
         // T-02-04: Reject unverified package registrations
         if (!GameDetectionUtils.isGame(context, packageName, repo.gameApps.value)) {
             Log.w(TAG, "Rejected overlay show for unverified package: $packageName")
+            isOverlayRequested = false
             return
         }
 
@@ -101,6 +116,7 @@ object GameOverlayManager {
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         if (wm == null) {
             Log.e(TAG, "Unable to obtain WindowManager")
+            isOverlayRequested = false
             return
         }
         windowManager = wm
@@ -140,14 +156,20 @@ object GameOverlayManager {
         }
         currentParams = params
 
-        val view = ComposeView(context).apply {
+        val view = ComposeView(context.applicationContext).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
+            var lastExclusionWidth = -1
+            var lastExclusionHeight = -1
             addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
                 if (v.width > 0 && v.height > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    v.setSystemGestureExclusionRects(listOf(Rect(0, 0, v.width, v.height)))
+                    if (v.width != lastExclusionWidth || v.height != lastExclusionHeight) {
+                        lastExclusionWidth = v.width
+                        lastExclusionHeight = v.height
+                        v.setSystemGestureExclusionRects(listOf(Rect(0, 0, v.width, v.height)))
+                    }
                 }
             }
             setContent {
@@ -208,6 +230,7 @@ object GameOverlayManager {
         runCatching {
             wm.addView(view, params)
             isOverlayShowing = true
+            activePackageName = packageName
             val callbacks = object : ComponentCallbacks {
                 override fun onConfigurationChanged(newConfig: Configuration) {
                     view.post { realignCollapsedToEdge() }
@@ -510,6 +533,7 @@ object GameOverlayManager {
     }
 
     fun hide() {
+        isOverlayRequested = false
         val ctx = appContext
         if (Looper.myLooper() != Looper.getMainLooper()) {
             if (ctx != null) {
@@ -544,6 +568,7 @@ object GameOverlayManager {
         currentParams = null
         overlayViewModel = null
         isOverlayShowing = false
+        activePackageName = null
         hasUserPositionedPill = false
         isDraggingPill = false
         appContext = null

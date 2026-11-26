@@ -31,7 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -184,24 +184,6 @@ class OverlayViewModel(
             }
             .launchIn(scope)
 
-        repository.overlayDoubleTapAction
-            .onEach { action ->
-                _uiState.update { it.copy(doubleTapAction = action) }
-            }
-            .launchIn(scope)
-
-        repository.overlayLongTapAction
-            .onEach { action ->
-                _uiState.update { it.copy(longTapAction = action) }
-            }
-            .launchIn(scope)
-
-        repository.overlayDoubleTapDelayMs
-            .onEach { delayMs ->
-                _uiState.update { it.copy(doubleTapDelayMs = delayMs) }
-            }
-            .launchIn(scope)
-
         com.pixel.gamebooster.recording.ScreenRecordService.isRecording
             .onEach { recording ->
                 _uiState.update { it.copy(isRecording = recording) }
@@ -292,7 +274,7 @@ class OverlayViewModel(
                                 val now = System.nanoTime()
                                 val oneSecAgo = now - 1_000_000_000L
                                 val timestamps = lines.drop(1).mapNotNull { line ->
-                                    val parts = line.trim().split(Regex("\\s+"))
+                                    val parts = line.trim().split(WHITESPACE_REGEX)
                                     if (parts.size >= 2) {
                                         parts[1].toLongOrNull()?.takeIf { ts -> ts > 0L && ts != Long.MAX_VALUE }
                                     } else null
@@ -758,7 +740,7 @@ class OverlayViewModel(
         fpsMonitorJob?.cancel()
         telemetryJob?.cancel()
         TaskFpsMonitor.unregister()
-        scope.coroutineContext.cancelChildren()
+        scope.cancel()
     }
 
     private suspend fun updatePersistedProfile(transform: (GameProfile) -> GameProfile): GameProfile {
@@ -770,6 +752,7 @@ class OverlayViewModel(
 
     companion object {
         private const val TAG = "PixelGameBooster:OverlayVM"
+        private val WHITESPACE_REGEX = Regex("\\s+")
 
         @Volatile
         private var cachedBrightnessRange: Pair<Float, Float>? = null

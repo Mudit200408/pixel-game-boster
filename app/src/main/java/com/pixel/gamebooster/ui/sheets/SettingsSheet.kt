@@ -485,10 +485,11 @@ fun SettingsSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
-                    val appVersion = remember(context) {
+                    val fallbackVersion = stringResource(R.string.settings_version_fallback)
+                    val appVersion = remember(context, fallbackVersion) {
                         runCatching {
                             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-                        }.getOrNull().orEmpty().ifBlank { "1.0.0-beta.1" }
+                        }.getOrNull().orEmpty().ifBlank { fallbackVersion }
                     }
                     Text(
                         text = stringResource(R.string.settings_version, appVersion),
