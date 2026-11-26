@@ -42,7 +42,7 @@ class ScreenRecordTrampolineActivity : Activity() {
         @Suppress("DEPRECATION")
         overridePendingTransition(0, 0)
 
-        val repo = SettingsRepository(applicationContext)
+        val repo = SettingsRepository.getInstance(applicationContext)
         val audioSource = RecordAudioSource.fromValue(repo.recordAudioSource.value)
         val needsMic = audioSource == RecordAudioSource.MIC || audioSource == RecordAudioSource.BOTH
         val hasMicPermission = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

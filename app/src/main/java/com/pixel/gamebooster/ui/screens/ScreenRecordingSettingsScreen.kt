@@ -179,12 +179,14 @@ fun ScreenRecordingSettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = when (currentAudio) {
-                                        RecordAudioSource.MUTE -> "Captures video only with no sound"
-                                        RecordAudioSource.MIC -> "Records external voice via microphone"
-                                        RecordAudioSource.DEVICE -> "Captures internal game soundtrack"
-                                        RecordAudioSource.BOTH -> "Mixes internal game sound & mic"
-                                    },
+                                    text = stringResource(
+                                        when (currentAudio) {
+                                            RecordAudioSource.MUTE -> R.string.screen_recording_audio_mute_desc
+                                            RecordAudioSource.MIC -> R.string.screen_recording_audio_mic_desc
+                                            RecordAudioSource.DEVICE -> R.string.screen_recording_audio_device_short_desc
+                                            RecordAudioSource.BOTH -> R.string.screen_recording_audio_both_short_desc
+                                        },
+                                    ),
                                     style = TextStyle(
                                         fontFamily = GoogleSansFlexRounded,
                                         fontWeight = FontWeight.Normal,
@@ -222,12 +224,14 @@ fun ScreenRecordingSettingsScreen(
                                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                             )
                                             Text(
-                                                text = when (source) {
-                                                    RecordAudioSource.MUTE -> "Captures video only with no sound"
-                                                    RecordAudioSource.MIC -> "Records external voice via microphone"
-                                                    RecordAudioSource.DEVICE -> "Captures internal game soundtrack directly"
-                                                    RecordAudioSource.BOTH -> "Simultaneously mixes internal game sound & mic"
-                                                },
+                                                text = stringResource(
+                                                    when (source) {
+                                                        RecordAudioSource.MUTE -> R.string.screen_recording_audio_mute_desc
+                                                        RecordAudioSource.MIC -> R.string.screen_recording_audio_mic_desc
+                                                        RecordAudioSource.DEVICE -> R.string.screen_recording_audio_device_desc
+                                                        RecordAudioSource.BOTH -> R.string.screen_recording_audio_both_desc
+                                                    },
+                                                ),
                                                 style = TextStyle(
                                                     fontFamily = GoogleSansFlexRounded,
                                                     fontWeight = FontWeight.Normal,
@@ -353,11 +357,13 @@ fun ScreenRecordingSettingsScreen(
                                     color = MaterialTheme.colorScheme.onSurface,
                                 )
                                 Text(
-                                    text = when (currentResolution) {
-                                        RecordResolution.FHD_60 -> "1920x1080 @ 60 FPS • 16 Mbps high quality"
-                                        RecordResolution.FHD_30 -> "1920x1080 @ 30 FPS • 10 Mbps balanced"
-                                        RecordResolution.HD_60 -> "1280x720 @ 60 FPS • 8 Mbps performance"
-                                    },
+                                    text = stringResource(
+                                        when (currentResolution) {
+                                            RecordResolution.FHD_60 -> R.string.screen_recording_res_fhd_60_desc
+                                            RecordResolution.FHD_30 -> R.string.screen_recording_res_fhd_30_desc
+                                            RecordResolution.HD_60 -> R.string.screen_recording_res_hd_60_desc
+                                        },
+                                    ),
                                     style = TextStyle(
                                         fontFamily = GoogleSansFlexRounded,
                                         fontWeight = FontWeight.Normal,
@@ -395,11 +401,13 @@ fun ScreenRecordingSettingsScreen(
                                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                             )
                                             Text(
-                                                text = when (res) {
-                                                    RecordResolution.FHD_60 -> "1920x1080 @ 60 FPS • 16 Mbps high quality"
-                                                    RecordResolution.FHD_30 -> "1920x1080 @ 30 FPS • 10 Mbps balanced"
-                                                    RecordResolution.HD_60 -> "1280x720 @ 60 FPS • 8 Mbps performance"
-                                                },
+                                                text = stringResource(
+                                                    when (res) {
+                                                        RecordResolution.FHD_60 -> R.string.screen_recording_res_fhd_60_desc
+                                                        RecordResolution.FHD_30 -> R.string.screen_recording_res_fhd_30_desc
+                                                        RecordResolution.HD_60 -> R.string.screen_recording_res_hd_60_desc
+                                                    },
+                                                ),
                                                 style = TextStyle(
                                                     fontFamily = GoogleSansFlexRounded,
                                                     fontWeight = FontWeight.Normal,

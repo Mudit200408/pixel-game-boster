@@ -1,5 +1,6 @@
 package com.pixel.gamebooster.recording
 
+import android.annotation.SuppressLint
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioPlaybackCaptureConfiguration
@@ -38,6 +39,12 @@ class InternalAudioRecorder(
     private var isRecording = false
     private var workerThread: Thread? = null
 
+    @Volatile
+    private var internalAudioRecord: AudioRecord? = null
+
+    @Volatile
+    private var micAudioRecord: AudioRecord? = null
+
     fun start(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             Log.e(TAG, "AudioPlaybackCapture requires Android 10 (API 29)+")
@@ -54,6 +61,8 @@ class InternalAudioRecorder(
 
     fun stop() {
         isRecording = false
+        runCatching { internalAudioRecord?.stop() }
+        runCatching { micAudioRecord?.stop() }
         try {
             workerThread?.join(2000)
         } catch (e: InterruptedException) {
@@ -62,9 +71,8 @@ class InternalAudioRecorder(
         workerThread = null
     }
 
+    @SuppressLint("MissingPermission")
     private fun recordLoop() {
-        var internalAudioRecord: AudioRecord? = null
-        var micAudioRecord: AudioRecord? = null
         var codec: MediaCodec? = null
         var muxer: MediaMuxer? = null
         var audioTrackIndex = -1
@@ -90,24 +98,32 @@ class InternalAudioRecorder(
                 AudioFormat.ENCODING_PCM_16BIT
             ).coerceAtLeast(8192)
 
-            internalAudioRecord = AudioRecord.Builder()
+            val internalRecord = AudioRecord.Builder()
                 .setAudioPlaybackCaptureConfig(playbackConfig)
                 .setAudioFormat(audioFormat)
                 .setBufferSizeInBytes(minBufferSize * 2)
                 .build()
+            internalAudioRecord = internalRecord
 
-            if (internalAudioRecord.state != AudioRecord.STATE_INITIALIZED) {
+            if (internalRecord.state != AudioRecord.STATE_INITIALIZED) {
                 Log.e(TAG, "Failed to initialize internal AudioRecord")
                 return
             }
 
             if (includeMic) {
                 try {
-                    micAudioRecord = AudioRecord.Builder()
+                    val micRecord = AudioRecord.Builder()
                         .setAudioSource(MediaRecorder.AudioSource.MIC)
                         .setAudioFormat(audioFormat)
                         .setBufferSizeInBytes(minBufferSize * 2)
                         .build()
+                    if (micRecord.state == AudioRecord.STATE_INITIALIZED) {
+                        micAudioRecord = micRecord
+                    } else {
+                        Log.w(TAG, "Microphone AudioRecord not initialized, proceeding with internal audio only")
+                        micRecord.release()
+                        micAudioRecord = null
+                    }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to initialize microphone AudioRecord, proceeding with internal audio only", e)
                     micAudioRecord = null
@@ -127,8 +143,14 @@ class InternalAudioRecorder(
 
             muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
-            internalAudioRecord.startRecording()
-            micAudioRecord?.startRecording()
+            internalRecord.startRecording()
+            val activeMicRecord = micAudioRecord
+            if (activeMicRecord != null && activeMicRecord.state == AudioRecord.STATE_INITIALIZED) {
+                activeMicRecord.startRecording()
+            } else {
+                activeMicRecord?.release()
+                micAudioRecord = null
+            }
 
             val samplesPerRead = minBufferSize / 2
             val internalShorts = ShortArray(samplesPerRead)
@@ -140,25 +162,31 @@ class InternalAudioRecorder(
             var presentationTimeUs = 0L
 
             while (isRecording) {
-                val readInternal = internalAudioRecord.read(internalShorts, 0, samplesPerRead)
+                val readInternal = internalRecord.read(internalShorts, 0, samplesPerRead)
                 if (readInternal <= 0) continue
 
                 val targetShorts: ShortArray
-                if (includeMic && micAudioRecord != null) {
-                    val readMic = micAudioRecord.read(micShorts, 0, samplesPerRead)
+                val sampleCount: Int
+                val micRecord = micAudioRecord
+                if (includeMic && micRecord != null) {
+                    val readMic = micRecord.read(micShorts, 0, samplesPerRead)
                     if (readMic > 0) {
-                        AudioMixer.mixStereo16(internalShorts, micShorts, mixedShorts, minOf(readInternal, readMic))
+                        val mixedCount = minOf(readInternal, readMic)
+                        AudioMixer.mixStereo16(internalShorts, micShorts, mixedShorts, mixedCount)
                         targetShorts = mixedShorts
+                        sampleCount = mixedCount
                     } else {
                         targetShorts = internalShorts
+                        sampleCount = readInternal
                     }
                 } else {
                     targetShorts = internalShorts
+                    sampleCount = readInternal
                 }
 
                 byteBuffer.clear()
-                byteBuffer.asShortBuffer().put(targetShorts, 0, readInternal)
-                val bytesToFeed = readInternal * 2
+                byteBuffer.asShortBuffer().put(targetShorts, 0, sampleCount)
+                val bytesToFeed = sampleCount * 2
 
                 // Feed PCM buffer to MediaCodec
                 val inputIndex = codec.dequeueInputBuffer(TIMEOUT_US)
@@ -170,7 +198,7 @@ class InternalAudioRecorder(
                         byteBuffer.limit(bytesToFeed)
                         inputBuffer.put(byteBuffer)
                         codec.queueInputBuffer(inputIndex, 0, bytesToFeed, presentationTimeUs, 0)
-                        presentationTimeUs += (readInternal * 1_000_000L) / (SAMPLE_RATE * CHANNEL_COUNT)
+                        presentationTimeUs += (sampleCount * 1_000_000L) / (SAMPLE_RATE * CHANNEL_COUNT)
                     }
                 }
 
@@ -224,8 +252,10 @@ class InternalAudioRecorder(
             try {
                 internalAudioRecord?.stop()
                 internalAudioRecord?.release()
+                internalAudioRecord = null
                 micAudioRecord?.stop()
                 micAudioRecord?.release()
+                micAudioRecord = null
                 codec?.stop()
                 codec?.release()
                 if (isMuxerStarted) {

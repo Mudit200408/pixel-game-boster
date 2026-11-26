@@ -184,6 +184,7 @@
     <string name="settings_cd_granted">Granted</string>
     <string name="settings_app_name">Pixel Game Booster</string>
     <string name="settings_version">Version %1$s</string>
+    <string name="settings_version_fallback" translatable="false">1.0.0-beta.2</string>
     <string name="settings_perm_shizuku_title">Privileged Shell (Shizuku / Root)</string>
     <string name="settings_perm_shizuku_desc">Allows 120Hz locking, app freezing, and system boosts.</string>
     <string name="settings_perm_accessibility_title">Accessibility Window Trigger</string>
@@ -413,6 +414,15 @@
     <string name="screen_recording_double_tap_desc">Quickly double tap the edge bar or overlay button to stop recording</string>
     <string name="screen_recording_show_touches_title">Show Visual Touches</string>
     <string name="screen_recording_show_touches_desc">Display on-screen touch circles during gameplay recording</string>
+    <string name="screen_recording_audio_mute_desc">Captures video only with no sound</string>
+    <string name="screen_recording_audio_mic_desc">Records external voice via microphone</string>
+    <string name="screen_recording_audio_device_short_desc">Captures internal game soundtrack</string>
+    <string name="screen_recording_audio_device_desc">Captures internal game soundtrack directly</string>
+    <string name="screen_recording_audio_both_short_desc">Mixes internal game sound &amp; mic</string>
+    <string name="screen_recording_audio_both_desc">Simultaneously mixes internal game sound &amp; mic</string>
+    <string name="screen_recording_res_fhd_60_desc">1920x1080 @ 60 FPS • 16 Mbps high quality</string>
+    <string name="screen_recording_res_fhd_30_desc">1920x1080 @ 30 FPS • 10 Mbps balanced</string>
+    <string name="screen_recording_res_hd_60_desc">1280x720 @ 60 FPS • 8 Mbps performance</string>
 
     <!-- Hero Card, Navigation, Overlay & Services -->
     <string name="hero_status_active">Active · Automating performance for games</string>

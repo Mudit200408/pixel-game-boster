@@ -22,6 +22,7 @@ object ScreenRecordingMuxer {
         var videoExtractor: MediaExtractor? = null
         var audioExtractor: MediaExtractor? = null
         var muxer: MediaMuxer? = null
+        var isMuxerStarted = false
 
         return try {
             videoExtractor = MediaExtractor().apply { setDataSource(videoFile.absolutePath) }
@@ -65,17 +66,22 @@ object ScreenRecordingMuxer {
             }
 
             muxer.start()
+            isMuxerStarted = true
 
-            val buffer = ByteBuffer.allocate(BUFFER_SIZE)
+            var buffer = ByteBuffer.allocate(BUFFER_SIZE)
             val bufferInfo = MediaCodec.BufferInfo()
 
             // 1. Copy video samples
             while (true) {
+                val sampleSize = videoExtractor.sampleSize
+                if (sampleSize > buffer.capacity()) {
+                    buffer = ByteBuffer.allocate(sampleSize.toInt())
+                }
                 bufferInfo.offset = 0
                 bufferInfo.size = videoExtractor.readSampleData(buffer, 0)
                 if (bufferInfo.size < 0) break
                 bufferInfo.presentationTimeUs = videoExtractor.sampleTime
-                bufferInfo.flags = videoExtractor.sampleFlags
+                bufferInfo.flags = mapExtractorFlags(videoExtractor.sampleFlags)
                 muxer.writeSampleData(muxerVideoTrack, buffer, bufferInfo)
                 videoExtractor.advance()
             }
@@ -83,17 +89,24 @@ object ScreenRecordingMuxer {
             // 2. Copy audio samples (if available)
             if (muxerAudioTrack >= 0) {
                 while (true) {
+                    val sampleSize = audioExtractor.sampleSize
+                    if (sampleSize > buffer.capacity()) {
+                        buffer = ByteBuffer.allocate(sampleSize.toInt())
+                    }
                     bufferInfo.offset = 0
                     bufferInfo.size = audioExtractor.readSampleData(buffer, 0)
                     if (bufferInfo.size < 0) break
                     bufferInfo.presentationTimeUs = audioExtractor.sampleTime
-                    bufferInfo.flags = audioExtractor.sampleFlags
+                    bufferInfo.flags = mapExtractorFlags(audioExtractor.sampleFlags)
                     muxer.writeSampleData(muxerAudioTrack, buffer, bufferInfo)
                     audioExtractor.advance()
                 }
             }
 
-            // Delete temporary files after successful mux
+            muxer.stop()
+            isMuxerStarted = false
+
+            // Delete temporary files after muxer.stop() succeeds
             videoFile.delete()
             audioFile.delete()
             true
@@ -101,14 +114,31 @@ object ScreenRecordingMuxer {
             Log.e(TAG, "Muxing failed", e)
             false
         } finally {
+            if (isMuxerStarted) {
+                try {
+                    muxer?.stop()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error stopping muxer", e)
+                }
+            }
             try {
-                muxer?.stop()
                 muxer?.release()
             } catch (e: Exception) {
-                Log.w(TAG, "Error stopping muxer", e)
+                Log.w(TAG, "Error releasing muxer", e)
             }
             videoExtractor?.release()
             audioExtractor?.release()
         }
+    }
+
+    private fun mapExtractorFlags(sampleFlags: Int): Int {
+        var codecFlags = 0
+        if ((sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0) {
+            codecFlags = codecFlags or MediaCodec.BUFFER_FLAG_KEY_FRAME
+        }
+        if ((sampleFlags and MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME) != 0) {
+            codecFlags = codecFlags or MediaCodec.BUFFER_FLAG_PARTIAL_FRAME
+        }
+        return codecFlags
     }
 }

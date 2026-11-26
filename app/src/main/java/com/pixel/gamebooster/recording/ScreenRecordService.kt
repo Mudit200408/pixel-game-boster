@@ -103,6 +103,9 @@ class ScreenRecordService : Service() {
     private var originalShowTouches: Int = 0
     private var didChangeShowTouches: Boolean = false
 
+    @Volatile
+    private var isStopping = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -113,6 +116,10 @@ class ScreenRecordService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
+                if (isRecording.value || isStopping) {
+                    Log.w(TAG, "Ignoring duplicate ACTION_START while recording or stopping")
+                    return START_NOT_STICKY
+                }
                 val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
                 val dataIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     intent.getParcelableExtra(EXTRA_DATA_INTENT, Intent::class.java)
@@ -136,7 +143,7 @@ class ScreenRecordService : Service() {
     }
 
     private fun startRecordingInternal(resultCode: Int, data: Intent) {
-        val repo = SettingsRepository(applicationContext)
+        val repo = SettingsRepository.getInstance(applicationContext)
         val selectedAudio = RecordAudioSource.fromValue(repo.recordAudioSource.value)
         val hasMicPermission = ContextCompat.checkSelfPermission(
             this,
@@ -235,7 +242,10 @@ class ScreenRecordService : Service() {
             val projection = projectionManager.getMediaProjection(resultCode, data)
             if (projection == null) {
                 Log.e(TAG, "Failed to obtain MediaProjection instance")
+                runCatching { mediaRecorder?.release() }
+                mediaRecorder = null
                 cleanup()
+                stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return
             }
@@ -292,17 +302,30 @@ class ScreenRecordService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start screen recording pipeline", e)
             Toast.makeText(this, getString(R.string.screen_record_start_failed, e.message ?: ""), Toast.LENGTH_LONG).show()
+            runCatching { internalAudioRecorder?.stop() }
+            internalAudioRecorder = null
+            runCatching { mediaRecorder?.release() }
+            mediaRecorder = null
+            runCatching { virtualDisplay?.release() }
+            virtualDisplay = null
+            runCatching { mediaProjection?.stop() }
+            mediaProjection = null
             cleanup()
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
         }
     }
 
     private fun stopRecordingInternal() {
+        if (isStopping) {
+            return
+        }
         if (!isRecording.value && mediaRecorder == null) {
             stopSelf()
             return
         }
 
+        isStopping = true
         isRecording.value = false
         durationJob?.cancel()
 
@@ -319,19 +342,11 @@ class ScreenRecordService : Service() {
         internalAudioRecorder?.stop()
         internalAudioRecorder = null
 
-        // Stop video recorder
-        try {
-            mediaRecorder?.stop()
-        } catch (e: Exception) {
-            Log.w(TAG, "Error stopping mediaRecorder", e)
-        }
-        mediaRecorder?.release()
+        val recorder = mediaRecorder
         mediaRecorder = null
-
-        virtualDisplay?.release()
+        val display = virtualDisplay
         virtualDisplay = null
-
-        mediaProjection?.stop()
+        val projection = mediaProjection
         mediaProjection = null
 
         // Post-Mux if audio was recorded separately
@@ -340,6 +355,16 @@ class ScreenRecordService : Service() {
         val tempAud = tempAudioFile
 
         serviceScope.launch(Dispatchers.IO) {
+            // Stop video recorder on IO thread so IMediaRecorder.stop() never blocks main thread
+            try {
+                recorder?.stop()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error stopping mediaRecorder", e)
+            }
+            recorder?.release()
+            display?.release()
+            projection?.stop()
+
             if (targetFile != null) {
                 if (tempVid != null && tempAud != null && tempVid.exists() && tempAud.exists()) {
                     ScreenRecordingMuxer.mux(tempVid, tempAud, targetFile)
@@ -369,6 +394,7 @@ class ScreenRecordService : Service() {
         tempAudioFile?.delete()
         isRecording.value = false
         recordingDurationSeconds.value = 0
+        isStopping = false
     }
 
     private fun startDurationCounter() {
