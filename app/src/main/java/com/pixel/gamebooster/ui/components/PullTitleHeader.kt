@@ -34,6 +34,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.utils.HapticUtil
+import kotlin.math.roundToInt
+
+private const val PULL_TITLE_FONT_STEPS = 20
+private val pullTitleFontFamilyCache = arrayOfNulls<FontFamily>(PULL_TITLE_FONT_STEPS + 1)
+
+@OptIn(ExperimentalTextApi::class)
+private fun getPullTitleFontFamily(step: Int): FontFamily {
+    pullTitleFontFamilyCache[step]?.let { return it }
+    val quantizedFraction = step / PULL_TITLE_FONT_STEPS.toFloat()
+    val created = FontFamily(
+        Font(
+            R.font.google_sans_flex,
+            variationSettings = FontVariation.Settings(
+                FontVariation.width((100f + quantizedFraction * 20f).coerceIn(100f, 120f)),
+                FontVariation.weight((600 + (quantizedFraction * 100).toInt()).coerceIn(600, 700)),
+                FontVariation.Setting("ROND", 0f),
+            ),
+        ),
+    )
+    pullTitleFontFamilyCache[step] = created
+    return created
+}
 
 @Stable
 class PullTitleHeaderState(
@@ -110,18 +132,8 @@ fun PullTitleHeader(
 ) {
     val fraction = state.fraction
     val safeFraction = fraction.coerceIn(0f, 1f)
-    val fontFamily = remember(safeFraction) {
-        FontFamily(
-            Font(
-                R.font.google_sans_flex,
-                variationSettings = FontVariation.Settings(
-                    FontVariation.width((100f + safeFraction * 20f).coerceIn(100f, 120f)),
-                    FontVariation.weight((600 + (safeFraction * 100).toInt()).coerceIn(600, 700)),
-                    FontVariation.Setting("ROND", 0f),
-                ),
-            ),
-        )
-    }
+    val fontStep = (safeFraction * PULL_TITLE_FONT_STEPS).roundToInt().coerceIn(0, PULL_TITLE_FONT_STEPS)
+    val fontFamily = remember(fontStep) { getPullTitleFontFamily(fontStep) }
 
     Column(
         modifier = modifier

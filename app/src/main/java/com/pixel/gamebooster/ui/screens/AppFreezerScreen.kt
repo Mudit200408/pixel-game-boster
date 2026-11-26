@@ -36,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -47,7 +46,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.data.repository.SettingsRepository
@@ -56,6 +54,7 @@ import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
+import com.pixel.gamebooster.ui.util.rememberAppInfo
 import com.pixel.gamebooster.utils.HapticUtil
 import com.pixel.gamebooster.utils.ShellUtils
 import kotlinx.coroutines.CoroutineScope
@@ -235,16 +234,9 @@ private fun FreezerConfiguredAppsSection(
     } else {
         RoundedCardContainer {
             suspendedApps.toList().forEach { pkg ->
-                val appInfo = remember(pkg) {
-                    runCatching {
-                        val info = pm.getApplicationInfo(pkg, 0)
-                        val label = pm.getApplicationLabel(info).toString()
-                        val icon = pm.getApplicationIcon(info).toBitmap(96, 96).asImageBitmap()
-                        label to icon
-                    }.getOrNull()
-                }
-                val label = appInfo?.first ?: pkg
-                val iconBitmap = appInfo?.second
+                val appInfo = rememberAppInfo(pkg, iconSizePx = 96)
+                val label = appInfo?.label ?: pkg
+                val iconBitmap = appInfo?.icon
 
                 Row(
                     modifier = Modifier

@@ -1,6 +1,5 @@
 package com.pixel.gamebooster.ui.components
 
-import android.graphics.drawable.Drawable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
@@ -37,7 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -49,7 +48,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.model.GameProfile
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
@@ -63,7 +61,7 @@ import com.pixel.gamebooster.utils.HapticUtil
 fun GameLibraryCard(
     profile: GameProfile,
     appName: String,
-    icon: Drawable?,
+    iconBitmap: ImageBitmap?,
     onClick: () -> Unit,
     onLaunchClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -77,10 +75,6 @@ fun GameLibraryCard(
         animationSpec = spring(dampingRatio = 0.7f, stiffness = 400f),
         label = "gameCardScale",
     )
-
-    val iconBitmap = remember(icon) {
-        runCatching { icon?.toBitmap(128, 128)?.asImageBitmap() }.getOrNull()
-    }
 
     val statusBadgeText = when (profile.interventionMode) {
         2 -> stringResource(R.string.dash_mode_performance)

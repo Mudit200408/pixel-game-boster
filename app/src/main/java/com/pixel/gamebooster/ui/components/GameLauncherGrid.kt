@@ -35,15 +35,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.ui.util.rememberAppInfo
 
 @Composable
 fun GameLauncherGrid(
@@ -166,17 +165,11 @@ private fun GameItemCard(
     context: Context,
     modifier: Modifier = Modifier,
 ) {
-    val appInfo = remember(pkg) {
-        runCatching {
-            val info = pm.getApplicationInfo(pkg, 0)
-            val label = pm.getApplicationLabel(info).toString()
-            val icon = pm.getApplicationIcon(info).toBitmap(96, 96).asImageBitmap()
-            label to icon
-        }.getOrNull()
-    }
+    val appInfo = rememberAppInfo(pkg, iconSizePx = 96)
 
     if (appInfo != null) {
-        val (label, icon) = appInfo
+        val label = appInfo.label
+        val icon = appInfo.icon
         Column(
             modifier = modifier
                 .clip(RoundedCornerShape(16.dp))
@@ -198,13 +191,15 @@ private fun GameItemCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Image(
-                bitmap = icon,
-                contentDescription = label,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
+            if (icon != null) {
+                Image(
+                    bitmap = icon,
+                    contentDescription = label,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+            }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = label,

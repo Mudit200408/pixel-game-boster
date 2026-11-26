@@ -2,6 +2,7 @@ package com.pixel.gamebooster.ui.screens
 
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -81,6 +83,8 @@ import com.pixel.gamebooster.ui.components.PullTitleHeader
 import com.pixel.gamebooster.ui.components.rememberPullTitleHeaderState
 import com.pixel.gamebooster.ui.sheets.AppSelectionSheet
 import com.pixel.gamebooster.ui.theme.GoogleSansFlexRounded
+import com.pixel.gamebooster.ui.util.AppInfoCache
+import com.pixel.gamebooster.ui.util.CachedAppInfo
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 
@@ -116,23 +120,21 @@ fun GameLibraryScreen(
     val bottomPadding = 108.dp
     val headerState = rememberPullTitleHeaderState()
 
-    val installedGames = remember(gamePackages) {
-        gamePackages.mapNotNull { pkg ->
-            runCatching {
-                val appInfo = pm.getApplicationInfo(pkg, 0)
-                val label = pm.getApplicationLabel(appInfo).toString()
-                val icon = pm.getApplicationIcon(appInfo)
-                Triple(pkg, label, icon)
-            }.getOrNull()
-        }.sortedBy { it.second.lowercase() }
+    val installedGames by produceState(
+        initialValue = gamePackages.mapNotNull { AppInfoCache.peek(it, iconSizePx = 128) }
+            .sortedBy { it.label.lowercase() },
+        gamePackages,
+    ) {
+        value = AppInfoCache.getAll(context, gamePackages, iconSizePx = 128)
+            .sortedBy { it.label.lowercase() }
     }
 
     val filteredGames = remember(installedGames, searchQuery) {
         if (searchQuery.isBlank()) {
             installedGames
         } else {
-            installedGames.filter { (_, label, _) ->
-                label.contains(searchQuery, ignoreCase = true)
+            installedGames.filter { game ->
+                game.label.contains(searchQuery, ignoreCase = true)
             }
         }
     }
@@ -272,12 +274,14 @@ fun GameLibraryScreen(
                 }
 
                 // Configured Games items
-                items(filteredGames, key = { it.first }) { (pkg, label, icon) ->
+                items(filteredGames, key = { it.packageName }) { game ->
+                    val pkg = game.packageName
+                    val label = game.label
                     val profile = profilesMap[pkg] ?: repo.createDefaultEffectiveProfile(pkg)
                     GameLibraryCard(
                         profile = profile,
                         appName = label,
-                        icon = icon,
+                        iconBitmap = game.icon,
                         onClick = { onGameClick(pkg) },
                         onLaunchClick = {
                             val launchIntent = pm.getLaunchIntentForPackage(pkg)
@@ -287,7 +291,7 @@ fun GameLibraryScreen(
                             } else {
                                 Toast.makeText(
                                     context,
-                                    context.getString(R.string.game_library_cannot_launch, label),
+                                    context.resources.getString(R.string.game_library_cannot_launch, label),
                                     Toast.LENGTH_SHORT,
                                 ).show()
                             }

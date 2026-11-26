@@ -3,7 +3,6 @@ package com.pixel.gamebooster.ui.sheets
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,16 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.ui.util.AppInfoCache
 import com.pixel.gamebooster.ui.util.rememberAdaptiveLayoutInfo
 import com.pixel.gamebooster.utils.HapticUtil
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +61,7 @@ import kotlinx.coroutines.withContext
 data class InstalledAppItem(
     val packageName: String,
     val label: String,
-    val icon: Drawable?,
+    val icon: ImageBitmap?,
     val isSystem: Boolean,
 )
 
@@ -96,10 +95,9 @@ fun AppSelectionSheet(
             val items = packages
                 .filter { it.packageName != context.packageName }
                 .map { appInfo ->
-                    val label = pm.getApplicationLabel(appInfo).toString()
                     val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                    val icon = runCatching { pm.getApplicationIcon(appInfo) }.getOrNull()
-                    InstalledAppItem(appInfo.packageName, label, icon, isSystem)
+                    val cached = AppInfoCache.loadFromApplicationInfo(pm, appInfo, iconSizePx = 96)
+                    InstalledAppItem(appInfo.packageName, cached.label, cached.icon, isSystem)
                 }
                 .sortedBy { it.label.lowercase() }
             appsList = items
@@ -239,16 +237,11 @@ fun AppSelectionSheet(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (app.icon != null) {
-                                val bitmap = remember(app.packageName) {
-                                    runCatching { app.icon.toBitmap(96, 96).asImageBitmap() }.getOrNull()
-                                }
-                                if (bitmap != null) {
-                                    Image(
-                                        bitmap = bitmap,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(40.dp),
-                                    )
-                                }
+                                Image(
+                                    bitmap = app.icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(40.dp),
+                                )
                             }
                             Spacer(modifier = Modifier.width(12.dp))
 
