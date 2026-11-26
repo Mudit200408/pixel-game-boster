@@ -5,7 +5,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
 class Converters {
-    private val gson = Gson()
+    companion object {
+        private val gson = Gson()
+    }
 
     @TypeConverter
     fun fromStringSet(set: Set<String>?): String {
@@ -16,6 +18,8 @@ class Converters {
     fun toStringSet(json: String?): Set<String> {
         if (json.isNullOrEmpty()) return emptySet()
         val type = object : TypeToken<Set<String>>() {}.type
-        return gson.fromJson(json, type) ?: emptySet()
+        return runCatching {
+            gson.fromJson<Set<String>>(json, type) ?: emptySet()
+        }.getOrDefault(emptySet())
     }
 }
