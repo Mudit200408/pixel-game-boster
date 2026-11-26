@@ -86,6 +86,15 @@ class SettingsRepository(
             "com.google.android.projection.gearhead",
             "com.google.android.as",
         )
+
+        @Volatile
+        private var INSTANCE: SettingsRepository? = null
+
+        fun getInstance(context: Context): SettingsRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SettingsRepository(context.applicationContext).also { INSTANCE = it }
+            }
+        }
     }
 
     private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -134,15 +143,15 @@ class SettingsRepository(
         prefs.getInt(KEY_OVERLAY_DOUBLE_TAP_DELAY_MS, DEFAULT_DOUBLE_TAP_DELAY_MS).coerceIn(100, 500),
     )
 
-    val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet()) ?: emptySet())
-    val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet()) ?: emptySet())
-    val suspendedServices = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES) ?: DEFAULT_SERVICES)
+    val gameApps = MutableStateFlow(prefs.getStringSet(KEY_GAMES, emptySet())?.toSet() ?: emptySet())
+    val suspendedApps = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_APPS, emptySet())?.toSet() ?: emptySet())
+    val suspendedServices = MutableStateFlow(prefs.getStringSet(KEY_SUSPENDED_SERVICES, DEFAULT_SERVICES)?.toSet() ?: DEFAULT_SERVICES)
 
     // Strong reference retention against WeakHashMap garbage collection in SharedPreferencesImpl
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             KEY_HAS_COMPLETED_ONBOARDING -> hasCompletedOnboarding.value = prefs.getBoolean(KEY_HAS_COMPLETED_ONBOARDING, false)
-            KEY_BOOSTER_ENABLED -> isBoosterEnabled.value = prefs.getBoolean(KEY_BOOSTER_ENABLED, false)
+            KEY_BOOSTER_ENABLED -> isBoosterEnabled.value = prefs.getBoolean(KEY_BOOSTER_ENABLED, true)
             KEY_INTERVENTION_MODE -> interventionMode.value = prefs.getInt(KEY_INTERVENTION_MODE, 2)
             KEY_FPS_OVERRIDE -> fpsOverride.value = prefs.getInt(KEY_FPS_OVERRIDE, 0)
             KEY_LOCK_REFRESH_RATE -> isLockRefreshRate.value = prefs.getBoolean(KEY_LOCK_REFRESH_RATE, true)

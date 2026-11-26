@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            val repo = remember { SettingsRepository(applicationContext) }
+            val repo = remember { SettingsRepository.getInstance(applicationContext) }
             val isBoosterEnabled by repo.isBoosterEnabled.collectAsState()
 
             LaunchedEffect(Unit) {
