@@ -24,10 +24,13 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.QueryStats
 import androidx.compose.material.icons.rounded.Terminal
+import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,6 +68,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.pixel.gamebooster.R
 import com.pixel.gamebooster.data.repository.SettingsRepository
+import com.pixel.gamebooster.interruption.DNDManager
 import com.pixel.gamebooster.ui.core.cards.IconToggleItem
 import com.pixel.gamebooster.ui.core.containers.RoundedCardContainer
 import com.pixel.gamebooster.ui.core.dialogs.ShizukuPairingDialog
@@ -100,19 +104,28 @@ fun SettingsSheet(
     val isGameModeToastEnabled by repo.isGameModeToastEnabled.collectAsState()
 
     var isShizukuGranted by remember { mutableStateOf(ShellUtils.hasPermission(context)) }
+    var isDndGranted by remember { mutableStateOf(PermissionHelper.hasDndAccess(context)) }
     var isAccessibilityGranted by remember { mutableStateOf(PermissionHelper.isAccessibilityServiceEnabled(context)) }
     var isUsageStatsGranted by remember { mutableStateOf(PermissionHelper.hasUsageStatsPermission(context)) }
     var isNotificationGranted by remember { mutableStateOf(PermissionHelper.hasNotificationPermission(context)) }
+    var isOverlayGranted by remember { mutableStateOf(PermissionHelper.hasOverlayPermission(context)) }
+    var isWriteSettingsGranted by remember { mutableStateOf(PermissionHelper.hasWriteSettingsPermission(context)) }
     var showPairingDialog by remember { mutableStateOf(false) }
 
     fun refreshPermissions() {
         isShizukuGranted = ShellUtils.hasPermission(context)
+        isDndGranted = PermissionHelper.hasDndAccess(context)
         isAccessibilityGranted = PermissionHelper.isAccessibilityServiceEnabled(context)
         isUsageStatsGranted = PermissionHelper.hasUsageStatsPermission(context)
         isNotificationGranted = PermissionHelper.hasNotificationPermission(context)
+        isOverlayGranted = PermissionHelper.hasOverlayPermission(context)
+        isWriteSettingsGranted = PermissionHelper.hasWriteSettingsPermission(context)
     }
 
     DisposableEffect(lifecycleOwner) {
+        val shizukuHandle = PermissionHelper.registerShizukuListeners {
+            refreshPermissions()
+        }
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshPermissions()
@@ -121,6 +134,7 @@ fun SettingsSheet(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            PermissionHelper.unregisterShizukuListeners(shizukuHandle)
         }
     }
 
@@ -133,9 +147,28 @@ fun SettingsSheet(
             icon = Icons.Rounded.Terminal,
             onFix = {
                 if (ShellUtils.isShizukuAvailable()) {
-                    showPairingDialog = true
+                    PermissionHelper.requestShizukuPermission()
                 } else {
                     showPairingDialog = true
+                }
+            },
+        ),
+        PermissionItem(
+            id = "dnd",
+            title = stringResource(R.string.perm_dnd_title),
+            description = stringResource(R.string.perm_dnd_desc),
+            isGranted = isDndGranted,
+            icon = Icons.Rounded.DoNotDisturbOn,
+            onFix = {
+                if (isShizukuGranted) {
+                    PermissionHelper.grantDndAccessViaShizuku(context) { granted ->
+                        if (granted) {
+                            DNDManager.getOrCreateGamingZenRuleId(context)
+                        }
+                        refreshPermissions()
+                    }
+                } else {
+                    PermissionHelper.openDndSettings(context)
                 }
             },
         ),
@@ -162,6 +195,38 @@ fun SettingsSheet(
             isGranted = isNotificationGranted,
             icon = Icons.Rounded.Notifications,
             onFix = { PermissionHelper.openNotificationSettings(context) },
+        ),
+        PermissionItem(
+            id = "overlay",
+            title = stringResource(R.string.perm_overlay_title),
+            description = stringResource(R.string.perm_overlay_desc),
+            isGranted = isOverlayGranted,
+            icon = Icons.Rounded.Layers,
+            onFix = {
+                if (isShizukuGranted) {
+                    PermissionHelper.grantOverlayPermissionViaShizuku(context) {
+                        refreshPermissions()
+                    }
+                } else {
+                    PermissionHelper.openOverlaySettings(context)
+                }
+            },
+        ),
+        PermissionItem(
+            id = "write_settings",
+            title = stringResource(R.string.perm_write_settings_title),
+            description = stringResource(R.string.perm_write_settings_desc),
+            isGranted = isWriteSettingsGranted,
+            icon = Icons.Rounded.Tune,
+            onFix = {
+                if (isShizukuGranted) {
+                    PermissionHelper.grantWriteSettingsViaShizuku(context) {
+                        refreshPermissions()
+                    }
+                } else {
+                    PermissionHelper.openWriteSettings(context)
+                }
+            },
         ),
     )
 

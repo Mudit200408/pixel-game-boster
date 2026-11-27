@@ -61,6 +61,9 @@ fun PermissionHealthBanner(
     }
 
     DisposableEffect(lifecycleOwner) {
+        val shizukuHandle = PermissionHelper.registerShizukuListeners {
+            refreshHealth()
+        }
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 refreshHealth()
@@ -69,6 +72,7 @@ fun PermissionHealthBanner(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+            PermissionHelper.unregisterShizukuListeners(shizukuHandle)
         }
     }
 

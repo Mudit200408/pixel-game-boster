@@ -21,11 +21,34 @@ object PermissionHelper {
     const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
     const val SHIZUKU_URL = "https://shizuku.rikka.app"
 
+    data class ShizukuListenerHandle(
+        val binderReceived: Shizuku.OnBinderReceivedListener,
+        val binderDead: Shizuku.OnBinderDeadListener,
+        val permissionResult: Shizuku.OnRequestPermissionResultListener,
+    )
+
     fun initShizuku(onStateChanged: () -> Unit) {
+        registerShizukuListeners(onStateChanged)
+    }
+
+    fun registerShizukuListeners(onStateChanged: () -> Unit): ShizukuListenerHandle? {
+        return runCatching {
+            val binderReceived = Shizuku.OnBinderReceivedListener { onStateChanged() }
+            val binderDead = Shizuku.OnBinderDeadListener { onStateChanged() }
+            val permissionResult = Shizuku.OnRequestPermissionResultListener { _, _ -> onStateChanged() }
+            Shizuku.addBinderReceivedListener(binderReceived)
+            Shizuku.addBinderDeadListener(binderDead)
+            Shizuku.addRequestPermissionResultListener(permissionResult)
+            ShizukuListenerHandle(binderReceived, binderDead, permissionResult)
+        }.getOrNull()
+    }
+
+    fun unregisterShizukuListeners(handle: ShizukuListenerHandle?) {
+        if (handle == null) return
         runCatching {
-            Shizuku.addBinderReceivedListener { onStateChanged() }
-            Shizuku.addBinderDeadListener { onStateChanged() }
-            Shizuku.addRequestPermissionResultListener { _, _ -> onStateChanged() }
+            Shizuku.removeBinderReceivedListener(handle.binderReceived)
+            Shizuku.removeBinderDeadListener(handle.binderDead)
+            Shizuku.removeRequestPermissionResultListener(handle.permissionResult)
         }
     }
 
@@ -35,9 +58,35 @@ object PermissionHelper {
         }
     }
 
+    private fun findShizukuPackage(context: Context): String? {
+        val pm = context.packageManager
+        if (pm.getLaunchIntentForPackage(SHIZUKU_PACKAGE) != null) {
+            return SHIZUKU_PACKAGE
+        }
+        // Many Shizuku forks keep the standard provider authority even with a different package name
+        val providerPkg = runCatching {
+            pm.resolveContentProvider("$SHIZUKU_PACKAGE.shizuku", 0)?.packageName
+        }.getOrNull()
+        if (!providerPkg.isNullOrBlank() && pm.getLaunchIntentForPackage(providerPkg) != null) {
+            return providerPkg
+        }
+        val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+        val candidates = runCatching {
+            pm.queryIntentActivities(launcherIntent, 0)
+        }.getOrDefault(emptyList())
+        return candidates
+            .mapNotNull { it.activityInfo?.packageName }
+            .firstOrNull { pkg ->
+                pkg != context.packageName && pkg.contains("shizuku", ignoreCase = true)
+            }
+    }
+
     fun launchShizuku(context: Context) {
-        val launchIntent = context.packageManager.getLaunchIntentForPackage(SHIZUKU_PACKAGE)?.apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        val targetPackage = findShizukuPackage(context)
+        val launchIntent = targetPackage?.let {
+            context.packageManager.getLaunchIntentForPackage(it)?.apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
         }
         if (launchIntent != null) {
             context.startActivity(launchIntent)
