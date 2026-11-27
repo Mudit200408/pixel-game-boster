@@ -50,12 +50,22 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Prepare release asset
+      - name: Prepare release asset and changelog notes
         id: asset
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           ASSET_NAME="pixel-game-booster-${TAG}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$ASSET_NAME"
+          python3 -c '
+          import re, sys
+          tag = sys.argv[1]
+          ver = tag.lstrip("v")
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          pattern = rf"^##\s+\[?(?:v?{re.escape(ver)}|{re.escape(tag)})\]?.*?\n(.*?)(?=^##\s|\Z)"
+          m = re.search(pattern, text, re.M | re.S)
+          notes = m.group(1).strip() if m and m.group(1).strip() else f"Release {tag}"
+          open("release_notes.md", "w", encoding="utf-8").write(notes + "\n")
+          ' "$TAG"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "file=$ASSET_NAME" >> "$GITHUB_OUTPUT"
 
@@ -64,5 +74,5 @@ jobs:
         with:
           tag_name: ${{ steps.asset.outputs.tag }}
           name: ${{ steps.asset.outputs.tag }}
-          generate_release_notes: true
+          body_path: release_notes.md
           files: ${{ steps.asset.outputs.file }}
